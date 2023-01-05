@@ -13,9 +13,7 @@ import jax.random as rnd
 import optax
 import matplotlib.pyplot as plt
 from drawnow import drawnow
-#import time
-#from matplotlib.animation import FuncAnimation
-jax.config.update('jax_platform_name', 'cpu')
+#jax.config.update('jax_platform_name', 'cpu')
 
 # fnc definitions
 @jit
@@ -185,7 +183,7 @@ def main():
     jax.lax.stop_gradient(theta["ENV"])
     
     # main() params
-    EPOCHS = 200
+    EPOCHS = 20
     IT = 20
     VMAPS = 20
     UPDATE = jnp.float32(0.001)
