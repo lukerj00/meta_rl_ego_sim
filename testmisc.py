@@ -4,9 +4,11 @@ Created on Thu Oct 27 14:42:30 2022
 
 @author: lukej
 """
-import pygame
+#import pygame
 import numpy as np
 import matplotlib.pyplot as plt
+import jax.numpy as jnp
+import jax.random as rnd
 
 R = 5
 num_points = 10000
@@ -74,3 +76,26 @@ y = r*np.sin(np.random.uniform(0, 2*np.pi))
 print(np.random.uniform(0, 300) ** 0.5)
 print(np.random.uniform(0, 2*np.pi))
 print(r,x,y)
+
+###
+KEY_INIT = rnd.PRNGKey(1)
+ki = rnd.split(KEY_INIT,num=50)
+N_DOTS = 3
+EPOCHS = 10
+a = jnp.eye(N_DOTS)[rnd.choice(ki[8],N_DOTS-2,(EPOCHS-8))]
+print(a)
+
+KEY_INIT = rnd.PRNGKey(1)
+ki = rnd.split(KEY_INIT,num=50)
+N_DOTS = 3
+EPOCHS = 10
+b = jnp.eye(N_DOTS)[rnd.choice(ki[8],N_DOTS,(EPOCHS,))]
+print(b[7,:].shape)
+
+q = jnp.arange(2).reshape([1,2])
+print(q)
+
+def abs_dist(e_t):
+    return jnp.sqrt(e_t[:,0]**2+e_t[:,1]**2)
+
+print(abs_dist(q).shape)

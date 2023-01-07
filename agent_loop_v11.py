@@ -183,22 +183,24 @@ def main():
     jax.lax.stop_gradient(theta["ENV"])
     
     # main() params
-    EPOCHS = 20
-    IT = 20
-    VMAPS = 20
-    UPDATE = jnp.float32(0.001)
+    EPOCHS = 50
+    IT = 25
+    VMAPS = 100
+    UPDATE = jnp.float32(0.003)
     R_arr = jnp.empty(EPOCHS)*jnp.nan
+    var_arr = jnp.empty(EPOCHS)*jnp.nan
     optimizer = optax.adam(learning_rate=UPDATE)
     opt_state = optimizer.init(theta["GRU"])
     ke = rnd.split(KEY_DOT,num=EPOCHS)
 
     #plt.ion()
     plt.figure()
+
     def fig_():
-        plt.plot(R_arr)
+        plt.errorbar(jnp.arange(EPOCHS),R_arr,yerr=var_arr/2,ecolor="black",elinewidth=0.5,capsize=1.5)
         plt.show(block=False)
-        title_ = "it = " + str(IT) + ", epochs = " + str(EPOCHS) + ", vmaps = " + str(VMAPS) + ", update = " + str(UPDATE) #title_ = "NO UPDATE (control) "
-        plt.title(title_)
+        title_ = "epochs = " + str(EPOCHS) + ", it = " + str(IT) + ", vmaps = " + str(VMAPS) + ", update = " + str(UPDATE) #title_ = "NO UPDATE (control) "
+        plt.title(title_,fontsize=10)
         plt.xlabel('Iteration')
         plt.ylabel('Reward')
         
@@ -216,8 +218,8 @@ def main():
         val_grad_vmap = jax.vmap(jax.value_and_grad(tot_reward,argnums=2,allow_int=True),in_axes=(2,None,None,None,None),out_axes=(0,0))
         R_tot,grads = val_grad_vmap(e0,h0,theta,eps,IT)
         grads_ = jax.tree_util.tree_map(lambda g: jnp.mean(g,axis=0), grads["GRU"])
-        R_mean = jnp.mean(R_tot);
-        R_arr = R_arr.at[e].set(R_mean);
+        R_arr = R_arr.at[e].set(jnp.mean(R_tot))
+        var_arr = var_arr.at[e].set(jnp.std(R_tot))
         print(grads_["Wr_h"])
         
         # update theta
