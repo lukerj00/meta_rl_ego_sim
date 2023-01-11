@@ -13,6 +13,8 @@ import jax.random as rnd
 import optax
 import matplotlib.pyplot as plt
 from drawnow import drawnow
+import sys
+import csv
 #jax.config.update('jax_platform_name', 'cpu')
 
 # fnc definitions
@@ -63,7 +65,15 @@ def new_env(e_t_1,v_t):
 
 @jit
 def abs_dist(e_t):
-    return jnp.sqrt(e_t[:,0]**2+e_t[:,1]**2)
+    e_t_ = (e_t + jnp.pi)%(2*jnp.pi)-jnp.pi
+    return jnp.sqrt(e_t_[:,0]**2+e_t_[:,1]**2)
+
+def csv_write(data):
+    data = data.ravel()
+    print("********************dis:",data)
+    with open('csv_test.csv','a',newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(data)
 
 @jit
 def single_step(EHT_t_1,eps_t): 
@@ -122,7 +132,8 @@ def tot_reward(e0,h0,theta,eps,IT):
     EHT_0 = (e0,h0,theta)
     EHT_,R_dis = jax.lax.scan(single_step,EHT_0,eps,length=IT) # [final carry,stacked R_dis]
     R_t,dis = R_dis
-    print("dis:",dis) # theta["ENV"]["DIS"] = dis #print(dis.shape)
+    csv_write(dis)
+    #print("********************dis:",dis) # theta["ENV"]["DIS"] = dis #print(dis.shape)
     return jnp.sum(R_t) # return jnp.sum(R_t) # R_tot
 
 # main routine
@@ -146,7 +157,7 @@ def main():
     INIT = jnp.float32(0.2)
 
     # main() params
-    EPOCHS = 50
+    EPOCHS = 5
     IT = 25
     VMAPS = 100
     UPDATE = jnp.float32(0.003)
