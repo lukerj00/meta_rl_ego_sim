@@ -92,10 +92,11 @@ EPOCHS = 10
 b = jnp.eye(N_DOTS)[rnd.choice(ki[8],N_DOTS,(EPOCHS,))]
 print(b[7,:].shape)
 
-q = jnp.arange(2).reshape([1,2])
+q = jnp.arange(10).reshape([5,2])
 print(q)
 
 def abs_dist(e_t):
-    return jnp.sqrt(e_t[:,0]**2+e_t[:,1]**2)
+    e_t_ = (e_t + jnp.pi)%(2*jnp.pi)-jnp.pi
+    return jnp.sqrt(e_t_[:,0]**2+e_t_[:,1]**2)
 
-print(abs_dist(q).shape)
+print(abs_dist(q))
