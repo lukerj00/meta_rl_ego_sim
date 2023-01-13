@@ -5,17 +5,18 @@ Created on Fri Jan  7 13:52:37 2023
 @author: lukej
 """
 
-# import numpy as np
+import numpy as np
 import jax
 import jax.numpy as jnp
 from jax import jit
 import jax.random as rnd
+from jax.experimental.host_callback import call
 import optax
 import matplotlib.pyplot as plt
 from drawnow import drawnow
 import sys
 import csv
-#jax.config.update('jax_platform_name', 'cpu')
+jax.config.update('jax_platform_name', 'cpu')
 
 # fnc definitions
 @jit
@@ -69,11 +70,14 @@ def abs_dist(e_t):
     return jnp.sqrt(e_t_[:,0]**2+e_t_[:,1]**2)
 
 def csv_write(data):
-    data = data.ravel()
-    print("********************dis:",data)
-    with open('csv_test.csv','a',newline='') as file:
+    data = data.ravel() # data = np.asarray(data)
+    print("*****************************dis:",data) # call(lambda x: print(f"x: {x}"), data) # jax.debug.print(";;;;;;;;;;;;;;;;;;;;;;;;;;;;",data)
+    with open('csv_test2.csv','a',newline='') as file:
         writer = csv.writer(file)
         writer.writerow(data)
+
+def npy_write(data):
+    jnp.save("test_npy.npy",data)
 
 @jit
 def single_step(EHT_t_1,eps_t): 
@@ -133,7 +137,8 @@ def tot_reward(e0,h0,theta,eps,IT):
     EHT_,R_dis = jax.lax.scan(single_step,EHT_0,eps,length=IT) # [final carry,stacked R_dis]
     R_t,dis = R_dis
     csv_write(dis)
-    #print("********************dis:",dis) # theta["ENV"]["DIS"] = dis #print(dis.shape)
+    # print("&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&",type(dis.ravel()),dis.ravel().shape)
+    # print("********************dis:",dis) # theta["ENV"]["DIS"] = dis #print(dis.shape)
     return jnp.sum(R_t) # return jnp.sum(R_t) # R_tot
 
 # main routine
