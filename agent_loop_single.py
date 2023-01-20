@@ -245,8 +245,7 @@ def main():
         grads_ = jax.tree_util.tree_map(lambda g: jnp.mean(g,axis=0), grads["GRU"])
         R_arr = R_arr.at[e].set(jnp.mean(R_tot))
         var_arr = var_arr.at[e].set(jnp.std(R_tot))
-        # print("GRADS:",grads_["C"])
-        # print("....................................................................DIS:",theta["ENV"]["DIS"][5])
+        # print("GRADS:",grads_["C"]) # print("DIS:",theta["ENV"]["DIS"][5])
         
         # update theta
         update, opt_state = optimizer.update(grads_, opt_state, theta["GRU"])
@@ -259,4 +258,3 @@ def main():
     
 if __name__ == "__main__":
     main() 
-
