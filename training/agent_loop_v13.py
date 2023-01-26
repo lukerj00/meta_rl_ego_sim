@@ -148,12 +148,13 @@ def single_step(EHT_t_1,eps):
     
     return (EHT_t,R_dis)
 
-def tot_reward(e0,h0,theta,sel,eps): #sel
+def tot_reward(e0,h0,theta,sel,eps,epoch): #sel
     EHT_0 = (e0,h0,theta,sel)
     IT = theta["ENV"]["IT"]
     EHT_,R_dis = jax.lax.scan(single_step,EHT_0,eps,length=IT)
     R_t,dis = R_dis
-    csv_write(dis,'csv_test_multi.csv') ###
+    if (epoch%100==0)|(epoch==999):
+        csv_write(dis,'csv_test_multi_OLD.csv') ###
     return jnp.sum(R_t)
 
 # main routine
@@ -203,7 +204,7 @@ def main():
     THETA_I = gen_neurons_i(NEURONS,APERTURE)
     THETA_J = gen_neurons_j(NEURONS,APERTURE)
     EPS = rnd.normal(KEY_EPS,shape=[IT,2,VMAPS],dtype="float32")
-    SELECT = jnp.eye(N_DOTS)[rnd.choice(ki[8],N_DOTS,(EPOCHS,))]
+    SELECT = jnp.eye(N_DOTS)[rnd.choice(ki[8],N_DOTS,(EPOCHS,))] # 
     
     # assemble theta pytree
     theta = { "GRU" : {
@@ -256,9 +257,9 @@ def main():
         # get select vector
         sel = SELECT[e,:]
         
-        # vmap over tot_reward; find avg r_tot, grad
-        val_grad_vmap = jax.vmap(jax.value_and_grad(tot_reward,argnums=2,allow_int=True),in_axes=(2,None,None,None,2),out_axes=(0,0))
-        R_tot,grads = val_grad_vmap(e0,h0,theta,sel,EPS)
+        # vmap tot_reward over dots (e0), eps (EPS) and sel (SELECT)); find avg r_tot, grad
+        val_grad_vmap = jax.vmap(jax.value_and_grad(tot_reward,argnums=2,allow_int=True),in_axes=(2,None,None,None,2,None),out_axes=(0,0))
+        R_tot,grads = val_grad_vmap(e0,h0,theta,sel,EPS,e)
         grads_ = jax.tree_util.tree_map(lambda g: jnp.mean(g,axis=0), grads["GRU"])
         R_arr = R_arr.at[e].set(jnp.mean(R_tot))
         std_arr = std_arr.at[e].set(jnp.std(R_tot))
