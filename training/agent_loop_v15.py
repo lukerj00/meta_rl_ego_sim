@@ -19,7 +19,7 @@ from pathlib import Path
 from datetime import datetime
 # import os
 # from os.path import dirname, abspath
-jax.config.update('jax_platform_name', 'cpu')
+# jax.config.update('jax_platform_name', 'cpu')
 
 # fnc definitions
 @jit
