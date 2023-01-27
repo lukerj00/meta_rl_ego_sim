@@ -1,10 +1,8 @@
-cloudpickle @ file:///tmp/build/80754af9/cloudpickle_1632508026186/work
 drawnow==0.72.5
 etils==0.9.0
 jax==0.3.14
 jaxlib==0.3.14
-matplotlib @ file:///C:/b/abs_ae02atcfur/croot/matplotlib-suite_1667356722968/work
-matplotlib-inline @ file:///C:/ci/matplotlib-inline_1661934035815/work
+matplotlib
 opt-einsum==3.3.0
 optax==0.1.4
 pandas==1.5.2
