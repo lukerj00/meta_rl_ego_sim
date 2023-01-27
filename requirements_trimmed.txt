@@ -1,0 +1,27 @@
+cloudpickle @ file:///tmp/build/80754af9/cloudpickle_1632508026186/work
+drawnow==0.72.5
+etils==0.9.0
+jax==0.3.14
+jaxlib==0.3.14
+matplotlib @ file:///C:/b/abs_ae02atcfur/croot/matplotlib-suite_1667356722968/work
+matplotlib-inline @ file:///C:/ci/matplotlib-inline_1661934035815/work
+opt-einsum==3.3.0
+optax==0.1.4
+pandas==1.5.2
+Pillow==9.2.0
+ply==3.11
+pygame==2.1.2
+pyls-spyder==0.4.0
+PyQt5==5.15.7
+PyQtWebEngine==5.15.4
+python-lsp-jsonrpc==1.0.0
+pywin32==305.1
+pywin32-ctypes==0.2.0
+PyYAML==6.0
+scipy==1.9.3
+torch==1.13.0
+torchaudio==0.13.0
+torchvision==0.14.0
+webencodings==0.5.1
+wincertstore==0.2
+
