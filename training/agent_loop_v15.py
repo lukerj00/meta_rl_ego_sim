@@ -265,6 +265,9 @@ def main():
         drawnow(fig_)
 
     plt.show() 
+    path_ = str(Path(__file__).resolve().parents[1]) + '\\figs\\task6_multi\\'
+    plt.savefig(path_ + 'fig_' + dt + '.png')
+    print('\n Done!')
 
 if __name__ == "__main__":
     main() 
