@@ -52,7 +52,7 @@ def neuron_act(e_t_1,th_j,th_i,SIGMA_A,COLORS):
     E = G.transpose((1,0,2)) - e_t_1.T
     act = jnp.exp((jnp.cos(E[:,0,:]) + jnp.cos(E[:,1,:]) - 2)/SIGMA_A**2).reshape((D_,N_**2))
     act_C = jnp.matmul(C,act)
-    return act_C # (act_r,act_g,act_b) = act_C
+    return act_C
 
 @jit
 def obj(e_t_1,sel,SIGMA_R): # R_t
@@ -95,6 +95,7 @@ def single_step(EHT_t_1,eps):
     Wr_h = theta["GRU"]["Wr_h"]
     Wg_h = theta["GRU"]["Wg_h"]
     Wb_h = theta["GRU"]["Wb_h"]
+    W_s = theta["GRU"]["W_s"]
     U_h = theta["GRU"]["U_h"]
     b_h = theta["GRU"]["b_h"]
     C = theta["GRU"]["C"]
@@ -109,15 +110,14 @@ def single_step(EHT_t_1,eps):
     
     # neuron activations
     (act_r,act_g,act_b) = neuron_act(e_t_1,THETA_J,THETA_I,SIGMA_A,COLORS) # (act_r_,act_g_,act_b_) = neuron_act__(e_t_1,THETA_J,THETA_I,SIGMA_A,N_COLORS)
-    print(act_r)
     
     # reward from neurons
     R_t = obj(e_t_1,sel,SIGMA_R) # R_t_ = obj(act_r,act_g,act_b,NEURONS)
     
     # minimal GRU equations
-    f_t = sigmoid( jnp.matmul(Wr_f,act_r) + jnp.matmul(Wg_f,act_g) + jnp.matmul(Wb_f,act_b) + jnp.matmul(U_f,h_t_1) + b_f )
-    hhat_t = jnp.tanh( jnp.matmul(Wr_h,act_r)  + jnp.matmul(Wg_h,act_g) + jnp.matmul(Wb_h,act_b) + jnp.matmul(U_h,(jnp.multiply(f_t,h_t_1))) + b_h )
-    h_t = jnp.multiply((1-f_t),h_t_1) + jnp.multiply(f_t,hhat_t) # dot? 
+    f_t = sigmoid(jnp.append( jnp.matmul(Wr_f,act_r) + jnp.matmul(Wg_f,act_g) + jnp.matmul(Wb_f,act_b), jnp.matmul(W_s,sel) ) + jnp.matmul(U_f,h_t_1) + b_f)
+    hhat_t = jnp.tanh(jnp.append(jnp.matmul(Wr_h,act_r)  + jnp.matmul(Wg_h,act_g) + jnp.matmul(Wb_h,act_b), jnp.matmul(W_s,sel) ) + jnp.matmul(U_h,(jnp.multiply(f_t,h_t_1))) + b_h )
+    h_t = jnp.multiply((1-f_t),h_t_1) + jnp.multiply(f_t,hhat_t) # dot?
     
     # v_t = C*h_t + eps
     v_t = STEP*(jnp.matmul(C,h_t) + SIGMA_N*eps) # 'motor noise'
@@ -139,8 +139,8 @@ def tot_reward(e0,h0,theta,sel,eps,epoch): #sel
     IT = theta["ENV"]["IT"]
     EHT_,R_dis = jax.lax.scan(single_step,EHT_0,eps,length=IT)
     R_t,dis = R_dis
-    if (epoch==0)|(epoch%50==0): # |(epoch==(theta["ENV"]["EPOCHS"]-1)):
-        csv_write(dis,'csv_test_3_new.csv') ### think about how to include dt...
+    if (epoch==0)|(epoch%50==0)|(epoch==(theta["ENV"]["EPOCHS"]-1)):
+        csv_write(dis,'csv_3_new.csv') ### dt?
     return jnp.sum(R_t)
 
 # main routine
@@ -156,8 +156,8 @@ def main():
     NEURONS = 11
     
     # GRU parameters
-    N = NEURONS**2 #
-    G = 50 # size of mGRU
+    N = NEURONS**2
+    G = 50 # size of mGRU (total size = G+N_DOTS)
     KEY_INIT = rnd.PRNGKey(0) # 0
     INIT = jnp.float32(0.1) # 0.1
     
@@ -172,23 +172,24 @@ def main():
     
     # generate initial values
     ki = rnd.split(KEY_INIT,num=20)
-    h0 = rnd.normal(ki[0],(G,),dtype="float32")
+    h0 = rnd.normal(ki[0],(G+N_DOTS,),dtype="float32")
     Wr_f0 = (INIT/G*N)*rnd.normal(ki[1],(G,N),dtype="float32")
     Wg_f0 = (INIT/G*N)*rnd.normal(ki[1],(G,N),dtype="float32")
     Wb_f0 = (INIT/G*N)*rnd.normal(ki[1],(G,N),dtype="float32")
-    U_f0 = (INIT/G*G)*rnd.normal(ki[2],(G,G),dtype="float32")
-    b_f0 = (INIT/G)*rnd.normal(ki[3],(G,),dtype="float32")
+    U_f0 = (INIT/G*G)*rnd.normal(ki[2],(G+N_DOTS,G+N_DOTS),dtype="float32")
+    b_f0 = (INIT/G)*rnd.normal(ki[3],(G+N_DOTS,),dtype="float32")
     Wr_h0 = (INIT/G*N)*rnd.normal(ki[4],(G,N),dtype="float32")
     Wg_h0 = (INIT/G*N)*rnd.normal(ki[4],(G,N),dtype="float32")
     Wb_h0 = (INIT/G*N)*rnd.normal(ki[4],(G,N),dtype="float32")
-    U_h0 = (INIT/G*G)*rnd.normal(ki[5],(G,G),dtype="float32")
-    b_h0 = (INIT/G)*rnd.normal(ki[6],(G,),dtype="float32")
-    C0 = (INIT/2*G)*rnd.normal(ki[7],(2,G),dtype="float32")
+    W_s = (INIT)*rnd.normal(ki[5],(N_DOTS,N_DOTS),dtype="float32")
+    U_h0 = (INIT/G*G)*rnd.normal(ki[6],(G+N_DOTS,G+N_DOTS),dtype="float32")
+    b_h0 = (INIT/G)*rnd.normal(ki[7],(G+N_DOTS,),dtype="float32")
+    C0 = (INIT/2*G)*rnd.normal(ki[8],(2,G+N_DOTS),dtype="float32")
     THETA_I = gen_neurons_i(NEURONS,APERTURE)
     THETA_J = gen_neurons_j(NEURONS,APERTURE)
-    DOTS = create_dots(N_DOTS,ki[8],VMAPS,EPOCHS)
-    EPS = rnd.normal(ki[9],shape=[EPOCHS,IT,2,VMAPS],dtype="float32") ### NEED TO CHANGE TO ALSO HAVE EPOCH DIMENSION; CHANGE DOTS TO BE PRE-GENERATED TOO
-    SELECT = jnp.eye(N_DOTS)[rnd.choice(ki[10],N_DOTS,(EPOCHS,VMAPS))] # [EPOCHS,VMAPS,N_DOTS]
+    DOTS = create_dots(N_DOTS,ki[9],VMAPS,EPOCHS)
+    EPS = rnd.normal(ki[10],shape=[EPOCHS,IT,2,VMAPS],dtype="float32") ### NEED TO CHANGE TO ALSO HAVE EPOCH DIMENSION; CHANGE DOTS TO BE PRE-GENERATED TOO
+    SELECT = jnp.eye(N_DOTS)[rnd.choice(ki[11],N_DOTS,(EPOCHS,VMAPS))] # [EPOCHS,VMAPS,N_DOTS]
     
     # assemble theta pytree
     theta = { "GRU" : {
@@ -200,6 +201,7 @@ def main():
             "Wr_h" : Wr_h0,
             "Wg_h" : Wg_h0,
             "Wb_h" : Wb_h0,
+            "W_s"  : W_s,
             "U_h"  : U_h0,
             "b_h"  : b_h0,
             "C"    : C0
@@ -228,7 +230,6 @@ def main():
     def fig_():
         plt.errorbar(jnp.arange(EPOCHS),R_arr,yerr=std_arr/2,ecolor="black",elinewidth=0.5,capsize=1.5) # jnp.arange(EPOCHS),
         plt.show(block=False)
-        # title_ = "epochs = " + str(EPOCHS) + ", it = " + str(IT) + ", vmaps = " + str(VMAPS) + ", update = " + str(UPDATE) + ", SIGMA_A = " + str(SIGMA_A) + ", SIGMA_R = " + str(SIGMA_R) + "\n" + "colors = " + jnp.array_str(N_COLORS[0][:]) + "," + jnp.array_str(N_COLORS[1][:]) + "," + jnp.array_str(N_COLORS[2][:]) + "," + jnp.array_str(N_COLORS[3][:]) + "," + jnp.array_str(N_COLORS[4][:]) # N_COLORS.tolist()) #title_ = "NO UPDATE (control) " '''
         title__ = f'epochs={EPOCHS}, it={IT}, vmaps={VMAPS}, update={UPDATE:.3f}, SIGMA_A={SIGMA_A:.1f}, SIGMA_R={SIGMA_R:.1f}, SIGMA_N={SIGMA_N:.1f} \n colors={jnp.array_str(COLORS[0][:]) + jnp.array_str(COLORS[1][:]) + jnp.array_str(COLORS[2][:]) + jnp.array_str(COLORS[3][:]) + jnp.array_str(COLORS[4][:])}'
         plt.title(title__,fontsize=8)
         plt.xlabel('Iteration')
@@ -254,7 +255,7 @@ def main():
         grads_ = jax.tree_util.tree_map(lambda g: jnp.mean(g,axis=0), grads["GRU"])
         R_arr = R_arr.at[e].set(jnp.mean(R_tot))
         std_arr = std_arr.at[e].set(jnp.std(R_tot))
-        # print(grads_["C"])
+        print(theta["GRU"]["W_s"])
         
         # update theta
         update, opt_state = optimizer.update(grads_, opt_state, theta["GRU"])
