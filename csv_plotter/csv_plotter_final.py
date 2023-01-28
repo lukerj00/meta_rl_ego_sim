@@ -8,7 +8,7 @@ import numpy as np
 import pickle
 from pathlib import Path
 
-# # colors, select
+# colors, select
 # colors_path = 'pkl_colors_.pkl'
 # select_path = 'pkl_select_.pkl'
 path_ = str(Path(__file__).resolve().parents[1])
