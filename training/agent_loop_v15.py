@@ -4,11 +4,12 @@ Created on Fri Jan  25 2023
 
 @author: lukej
 """
-
 import jax
 import jax.numpy as jnp
 from jax import jit
 import jax.random as rnd
+# from jax.experimental.host_callback import id_print
+# from jax.experimental.host_callback import call
 import optax
 import matplotlib.pyplot as plt
 from drawnow import drawnow
@@ -17,26 +18,45 @@ import csv
 import pickle
 from pathlib import Path
 from datetime import datetime
+import re
 # import os
 # from os.path import dirname, abspath
 # jax.config.update('jax_platform_name', 'cpu')
 
 # fnc definitions
+def csv_write(data,file_,rav): # 1 (dis values in tot_reward), 0 (R scalars in R_arr)
+    if rav==1:
+        data = data.ravel()
+    else:
+        pass
+    path_ = str(Path(__file__).resolve().parents[1]) + '\\csv_plotter\\'
+    with open(path_+file_,'a',newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(data)
+csv_write=jit(csv_write,static_argnums=(1,2))
+
+def save_params(params,file_):  # can't jit (can't pickle jax tracers)
+    path_ = str(Path(__file__).resolve().parents[1]) + '\\pkl\\'
+    with open(path_+file_,'wb') as file:
+        pickle.dump(params,file,pickle.HIGHEST_PROTOCOL)
+
+def eval_(jaxpr_in): ### to do
+    reg_ = r'(?<=DeviceArray\()(.*)(?=dtype)' # r'(?<=DeviceArray\(\[\[]])(.*)(?=\]\])'
+    jaxpr_str = repr(jaxpr_in)
+    jaxpr_ = re.findall(reg_,jaxpr_str,re.DOTALL)
+    jaxpr_ = ''.join(jaxpr_)
+    jaxpr_ = re.sub(r'\s+','',jaxpr_)
+    jaxpr_ = jaxpr_.rstrip(r',')
+    jaxpr_ = re.sub(r'(\[|\]|\.)','',jaxpr_)
+    jaxpr_ = jaxpr_.split(",")
+
 @jit
 def sigmoid(x):
   return 1 / (1 + jnp.exp(-x))
 
-# def gen_neurons(NEURONS,APERTURE):
-#     return jnp.linspace(-APERTURE,APERTURE,NEURONS**2,dtype="float32")
-# gen_neurons_j = jit(gen_neurons,static_argnums=(0,1))  
-
-def gen_neurons_j(NEURONS,APERTURE):
+def gen_neurons(NEURONS,APERTURE):
     return jnp.linspace(-APERTURE,APERTURE,NEURONS,dtype="float32")
-gen_neurons_j = jit(gen_neurons_j,static_argnums=(0,1))
-
-def gen_neurons_i(NEURONS,APERTURE):
-    return jnp.linspace(-APERTURE,APERTURE,NEURONS,dtype="float32")
-gen_neurons_i = jit(gen_neurons_i,static_argnums=(0,1))
+gen_neurons = jit(gen_neurons,static_argnums=(0,1))  
 
 def create_dots(N_DOTS,KEY_DOT,VMAPS,EPOCHS): # [d_j,d_i]
     return rnd.uniform(KEY_DOT,shape=[EPOCHS,N_DOTS,2,VMAPS],minval=-jnp.pi,maxval=jnp.pi,dtype="float32")
@@ -68,23 +88,11 @@ def abs_dist(e_t):
     e_t_ = (e_t + jnp.pi)%(2*jnp.pi)-jnp.pi
     return jnp.sqrt(e_t_[:,0]**2+e_t_[:,1]**2)
 
-def csv_write(data,file_): # use 'csv_test_multi.csv'
-    data = data.ravel()
-    path_ = str(Path(__file__).resolve().parents[1]) + '\\csv_plotter\\'
-    with open(path_+file_,'a',newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(data)
-
-def save_params(params,file_):  # pickle_test.pkl
-    path_ = str(Path(__file__).resolve().parents[1]) + '\\pkl\\'
-    with open(path_+file_,'wb') as file:
-        pickle.dump(params,file,pickle.HIGHEST_PROTOCOL)
-
 @jit
 def single_step(EHT_t_1,eps):
 
     # unpack values
-    e_t_1,h_t_1,theta,sel = EHT_t_1  #eps_t,sel_t = eps_sel_t
+    e_t_1,h_t_1,theta,sel = EHT_t_1
     
     # extract data from theta
     Wr_f = theta["GRU"]["Wr_f"]
@@ -109,7 +117,7 @@ def single_step(EHT_t_1,eps):
     STEP = theta["ENV"]["STEP"]
     
     # neuron activations
-    (act_r,act_g,act_b) = neuron_act(e_t_1,THETA_J,THETA_I,SIGMA_A,COLORS) # (act_r_,act_g_,act_b_) = neuron_act__(e_t_1,THETA_J,THETA_I,SIGMA_A,N_COLORS)
+    (act_r,act_g,act_b) = neuron_act(e_t_1,THETA_J,THETA_I,SIGMA_A,COLORS)
     
     # reward from neurons
     R_t = obj(e_t_1,sel,SIGMA_R) # R_t_ = obj(act_r,act_g,act_b,NEURONS)
@@ -126,7 +134,7 @@ def single_step(EHT_t_1,eps):
     e_t = new_env(e_t_1,v_t)
 
     # abs distance
-    dis = abs_dist(e_t)
+    dis = abs_dist(e_t) # finds dis with current e_t...
     
     # assemble output
     EHT_t = (e_t,h_t,theta,sel)
@@ -134,13 +142,13 @@ def single_step(EHT_t_1,eps):
     
     return (EHT_t,R_dis)
 
-def tot_reward(e0,h0,theta,sel,eps,epoch): #sel
+def tot_reward(e0,h0,theta,sel,eps,epoch): # can't jit (can't save jax tracers)
     EHT_0 = (e0,h0,theta,sel)
     IT = theta["ENV"]["IT"]
     EHT_,R_dis = jax.lax.scan(single_step,EHT_0,eps,length=IT)
     R_t,dis = R_dis
     if (epoch==0)|(epoch%50==0)|(epoch==(theta["ENV"]["EPOCHS"]-1)):
-        csv_write(dis,'csv_3_new.csv') ### dt?
+        csv_write(dis,'csv_3_IGNORE.csv',1) ### dt?
     return jnp.sum(R_t)
 
 # main routine
@@ -162,7 +170,7 @@ def main():
     INIT = jnp.float32(0.1) # 0.1
     
     # main() params
-    EPOCHS = 1000
+    EPOCHS = 5
     IT = 25
     VMAPS = 200
     UPDATE = jnp.float32(0.001) # 0.001
@@ -185,8 +193,8 @@ def main():
     U_h0 = (INIT/G*G)*rnd.normal(ki[6],(G+N_DOTS,G+N_DOTS),dtype="float32")
     b_h0 = (INIT/G)*rnd.normal(ki[7],(G+N_DOTS,),dtype="float32")
     C0 = (INIT/2*G)*rnd.normal(ki[8],(2,G+N_DOTS),dtype="float32")
-    THETA_I = gen_neurons_i(NEURONS,APERTURE)
-    THETA_J = gen_neurons_j(NEURONS,APERTURE)
+    THETA_I = gen_neurons(NEURONS,APERTURE)
+    THETA_J = gen_neurons(NEURONS,APERTURE)
     DOTS = create_dots(N_DOTS,ki[9],VMAPS,EPOCHS)
     EPS = rnd.normal(ki[10],shape=[EPOCHS,IT,2,VMAPS],dtype="float32") ### NEED TO CHANGE TO ALSO HAVE EPOCH DIMENSION; CHANGE DOTS TO BE PRE-GENERATED TOO
     SELECT = jnp.eye(N_DOTS)[rnd.choice(ki[11],N_DOTS,(EPOCHS,VMAPS))] # [EPOCHS,VMAPS,N_DOTS]
@@ -237,9 +245,8 @@ def main():
 
     #save important values to file
     dt = datetime.now().strftime("%d_%m-%H%M")
-    ### save_params(theta,'pkl_theta_.pkl') ###
-    save_params(COLORS,'pkl_colors_3_.pkl') # '+dt+'
-    save_params(theta["ENV"]["SELECT"],'pkl_select_3_.pkl') # '+dt+'
+    # save_params(COLORS,'pkl_colors_3_.pkl') # '+dt+'
+    # save_params(theta["ENV"]["SELECT"],'pkl_select_3_.pkl') # '+dt+'
 
     #main loop
     for e in range(EPOCHS):
@@ -255,19 +262,28 @@ def main():
         grads_ = jax.tree_util.tree_map(lambda g: jnp.mean(g,axis=0), grads["GRU"])
         R_arr = R_arr.at[e].set(jnp.mean(R_tot))
         std_arr = std_arr.at[e].set(jnp.std(R_tot))
-        print(theta["GRU"]["W_s"])
+        ###print(theta["GRU"]["W_s"])
         
         # update theta
         update, opt_state = optimizer.update(grads_, opt_state, theta["GRU"])
         theta["GRU"] = optax.apply_updates(theta["GRU"], update)
         print(f'epoch: {e}, R_tot: {R_arr[e]}')
+        # call(lambda x: print(f'R_tot: {x}'), 'R_arr[e]') id_print('test')
+        # print(f'***** {R_arr[e].eval_jaxpr()}')         # jax.debug.print(R_arr[e])
 
         drawnow(fig_)
 
-    plt.show() 
     path_ = str(Path(__file__).resolve().parents[1]) + '\\figs\\task6_multi\\'
+    ###
+    ###
+    ###
     plt.savefig(path_ + 'fig_' + dt + '.png')
+    plt.show()
+    csv_write(R_arr,'R_ARR_TEST.csv',0)
     print('\n Done!')
+    ###
+    ###
+    ###
 
 if __name__ == "__main__":
     main() 
