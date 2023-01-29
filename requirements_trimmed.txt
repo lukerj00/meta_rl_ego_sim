@@ -14,9 +14,6 @@ PyQt5==5.15.7
 PyQtWebEngine==5.15.4
 PyYAML==6.0
 scipy==1.9.3
-torch==1.13.0
-torchaudio==0.13.0
-torchvision==0.14.0
 webencodings==0.5.1
 wincertstore==0.2
 
