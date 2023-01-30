@@ -94,7 +94,6 @@ def abs_dist(e_t):
 
 @jit
 def single_step(EHT_t_1,eps):
-
     # unpack values
     # e_t_1,h_t_1,theta,sel = EHT_t_1
     
@@ -146,7 +145,7 @@ def single_step(EHT_t_1,eps):
     
     return ( (e_t,h_t,EHT_t_1[2],EHT_t_1[3]) , (R_t,dis) )
 
-# @jit
+#@jit
 def tot_reward(e0,h0,theta,sel,eps,epoch):
     # EHT_0 = (e0,h0,theta,sel)
     EHT_,R_dis = jax.lax.scan(single_step,(e0,h0,theta,sel),eps)
