@@ -21,18 +21,18 @@ from datetime import datetime
 import re
 # import os
 # from os.path import dirname, abspath
+# from collections.abc import MutableMapping
 # jax.config.update('jax_platform_name', 'cpu')
-from collections.abc import MutableMapping
 
-def flatten_dict(d: MutableMapping, parent_key: str = '', sep: str ='.') -> MutableMapping:
-    items = []
-    for k, v in d.items():
-        new_key = parent_key + sep + k if parent_key else k
-        if isinstance(v, MutableMapping):
-            items.extend(flatten_dict(v, new_key, sep=sep).items())
-        else:
-            items.append((new_key, v))
-    return dict(items)
+# def flatten_dict(d: MutableMapping, parent_key: str = '', sep: str ='.') -> MutableMapping:
+#     items = []
+#     for k, v in d.items():
+#         new_key = parent_key + sep + k if parent_key else k
+#         if isinstance(v, MutableMapping):
+#             items.extend(flatten_dict(v, new_key, sep=sep).items())
+#         else:
+#             items.append((new_key, v))
+#     return dict(items)
 
 # fnc definitions
 def csv_write(data,file_,rav): # 1 (dis values in tot_reward), 0 (R scalars in R_arr)
@@ -158,8 +158,9 @@ def tot_reward(e0,h0,theta,sel,eps,epoch): # can't jit (can't save jax tracers)
     IT = theta["ENV"]["IT"]
     EHT_,R_dis = jax.lax.scan(single_step,EHT_0,eps,length=IT)
     R_t,dis = R_dis
-    if (epoch==0)|(epoch%50==0)|(epoch==(theta["ENV"]["EPOCHS"]-1)):
-        csv_write(dis,'csv_3_IGNORE.csv',1) ### dt?
+    dt = datetime.now().strftime("%d_%m-%H%M")
+    if (epoch==0): # |(epoch%50==0)|(epoch==(theta["ENV"]["EPOCHS"]-1)):
+        csv_write(dis,'dis_'+str(theta['ENV']['N_DOTS']) + dt + '.csv',1) ### dt?
     return jnp.sum(R_t)
 
 # main routine
@@ -181,7 +182,7 @@ def main():
     INIT = jnp.float32(0.1) # 0.1
     
     # main() params
-    EPOCHS = 2
+    EPOCHS = 8
     IT = 25
     VMAPS = 200
     UPDATE = jnp.float32(0.001) # 0.001
@@ -256,8 +257,8 @@ def main():
 
     #save important values to file
     dt = datetime.now().strftime("%d_%m-%H%M")
-    # save_params(COLORS,'pkl_colors_3_.pkl') # '+dt+'
-    # save_params(theta["ENV"]["SELECT"],'pkl_select_3_.pkl') # '+dt+'
+    save_params(COLORS,'pkl_colors_'+COLORS.shape[0]+dt+'.pkl')
+    save_params(theta["ENV"]["SELECT"],'pkl_select_'+COLORS.shape[0]+dt+'.pkl')
 
     #main loop
     for e in range(EPOCHS):
@@ -270,9 +271,7 @@ def main():
         # vmap tot_reward over dots (e0), eps (EPS) and sel (SELECT)); find avg r_tot, grad
         val_grad_vmap = jax.vmap(jax.value_and_grad(tot_reward,argnums=2,allow_int=True),in_axes=(2,None,None,0,2,None),out_axes=(0)) # ,None,None,0,0,None))
         R_tot,grads = val_grad_vmap(e0,h0,theta,sel,eps,e)
-        # print('*********',len(flatten_dict(grads['GRU'])['U_h']),jnp.shape(flatten_dict(grads['GRU'])['U_h'])) # ['GRU']['Wr_h']
         grads_ = jax.tree_util.tree_map(lambda g: jnp.mean(g,axis=0), grads["GRU"])
-        # print('----------',len(flatten_dict(grads_)['U_h']),jnp.shape(flatten_dict(grads_)['U_h'])) # ['GRU']['Wr_h']
         R_arr = R_arr.at[e].set(jnp.mean(R_tot))
         std_arr = std_arr.at[e].set(jnp.std(R_tot))
         ###print(theta["GRU"]["W_s"])
@@ -287,16 +286,10 @@ def main():
         drawnow(fig_)
 
     path_ = str(Path(__file__).resolve().parents[1]) + '\\figs\\task6_multi\\'
-    ###
-    ###
-    ###
     plt.savefig(path_ + 'fig_' + dt + '.png')
     plt.show()
-    csv_write(R_arr,'R_ARR_TEST.csv',0)
+    csv_write(R_arr,'R_arr_'+dt+'.csv',0)
     print('\n Done!')
-    ###
-    ###
-    ###
 
 if __name__ == "__main__":
     main() 

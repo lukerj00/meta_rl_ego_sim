@@ -20,8 +20,9 @@ from pathlib import Path
 from datetime import datetime
 import re
 import os
+import sys
 # from os.path import dirname, abspath
-jax.config.update('jax_platform_name', 'cpu')
+# jax.config.update('jax_platform_name', 'cpu')
 
 # fnc definitions
 def csv_write(data,rav): # 1 (dis values in tot_reward), 0 (R scalars in R_arr)
@@ -29,7 +30,7 @@ def csv_write(data,rav): # 1 (dis values in tot_reward), 0 (R scalars in R_arr)
         data = data.ravel()
     else:
         pass
-    path_ = str(Path(__file__).resolve().parents[1]) + '\\csv_plotter\\'
+    path_ = str(Path(__file__).resolve().parents[1]) + '/csv_plotter/'
     dt = datetime.now().strftime("%d_%m-%H%M")
     # file_ = os.path.basename(__file__).split('.')[0]
     with open(path_+'dis_csv'+dt,'a',newline='') as file:
@@ -38,7 +39,7 @@ def csv_write(data,rav): # 1 (dis values in tot_reward), 0 (R scalars in R_arr)
 # csv_write=jit(csv_write,static_argnums=(1))
 
 def save_params(param,str_):  # can't jit (can't pickle jax tracers)
-    path_ = str(Path(__file__).resolve().parents[1]) + '\\pkl\\'
+    path_ = str(Path(__file__).resolve().parents[1]) + '/pkl/'
     dt = datetime.now().strftime("%d_%m-%H%M")
     # file_ = os.path.basename(__file__).split('.')[0]
     with open(path_+str_+dt+'.pkl','wb') as file:
@@ -145,16 +146,28 @@ def single_step(EHT_t_1,eps):
     
     return ( (e_t,h_t,EHT_t_1[2],EHT_t_1[3]) , (R_t,dis) )
 
-#@jit
+def true_fnc(dis):
+    path_ = str(Path(__file__).resolve().parents[1]) + '/stdout/'
+    dt = datetime.now().strftime("%d_%m-%H%M")
+    with open(path_+'dump'+dt,'a') as sys.stdout:
+        jax.debug.print('dis={}',dis)
+    return
+
+def false_fnc(dis):
+    return
+
+@jit
 def tot_reward(e0,h0,theta,sel,eps,epoch):
     # EHT_0 = (e0,h0,theta,sel)
     EHT_,R_dis = jax.lax.scan(single_step,(e0,h0,theta,sel),eps)
     R_t,dis = R_dis # dis=[1,IT*N_DOTS[VMAPS]]
-    # print(dis,dis.shape)
+    jax.lax.cond((epoch%50==0),true_fnc,false_fnc,dis)
+    # if (epoch%50==0):
+    #     jax.debug.print('dis={}',dis)
     # theta['ENV']['DIS'] = theta['ENV']['DIS'].at[:,:].set(str(dis))
     # if (epoch==0)|(epoch%50==0)|(epoch==(theta["ENV"]["EPOCHS"]-1)):
     #     csv_write(dis,1) ### dt?
-    return jnp.sum(R_dis[0])
+    return jnp.sum(R_t)
 
 @jit
 def body_fnc(e,UTORR): # returns theta
@@ -185,7 +198,7 @@ def full_loop(loop_params,theta): # main routine: R_arr, std_arr = full_loop(par
     opt_state = optimizer.init(theta["GRU"])
     UTORR_0 = (loop_params['UPDATE'],theta,opt_state,loop_params['R_arr'],loop_params['std_arr'])
     UPDATE_,theta_,opt_state_,R_arr,std_arr = jax.lax.fori_loop(0, EPOCHS, body_fnc, UTORR_0)
-    return (theta_,R_arr,std_arr)
+    return (R_arr,std_arr)
 
 startTime = datetime.now()
 # ENV parameters
@@ -205,7 +218,7 @@ KEY_INIT = rnd.PRNGKey(0) # 0
 INIT = jnp.float32(0.1) # 0.1
 
 # loop params
-EPOCHS = 20
+EPOCHS = 2
 IT = 25
 VMAPS = 200
 UPDATE = jnp.float32(0.001) # 0.001
@@ -273,7 +286,7 @@ theta = { "GRU" : {
     }
             }
 ###
-theta_,R_arr,std_arr = full_loop(loop_params,theta)
+R_arr,std_arr = full_loop(loop_params,theta)
 print(f'R_arr: {R_arr}','\n',f'std_arr: {std_arr}')
 # print(theta['ENV']['DIS'])
 time_elapsed = datetime.now() - startTime
@@ -281,16 +294,16 @@ print(f'Completed in: {time_elapsed}, {time_elapsed/EPOCHS} s/epoch')
 ###
 
 #figure
-plt.figure()
-plt.errorbar(jnp.arange(EPOCHS),R_arr,yerr=std_arr/2,ecolor="black",elinewidth=0.5,capsize=1.5)
-plt.show(block=False)
-title__ = f'epochs={EPOCHS}, it={IT}, vmaps={VMAPS}, update={UPDATE:.3f}, SIGMA_A={SIGMA_A:.1f}, SIGMA_R={SIGMA_R:.1f}, SIGMA_N={SIGMA_N:.1f} \n colors={jnp.array_str(COLORS[0][:]) + jnp.array_str(COLORS[1][:]) + jnp.array_str(COLORS[2][:])}' #  + jnp.array_str(COLORS[3][:]) + jnp.array_str(COLORS[4][:])}'
-plt.title(title__,fontsize=8)
-plt.xlabel('Iteration')
-plt.ylabel('Reward')
-plt.show()
+# plt.figure()
+# plt.errorbar(jnp.arange(EPOCHS),R_arr,yerr=std_arr/2,ecolor="black",elinewidth=0.5,capsize=1.5)
+# plt.show(block=False)
+# title__ = f'epochs={EPOCHS}, it={IT}, vmaps={VMAPS}, update={UPDATE:.3f}, SIGMA_A={SIGMA_A:.1f}, SIGMA_R={SIGMA_R:.1f}, SIGMA_N={SIGMA_N:.1f} \n colors={jnp.array_str(COLORS[0][:]) + jnp.array_str(COLORS[1][:]) + jnp.array_str(COLORS[2][:])}' #  + jnp.array_str(COLORS[3][:]) + jnp.array_str(COLORS[4][:])}'
+# plt.title(title__,fontsize=8)
+# plt.xlabel('Iteration')
+# plt.ylabel('Reward')
+# plt.show()
 
-path_ = str(Path(__file__).resolve().parents[1]) + '\\figs\\task6_multi\\'
+path_ = str(Path(__file__).resolve().parents[1]) + '/figs/task6_multi/'
 dt = datetime.now().strftime("%d_%m-%H%M")
 plt.savefig(path_ + 'fig_' + dt + '.png')
 csv_write(R_arr,0) # ,'R_ARR_TEST.csv'
