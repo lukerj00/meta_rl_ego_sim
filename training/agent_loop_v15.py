@@ -22,6 +22,17 @@ import re
 # import os
 # from os.path import dirname, abspath
 # jax.config.update('jax_platform_name', 'cpu')
+from collections.abc import MutableMapping
+
+def flatten_dict(d: MutableMapping, parent_key: str = '', sep: str ='.') -> MutableMapping:
+    items = []
+    for k, v in d.items():
+        new_key = parent_key + sep + k if parent_key else k
+        if isinstance(v, MutableMapping):
+            items.extend(flatten_dict(v, new_key, sep=sep).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)
 
 # fnc definitions
 def csv_write(data,file_,rav): # 1 (dis values in tot_reward), 0 (R scalars in R_arr)
@@ -170,7 +181,7 @@ def main():
     INIT = jnp.float32(0.1) # 0.1
     
     # main() params
-    EPOCHS = 5
+    EPOCHS = 2
     IT = 25
     VMAPS = 200
     UPDATE = jnp.float32(0.001) # 0.001
@@ -230,7 +241,7 @@ def main():
             "EPOCHS"       : EPOCHS
         }
              }
-    jax.lax.stop_gradient(theta["ENV"])
+    theta["ENV"] = jax.lax.stop_gradient(theta["ENV"])
     opt_state = optimizer.init(theta["GRU"])
 
     #figure
@@ -257,9 +268,11 @@ def main():
         eps = EPS[e,:,:,:]
         
         # vmap tot_reward over dots (e0), eps (EPS) and sel (SELECT)); find avg r_tot, grad
-        val_grad_vmap = jax.vmap(jax.value_and_grad(tot_reward,argnums=2,allow_int=True),in_axes=(2,None,None,0,2,None),out_axes=(0,0))
+        val_grad_vmap = jax.vmap(jax.value_and_grad(tot_reward,argnums=2,allow_int=True),in_axes=(2,None,None,0,2,None),out_axes=(0)) # ,None,None,0,0,None))
         R_tot,grads = val_grad_vmap(e0,h0,theta,sel,eps,e)
+        # print('*********',len(flatten_dict(grads['GRU'])['U_h']),jnp.shape(flatten_dict(grads['GRU'])['U_h'])) # ['GRU']['Wr_h']
         grads_ = jax.tree_util.tree_map(lambda g: jnp.mean(g,axis=0), grads["GRU"])
+        # print('----------',len(flatten_dict(grads_)['U_h']),jnp.shape(flatten_dict(grads_)['U_h'])) # ['GRU']['Wr_h']
         R_arr = R_arr.at[e].set(jnp.mean(R_tot))
         std_arr = std_arr.at[e].set(jnp.std(R_tot))
         ###print(theta["GRU"]["W_s"])
