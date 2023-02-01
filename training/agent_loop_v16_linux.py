@@ -25,15 +25,20 @@ import sys
 # jax.config.update('jax_platform_name', 'cpu')
 
 # fnc definitions
-def csv_write(data,rav): # 1 (dis values in tot_reward), 0 (R scalars in R_arr)
+def csv_write(data,rav): # 1 (dis values in tot_reward), 2/3 (R scalars in R_arr)
 	if rav==1:
 		data = data.ravel()
-	else:
+		str_ = 'dis'
+	elif rav==2:
+		str_ = 'R_arr'
+		pass
+	elif rav==3:
+		str_ = 'std_arr'
 		pass
 	path_ = str(Path(__file__).resolve().parents[1]) + '/csv_plotter/'
 	dt = datetime.now().strftime("%d_%m-%H%M")
 	# file_ = os.path.basename(__file__).split('.')[0]
-	with open(path_+'dis_csv'+dt,'a',newline='') as file:
+	with open(path_+str_+'_'+dt,'a',newline='') as file:
 		writer = csv.writer(file)
 		writer.writerow(data)
 # csv_write=jit(csv_write,static_argnums=(1))
@@ -312,4 +317,5 @@ print(f'Completed in: {time_elapsed}, {time_elapsed/EPOCHS} s/epoch')
 path_ = str(Path(__file__).resolve().parents[1]) + '/figs/task6_multi/'
 dt = datetime.now().strftime("%d_%m-%H%M")
 plt.savefig(path_ + 'fig_' + dt + '.png')
-csv_write(R_arr,0) # ,'R_ARR_TEST.csv'
+csv_write(R_arr,2)
+csv_write(std_arr,3)
