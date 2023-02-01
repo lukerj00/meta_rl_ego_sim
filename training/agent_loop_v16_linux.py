@@ -240,7 +240,7 @@ INIT = jnp.float32(0.1) # 0.1
 # loop params
 EPOCHS = 12000
 IT = 25
-VMAPS = 200
+VMAPS = 1
 UPDATE = jnp.float32(0.001) # 0.001
 R_arr = jnp.empty(EPOCHS)*jnp.nan
 std_arr = jnp.empty(EPOCHS)*jnp.nan
