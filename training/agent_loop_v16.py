@@ -79,7 +79,7 @@ def neuron_act(e_t_1,th_j,th_i,SIGMA_A,COLORS):
     return act_C
 
 @jit
-def obj(e_t_1,sel,SIGMA_R): # R_t
+def obj(e_t_1,sel,SIGMA_R):
     obj = -jnp.exp(-jnp.sum((e_t_1)**2,axis=1)/SIGMA_R**2)
     return jnp.dot(obj,sel)
 
@@ -94,7 +94,6 @@ def abs_dist(e_t):
 
 @jit
 def single_step(EHT_t_1,eps):
-
     # unpack values
     e_t_1,h_t_1,theta,sel = EHT_t_1
     

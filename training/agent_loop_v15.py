@@ -182,7 +182,7 @@ def main():
     INIT = jnp.float32(0.1) # 0.1
     
     # main() params
-    EPOCHS = 8
+    EPOCHS = 5
     IT = 25
     VMAPS = 200
     UPDATE = jnp.float32(0.001) # 0.001
@@ -257,16 +257,16 @@ def main():
 
     #save important values to file
     dt = datetime.now().strftime("%d_%m-%H%M")
-    save_params(COLORS,'pkl_colors_'+COLORS.shape[0]+dt+'.pkl')
-    save_params(theta["ENV"]["SELECT"],'pkl_select_'+COLORS.shape[0]+dt+'.pkl')
+    save_params(COLORS,'pkl_colors_'+str(COLORS.shape[0])+dt+'.pkl')
+    save_params(theta["ENV"]["SELECT"],'pkl_select_'+str(COLORS.shape[0])+dt+'.pkl')
 
     #main loop
     for e in range(EPOCHS):
 
         # get dots, select, eps
-        e0 = DOTS[e,:,:,:] 
-        sel = SELECT[e,:,:]
-        eps = EPS[e,:,:,:]
+        e0 = DOTS[e,:,:,:] # 2
+        sel = SELECT[e,:,:] # 0
+        eps = EPS[e,:,:,:] # 2
         
         # vmap tot_reward over dots (e0), eps (EPS) and sel (SELECT)); find avg r_tot, grad
         val_grad_vmap = jax.vmap(jax.value_and_grad(tot_reward,argnums=2,allow_int=True),in_axes=(2,None,None,0,2,None),out_axes=(0)) # ,None,None,0,0,None))

@@ -3606,3 +3606,454 @@
   tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/2)> with
     pval = (ShapedArray(float32[]), None)
     recipe = JaxprEqnRecipe(eqn_id=<object object at 0x000001EC1F2BBE80>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/2)>,), out_tracer_refs=[<weakref at 0x000001EC1F9835E0; to 'JaxprTracer' at 0x000001EC1F983590>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x000001EC1F91FB30>, name_stack=NameStack(stack=())))"
+"Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC39BDC70>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8BB2CC0; to 'JaxprTracer' at 0x0000027BC8BA3E00>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8B36030>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC39BDDB0>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8E2F540; to 'JaxprTracer' at 0x0000027BC8E2F270>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8BC2470>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC39BDA20>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8E2F860; to 'JaxprTracer' at 0x0000027BC8E2F810>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8BC2BB0>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC39BDB40>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8E2FC20; to 'JaxprTracer' at 0x0000027BC8E2FBD0>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8B2BC70>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC39BD9C0>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8CBB040; to 'JaxprTracer' at 0x0000027BC8E2FF90>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8AFC6F0>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC39BDAA0>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8CBB400; to 'JaxprTracer' at 0x0000027BC8CBB3B0>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8B570F0>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC39BDB50>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8CBB7C0; to 'JaxprTracer' at 0x0000027BC8CBB770>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8BC98B0>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC39BDD50>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8CBBB80; to 'JaxprTracer' at 0x0000027BC8CBBB30>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8B54370>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC39BDCF0>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8CBBF40; to 'JaxprTracer' at 0x0000027BC8CBBEF0>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8BD12F0>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC39BDEF0>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8CC5360; to 'JaxprTracer' at 0x0000027BC8CC5310>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8BE6930>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC39BDF50>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8CC5720; to 'JaxprTracer' at 0x0000027BC8CC56D0>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8BAF8B0>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC39BD8D0>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8CC5AE0; to 'JaxprTracer' at 0x0000027BC8CC5A90>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8BAFAF0>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC39BDA50>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8CC5EA0; to 'JaxprTracer' at 0x0000027BC8CC5E50>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8BE9730>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC39BDA40>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8D172C0; to 'JaxprTracer' at 0x0000027BC8D17270>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8BC58B0>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC39BD900>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8D17680; to 'JaxprTracer' at 0x0000027BC8D17630>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8BA66B0>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC39BDA90>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8D17A40; to 'JaxprTracer' at 0x0000027BC8D179F0>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8BFECF0>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC39BDB60>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8D17E00; to 'JaxprTracer' at 0x0000027BC8D17DB0>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8BFE6B0>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC39BDBC0>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8D14220; to 'JaxprTracer' at 0x0000027BC8D141D0>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8C03E30>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC39BDCD0>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8D145E0; to 'JaxprTracer' at 0x0000027BC8D14590>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8B5AC70>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC39BDFD0>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8D149A0; to 'JaxprTracer' at 0x0000027BC8D14950>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8BCDF70>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC39BDFB0>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8D14D60; to 'JaxprTracer' at 0x0000027BC8D14D10>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8B55470>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC39BDB20>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8EB4180; to 'JaxprTracer' at 0x0000027BC8EB4130>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8B665B0>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC39BDFA0>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8EB4540; to 'JaxprTracer' at 0x0000027BC8EB44F0>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8BDDCF0>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC39BD810>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8EB4900; to 'JaxprTracer' at 0x0000027BC8EB48B0>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8BDD4B0>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC39BD550>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8EB4CC0; to 'JaxprTracer' at 0x0000027BC8EB4C70>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8BD7CF0>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC39BDE00>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8EB50E0; to 'JaxprTracer' at 0x0000027BC8EB5090>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8BF9770>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC39BDE70>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8EB54A0; to 'JaxprTracer' at 0x0000027BC8EB5450>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8BD5CB0>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC39BDC20>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8EB5860; to 'JaxprTracer' at 0x0000027BC8EB5810>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8B61F30>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC39BDEA0>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8EB5C20; to 'JaxprTracer' at 0x0000027BC8EB5BD0>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8BF3DB0>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC39BDED0>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8EBA040; to 'JaxprTracer' at 0x0000027BC8EB5F90>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8BE77F0>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC8BFD1C0>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8EBA400; to 'JaxprTracer' at 0x0000027BC8EBA3B0>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8B8C1B0>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC8BFD080>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8EBA7C0; to 'JaxprTracer' at 0x0000027BC8EBA770>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8BEC330>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC8BFD150>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8EBAB80; to 'JaxprTracer' at 0x0000027BC8EBAB30>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8BEC370>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC8BFD440>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8EBAF40; to 'JaxprTracer' at 0x0000027BC8EBAEF0>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8B6F1B0>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC8BFD4E0>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8BF4360; to 'JaxprTracer' at 0x0000027BC8BF4310>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8BABB70>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC8BFD500>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8BF4720; to 'JaxprTracer' at 0x0000027BC8BF46D0>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8BF5A70>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC8BFD520>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8BF4AE0; to 'JaxprTracer' at 0x0000027BC8BF4A90>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8BF55F0>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC8BFD540>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8BF4EA0; to 'JaxprTracer' at 0x0000027BC8BF4E50>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8BF0E70>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC8BFD560>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8C0C2C0; to 'JaxprTracer' at 0x0000027BC8C0C270>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8C4A470>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC8BFD580>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8C0C680; to 'JaxprTracer' at 0x0000027BC8C0C630>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8C4EBB0>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC8BFD5A0>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8C0CA40; to 'JaxprTracer' at 0x0000027BC8C0C9F0>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8BDF9B0>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC8BFD5C0>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8C0CE00; to 'JaxprTracer' at 0x0000027BC8C0CDB0>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8C9E9B0>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC8BFD5E0>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8BEF220; to 'JaxprTracer' at 0x0000027BC8BEF1D0>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8AD02F0>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC8BFD600>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8BEF5E0; to 'JaxprTracer' at 0x0000027BC8BEF590>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8BE3E70>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC8BFD620>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8BEF9A0; to 'JaxprTracer' at 0x0000027BC8BEF950>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8BD87B0>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC8BFD640>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8BEFD60; to 'JaxprTracer' at 0x0000027BC8BEFD10>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8C99E30>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC8BFD660>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8C09180; to 'JaxprTracer' at 0x0000027BC8C09130>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8CD3BB0>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC8BFD680>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8C09540; to 'JaxprTracer' at 0x0000027BC8C094F0>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8CDD7B0>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC8BFD6A0>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8C09900; to 'JaxprTracer' at 0x0000027BC8C098B0>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8D020F0>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC8BFD6C0>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8C09CC0; to 'JaxprTracer' at 0x0000027BC8C09C70>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8CD5070>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC8BFD6E0>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8C0A0E0; to 'JaxprTracer' at 0x0000027BC8C0A090>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8D0DF30>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC8BFD700>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8C0A4A0; to 'JaxprTracer' at 0x0000027BC8C0A450>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8D08830>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC8BFD720>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8C0A860; to 'JaxprTracer' at 0x0000027BC8C0A810>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8C9D670>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC8BFD740>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8C0AC20; to 'JaxprTracer' at 0x0000027BC8C0ABD0>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8CCB2B0>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC8BFD760>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8E40040; to 'JaxprTracer' at 0x0000027BC8C0AF90>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8D100F0>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC8BFD780>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8E40400; to 'JaxprTracer' at 0x0000027BC8E403B0>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8CDC630>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC8BFD7A0>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8E407C0; to 'JaxprTracer' at 0x0000027BC8E40770>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8CD6E70>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC8BFD7C0>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8E40B80; to 'JaxprTracer' at 0x0000027BC8E40B30>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8CC2A30>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC8BFD7E0>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8E40F40; to 'JaxprTracer' at 0x0000027BC8E40EF0>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8D033B0>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC8BFD800>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8E44360; to 'JaxprTracer' at 0x0000027BC8E44310>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8D12CF0>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC8BFD820>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8E44720; to 'JaxprTracer' at 0x0000027BC8E446D0>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8CDF730>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC8BFD840>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8E44AE0; to 'JaxprTracer' at 0x0000027BC8E44A90>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8CC43F0>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC8BFD860>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8E44EA0; to 'JaxprTracer' at 0x0000027BC8E44E50>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8BAA2F0>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC8BFD880>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8E4B2C0; to 'JaxprTracer' at 0x0000027BC8E4B270>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8D01970>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC8BFD8A0>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8E4B680; to 'JaxprTracer' at 0x0000027BC8E4B630>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8C0E070>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC8BFD8C0>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8E4BA40; to 'JaxprTracer' at 0x0000027BC8E4B9F0>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8CCC4F0>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC8BFD8E0>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8E4BE00; to 'JaxprTracer' at 0x0000027BC8E4BDB0>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8CCC4B0>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC8BFD900>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8E56220; to 'JaxprTracer' at 0x0000027BC8E561D0>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8D06170>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC8BFD920>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8E565E0; to 'JaxprTracer' at 0x0000027BC8E56590>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8BFB5B0>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC8BFD940>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8E569A0; to 'JaxprTracer' at 0x0000027BC8E56950>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8CA52F0>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC8BFD960>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8E56D60; to 'JaxprTracer' at 0x0000027BC8E56D10>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC3774D30>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC8BFD980>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8E58180; to 'JaxprTracer' at 0x0000027BC8E58130>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8E3BB70>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC8BFD9A0>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8E58540; to 'JaxprTracer' at 0x0000027BC8E584F0>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8DCC330>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC8BFD9F0>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8E58900; to 'JaxprTracer' at 0x0000027BC8E588B0>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8E57330>, name_stack=NameStack(stack=())))","Traced<ShapedArray(float32[])>with<JVPTrace(level=3/1)> with
+  primal = Traced<ShapedArray(float32[])>with<BatchTrace(level=1/1)> with
+    val = Traced<ShapedArray(float32[200])>with<DynamicJaxprTrace(level=0/1)>
+    batch_dim = 0
+  tangent = Traced<ShapedArray(float32[])>with<JaxprTrace(level=2/1)> with
+    pval = (ShapedArray(float32[]), None)
+    recipe = JaxprEqnRecipe(eqn_id=<object object at 0x0000027BC8BFDA00>, in_tracers=(Traced<ShapedArray(float32[1]):JaxprTrace(level=2/1)>,), out_tracer_refs=[<weakref at 0x0000027BC8E58CC0; to 'JaxprTracer' at 0x0000027BC8E58C70>], out_avals=[ShapedArray(float32[])], primitive=squeeze, params={'dimensions': (0,)}, effects=set(), source_info=SourceInfo(traceback=<jaxlib.xla_extension.Traceback object at 0x0000027BC8D6A9B0>, name_stack=NameStack(stack=())))"

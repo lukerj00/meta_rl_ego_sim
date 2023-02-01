@@ -180,7 +180,7 @@ def body_fnc(e,UTORR): # returns theta
 
 @jit
 def full_loop(loop_params,theta): # main routine: R_arr, std_arr = full_loop(params) 
-    # jax.lax.stop_gradient(theta["ENV"])
+    theta["ENV"] = jax.lax.stop_gradient(theta["ENV"])
     optimizer = optax.adam(learning_rate=loop_params['UPDATE'])
     opt_state = optimizer.init(theta["GRU"])
     UTORR_0 = (loop_params['UPDATE'],theta,opt_state,loop_params['R_arr'],loop_params['std_arr'])
@@ -205,7 +205,7 @@ KEY_INIT = rnd.PRNGKey(0) # 0
 INIT = jnp.float32(0.1) # 0.1
 
 # loop params
-EPOCHS = 20
+EPOCHS = 4000
 IT = 25
 VMAPS = 200
 UPDATE = jnp.float32(0.001) # 0.001
