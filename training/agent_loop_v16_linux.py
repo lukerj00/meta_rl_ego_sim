@@ -35,7 +35,7 @@ def csv_write(data,rav): # 1 (dis values in tot_reward), 2/3 (R scalars in R_arr
 	elif rav==3:
 		str_ = 'std_arr'
 		pass
-	path_ = '/homes/lrj34/projects/meta_rl_ego_sim/csv_plotter' # str(Path(__file__).resolve().parents[1]) + '/csv_plotter/'
+	path_ = '/homes/lrj34/projects/meta_rl_ego_sim/csv_plotter/' # str(Path(__file__).resolve().parents[1]) + '/csv_plotter/'
 	dt = datetime.now().strftime("%d_%m-%H%M")
 	# file_ = os.path.basename(__file__).split('.')[0]
 	with open(path_+str_+'_'+dt,'a',newline='') as file:
@@ -44,7 +44,7 @@ def csv_write(data,rav): # 1 (dis values in tot_reward), 2/3 (R scalars in R_arr
 # csv_write=jit(csv_write,static_argnums=(1))
 
 def save_params(param,str_):  # can't jit (can't pickle jax tracers)
-	path_ = '/homes/lrj34/projects/meta_rl_ego_sim/pkl' # str(Path(__file__).resolve().parents[1]) + '/pkl/'
+	path_ = '/homes/lrj34/projects/meta_rl_ego_sim/pkl/' # str(Path(__file__).resolve().parents[1]) + '/pkl/'
 	dt = datetime.now().strftime("%d_%m-%H%M")
 	# file_ = os.path.basename(__file__).split('.')[0]
 	with open(path_+str_+dt+'.pkl','wb') as file:
