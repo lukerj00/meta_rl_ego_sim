@@ -205,7 +205,7 @@ KEY_INIT = rnd.PRNGKey(0) # 0
 INIT = jnp.float32(0.1) # 0.1
 
 # loop params
-EPOCHS = 4000
+EPOCHS = 100
 IT = 25
 VMAPS = 200
 UPDATE = jnp.float32(0.001) # 0.001
@@ -275,7 +275,7 @@ theta = { "GRU" : {
 ###
 theta_,R_arr,std_arr = full_loop(loop_params,theta)
 print(f'R_arr: {R_arr}','\n',f'std_arr: {std_arr}')
-# print(theta['ENV']['DIS'])
+print(type(R_arr))
 time_elapsed = datetime.now() - startTime
 print(f'Completed in: {time_elapsed}, {time_elapsed/EPOCHS} s/epoch')
 ###

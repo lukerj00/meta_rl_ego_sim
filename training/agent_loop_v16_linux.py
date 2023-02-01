@@ -50,6 +50,12 @@ def save_params(param,str_):  # can't jit (can't pickle jax tracers)
 	with open(path_+str_+dt+'.pkl','wb') as file:
 		pickle.dump(param,file,pickle.HIGHEST_PROTOCOL)
 
+def save_npy(param,str_):
+	path_ = '/homes/lrj34/projects/meta_rl_ego_sim/pkl/' # str(Path(__file__).resolve().parents[1]) + '/pkl/'
+	dt = datetime.now().strftime("%d_%m-%H%M")
+	with open(path_+str_+dt+'.pkl','wb') as file:
+		jnp.save(file,param,allow_pickle=False)
+
 def eval_(jaxpr_in): ### to do
 	reg_ = r'(?<=DeviceArray\()(.*)(?=dtype)' # r'(?<=DeviceArray\(\[\[]])(.*)(?=\]\])'
 	jaxpr_str = repr(jaxpr_in)
@@ -224,7 +230,7 @@ KEY_INIT = rnd.PRNGKey(0) # 0
 INIT = jnp.float32(0.1) # 0.1
 
 # loop params
-EPOCHS = 10000
+EPOCHS = 20000
 IT = 25
 VMAPS = 200
 UPDATE = jnp.float32(0.001) # 0.001
@@ -299,7 +305,6 @@ dt = datetime.now().strftime("%d_%m-%H%M")
 # with open(path_+'dump_'+dt,'a') as sys.stdout:
 # 	print('R_arr: {} \n std_arr: {}',R_arr,std_arr)
 print(f'R_arr: {R_arr} \n std_arr: {std_arr}')
-# print(theta['ENV']['DIS'])
 time_elapsed = datetime.now() - startTime
 print(f'Completed in: {time_elapsed}, {time_elapsed/EPOCHS} s/epoch')
 ###
@@ -319,5 +324,7 @@ dt = datetime.now().strftime("%d_%m-%H%M")
 # plt.savefig(path_ + 'fig_' + dt + '.png')
 csv_write(R_arr,2)
 csv_write(std_arr,3)
-save_params(R_arr,'R_arr')
-save_params(std_arr,'std_arr')
+# save_params(R_arr,'R_arr')
+# save_params(std_arr,'std_arr')
+# save_npy('R_arr',R_arr)
+# save_npy('std_arr',std_arr)
