@@ -16,22 +16,24 @@ import sys
 
 # import
 
-R_arr_ = 'R_arr_01_02-1829'#'R_arr01_02-1829.pkl'
-std_arr_ = 'std_arr_01_02-1829'#'std_arr01_02-1829.pkl'
+R_arr_ = 'R_arr_01_02-1947'#'R_arr01_02-1829.pkl'
+std_arr_ = 'std_arr_01_02-1947'#'std_arr01_02-1829.pkl'
 path_ = str(Path(__file__).resolve().parents[1]) # C:\Users\lukej\Documents\MPhil\meta_rl_ego_sim
 path_pkl = path_ + "\\pkl\\"
 path_csv = path_ + "\\csv_plotter\\"
 R_arr = genfromtxt(path_csv+R_arr_, delimiter=',')
+print(R_arr.shape)
 # R_arr_ = open(path_pkl + R_arr_path,'rb')
 # R_arr = pickle.load(R_arr_)
 std_arr = genfromtxt(path_csv+std_arr_, delimiter=',')
+print(std_arr.shape)
 # std_arr_ = open(path_pkl + std_arr_path,'rb')
 # std_arr = pickle.load(std_arr_)
 # colors_ = open(path_pkl + colors_path,'rb') # (remember to open as binary)
 # SELECT = pickle.load(select_)
 # print(type(R_arr))
 
-EPOCHS = 10000
+EPOCHS = R_arr.shape[0]
 IT = 25
 VMAPS = 200
 UPDATE = 0.001

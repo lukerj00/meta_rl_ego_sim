@@ -157,15 +157,17 @@ def single_step(EHT_t_1,eps):
     
 	return ( (e_t,h_t,EHT_t_1[2],EHT_t_1[3]) , (R_t,dis) )
 
-def true_fnc(dis):
+def true_fnc(edis):
+	epoch,dis = edis
 	path_ = str(Path(__file__).resolve().parents[1]) + '/stdout/'
 	dt = datetime.now().strftime("%d_%m-%H%M")
 	# txtdump = sys.stdout
 	# with open(path_+'dump_'+dt,'a') as sys.stdout:
-	jax.debug.print('dis={}',dis)
+	jax.debug.print('epoch = {}', epoch)
+	jax.debug.print('dis={}', dis)
 	return
 
-def false_fnc(dis):
+def false_fnc(edis):
 	return
 
 @jit
@@ -173,7 +175,8 @@ def tot_reward(e0,h0,theta,sel,eps,epoch):
 	# EHT_0 = (e0,h0,theta,sel)
 	EHT_,R_dis = jax.lax.scan(single_step,(e0,h0,theta,sel),eps)
 	R_t,dis = R_dis # dis=[1,IT*N_DOTS[VMAPS]]
-	jax.lax.cond((epoch%1000==0),true_fnc,false_fnc,dis)
+	edis=(epoch,dis)
+	jax.lax.cond((epoch%1000==0),true_fnc,false_fnc,edis)
 	# if (epoch%50==0):
 	# 	jax.debug.print('dis={}',dis)
 	# theta['ENV']['DIS'] = theta['ENV']['DIS'].at[:,:].set(str(dis))
