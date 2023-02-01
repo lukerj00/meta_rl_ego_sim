@@ -27,15 +27,15 @@ import sys
 # fnc definitions
 def csv_write(data,rav): # 1 (dis values in tot_reward), 0 (R scalars in R_arr)
 	if rav==1:
-        data = data.ravel()
+		data = data.ravel()
 	else:
-    	pass
+		pass
 	path_ = str(Path(__file__).resolve().parents[1]) + '/csv_plotter/'
 	dt = datetime.now().strftime("%d_%m-%H%M")
 	# file_ = os.path.basename(__file__).split('.')[0]
 	with open(path_+'dis_csv'+dt,'a',newline='') as file:
-    	writer = csv.writer(file)
-    	writer.writerow(data)
+		writer = csv.writer(file)
+		writer.writerow(data)
 # csv_write=jit(csv_write,static_argnums=(1))
 
 def save_params(param,str_):  # can't jit (can't pickle jax tracers)
@@ -43,7 +43,7 @@ def save_params(param,str_):  # can't jit (can't pickle jax tracers)
 	dt = datetime.now().strftime("%d_%m-%H%M")
 	# file_ = os.path.basename(__file__).split('.')[0]
 	with open(path_+str_+dt+'.pkl','wb') as file:
-    	pickle.dump(param,file,pickle.HIGHEST_PROTOCOL)
+		pickle.dump(param,file,pickle.HIGHEST_PROTOCOL)
 
 def eval_(jaxpr_in): ### to do
 	reg_ = r'(?<=DeviceArray\()(.*)(?=dtype)' # r'(?<=DeviceArray\(\[\[]])(.*)(?=\]\])'
