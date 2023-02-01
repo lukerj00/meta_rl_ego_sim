@@ -53,7 +53,7 @@ def save_params(param,str_):  # can't jit (can't pickle jax tracers)
 def save_npy(param,str_):
 	path_ = '/homes/lrj34/projects/meta_rl_ego_sim/pkl/' # str(Path(__file__).resolve().parents[1]) + '/pkl/'
 	dt = datetime.now().strftime("%d_%m-%H%M")
-	with open(path_+str_+dt+'.pkl','wb') as file:
+	with open(path_+str_+dt+'.npy','wb') as file:
 		jnp.save(file,param,allow_pickle=False)
 
 def eval_(jaxpr_in): ### to do
@@ -329,5 +329,6 @@ csv_write(R_arr,2)
 csv_write(std_arr,3)
 # save_params(R_arr,'R_arr')
 # save_params(std_arr,'std_arr')
-# save_npy('R_arr',R_arr)
-# save_npy('std_arr',std_arr)
+save_npy('R_arr',R_arr)
+save_npy('std_arr',std_arr)
+save_npy('SELECT',SELECT)

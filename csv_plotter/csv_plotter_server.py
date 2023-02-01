@@ -16,8 +16,8 @@ import sys
 
 # import
 
-R_arr_ = 'R_arr_01_02-1947'#'R_arr01_02-1829.pkl'
-std_arr_ = 'std_arr_01_02-1947'#'std_arr01_02-1829.pkl'
+R_arr_ = 'R_arr_01_02-2017'#'R_arr01_02-1829.pkl'
+std_arr_ = 'std_arr_01_02-2017'#'std_arr01_02-1829.pkl'
 path_ = str(Path(__file__).resolve().parents[1]) # C:\Users\lukej\Documents\MPhil\meta_rl_ego_sim
 path_pkl = path_ + "\\pkl\\"
 path_csv = path_ + "\\csv_plotter\\"
@@ -50,3 +50,4 @@ plt.title(title__,fontsize=8)
 plt.xlabel('Iteration')
 plt.ylabel('Reward')
 plt.show()
+
