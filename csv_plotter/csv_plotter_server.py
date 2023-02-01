@@ -31,6 +31,7 @@ print(std_arr.shape)
 # std_arr = pickle.load(std_arr_)
 # colors_ = open(path_pkl + colors_path,'rb') # (remember to open as binary)
 # SELECT = pickle.load(select_)
+SELECT = np.load(path_pkl+'')
 # print(type(R_arr))
 
 EPOCHS = R_arr.shape[0]
