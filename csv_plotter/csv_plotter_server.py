@@ -18,6 +18,7 @@ import sys
 
 R_arr_ = 'R_arr_01_02-2017'#'R_arr01_02-1829.pkl'
 std_arr_ = 'std_arr_01_02-2017'#'std_arr01_02-1829.pkl'
+SELECT_ = 'SELECT01_02-2037'
 path_ = str(Path(__file__).resolve().parents[1]) # C:\Users\lukej\Documents\MPhil\meta_rl_ego_sim
 path_pkl = path_ + "\\pkl\\"
 path_csv = path_ + "\\csv_plotter\\"
@@ -31,8 +32,8 @@ print(std_arr.shape)
 # std_arr = pickle.load(std_arr_)
 # colors_ = open(path_pkl + colors_path,'rb') # (remember to open as binary)
 # SELECT = pickle.load(select_)
-SELECT = np.load(path_pkl+'')
-# print(type(R_arr))
+SELECT = np.load(path_pkl+SELECT_+'.npy')
+print(SELECT.shape)
 
 EPOCHS = R_arr.shape[0]
 IT = 25
@@ -42,13 +43,17 @@ SIGMA_A = 1
 SIGMA_R = 0.5
 SIGMA_N = 1.8
 
-# plot
-plt.figure()
-plt.errorbar(jax.numpy.arange(EPOCHS),R_arr,yerr=std_arr/2,ecolor="black",elinewidth=0.5,capsize=1.5) # jnp.arange(EPOCHS),
-plt.show(block=False)
-title__ = f'epochs={EPOCHS}, it={IT}, vmaps={VMAPS}, update={UPDATE:.3f}, SIGMA_A={SIGMA_A:.1f}, SIGMA_R={SIGMA_R:.1f}, SIGMA_N={SIGMA_N:.1f}' # \n colors={jnp.array_str(COLORS[0][:]) + jnp.array_str(COLORS[1][:]) + jnp.array_str(COLORS[2][:]) + jnp.array_str(COLORS[3][:]) + jnp.array_str(COLORS[4][:])}'
-plt.title(title__,fontsize=8)
-plt.xlabel('Iteration')
-plt.ylabel('Reward')
-plt.show()
+ep_ = 10000
+# vmap_ = np.arange(3)
+print(SELECT[ep_,0:2,:])
+
+# # plot
+# plt.figure()
+# plt.errorbar(jax.numpy.arange(EPOCHS),R_arr,yerr=std_arr/2,ecolor="black",elinewidth=0.5,capsize=1.5) # jnp.arange(EPOCHS),
+# plt.show(block=False)
+# title__ = f'epochs={EPOCHS}, it={IT}, vmaps={VMAPS}, update={UPDATE:.3f}, SIGMA_A={SIGMA_A:.1f}, SIGMA_R={SIGMA_R:.1f}, SIGMA_N={SIGMA_N:.1f}' # \n colors={jnp.array_str(COLORS[0][:]) + jnp.array_str(COLORS[1][:]) + jnp.array_str(COLORS[2][:]) + jnp.array_str(COLORS[3][:]) + jnp.array_str(COLORS[4][:])}'
+# plt.title(title__,fontsize=8)
+# plt.xlabel('Iteration')
+# plt.ylabel('Reward')
+# plt.show()
 
