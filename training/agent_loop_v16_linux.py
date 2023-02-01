@@ -183,7 +183,7 @@ def tot_reward(e0,h0,theta,sel,eps,epoch):
 	# theta['ENV']['DIS'] = theta['ENV']['DIS'].at[:,:].set(str(dis))
 	# if (epoch==0)|(epoch%50==0)|(epoch==(theta["ENV"]["EPOCHS"]-1)):
 	# 	csv_write(dis,1) ### dt?
-	return jnp.sum(R_t)
+	return jnp.sum(R_tot)
 
 @jit
 def body_fnc(e,UTORR): # returns theta
