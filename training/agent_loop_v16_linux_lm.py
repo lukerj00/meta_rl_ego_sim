@@ -162,11 +162,14 @@ def tot_reward(e0,h0,theta,sel,eps,epoch):
 def body_fnc(e,UTORR): # returns theta
     # unpack
     (UPDATE,theta,opt_state,R_arr,std_arr) = UTORR #opt_state
-    N_DOTS = theta["ENV"]["N_DOTS"]
+    # N_DOTS = theta["ENV"]["N_DOTS"]
     # h0 = theta["GRU"]["h0"]
     optimizer = optax.adam(learning_rate=UPDATE) # theta["ENV"]["OPT"] # put in GRU?
 
     # use e
+    N_DOTS = 3
+    VMAPS = 200
+    IT = 25
     # e0 = theta["ENV"]["DOTS"][e,:,:,:] 
     e0 = create_dots_(N_DOTS,ke[e],VMAPS) # [ndots,2,vmaps]
     sel = theta["ENV"]["SELECT"][e,:,:]
