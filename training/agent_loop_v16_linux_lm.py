@@ -278,8 +278,9 @@ theta = { "GRU" : {
         "STEP"         : STEP,
         # "DOTS"         : DOTS,
         # "EPS"          : EPS,
-        "SELECT"       : SELECT
+        "SELECT"       : SELECT,
         # removed aperture,neurons,n_dots,it,epochs
+        "N_DOTS"       : N_DOTS
 
     }
             }
