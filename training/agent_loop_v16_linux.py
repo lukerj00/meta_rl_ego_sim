@@ -53,7 +53,7 @@ def save_params(param,str_):  # can't jit (can't pickle jax tracers)
 def save_npy(param,str_):
 	path_ = '/homes/lrj34/projects/meta_rl_ego_sim/pkl/' # str(Path(__file__).resolve().parents[1]) + '/pkl/'
 	dt = datetime.now().strftime("%d_%m-%H%M")
-	with open(path_+str_+dt+'.npy','wb') as file:
+	with open(path_+str_+'_'+dt+'.npy','wb') as file:
 		jnp.save(file,param,allow_pickle=False)
 
 def eval_(jaxpr_in): ### to do
@@ -225,7 +225,7 @@ startTime = datetime.now()
 SIGMA_A = jnp.float32(1) # 0.9
 SIGMA_R = jnp.float32(0.3) # 0.3
 SIGMA_N = jnp.float32(1.8) # 1.6
-STEP = jnp.float32(0.008) # play around with! 0.005
+STEP = jnp.float32(0.005) # play around with! 0.005
 APERTURE = jnp.pi/3
 COLORS = jnp.float32([[255,100,50],[50,255,100],[100,50,255]]) # ,[100,100,100],[200,200,200]]) # [[255,100,50],[50,255,100],[100,50,255],[200,0,50]]) # ,[50,0,200]]) # [[255,0,0],[0,200,200],[100,100,100]]
 N_DOTS = COLORS.shape[0]
@@ -238,10 +238,10 @@ KEY_INIT = rnd.PRNGKey(0) # 0
 INIT = jnp.float32(0.1) # 0.1
 
 # loop params
-EPOCHS = 5000
+EPOCHS = 10000
 IT = 25
-VMAPS = 5
-UPDATE = jnp.float32(0.001) # 0.001
+VMAPS = 200
+UPDATE = jnp.float32(0.0005) # 0.001
 R_arr = jnp.empty(EPOCHS)*jnp.nan
 std_arr = jnp.empty(EPOCHS)*jnp.nan
 optimizer = optax.adam(learning_rate=UPDATE)
