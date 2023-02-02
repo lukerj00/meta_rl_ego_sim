@@ -215,7 +215,7 @@ KEY_DOT = rnd.PRNGKey(1)
 INIT = jnp.float32(0.1) # 0.1
 
 # loop params
-EPOCHS = 5000
+EPOCHS = 2000
 IT = 25
 VMAPS = 200
 UPDATE = jnp.float32(0.0008) # 0.001
@@ -248,7 +248,7 @@ b_h0 = (INIT/G)*rnd.normal(ki[7],(G+N_DOTS,),dtype="float32")
 C0 = (INIT/2*G)*rnd.normal(ki[8],(2,G+N_DOTS),dtype="float32")
 THETA_I = gen_neurons(NEURONS,APERTURE)
 THETA_J = gen_neurons(NEURONS,APERTURE)
-DOTS = create_dots(N_DOTS,ki[9],VMAPS,EPOCHS)
+# DOTS = create_dots(N_DOTS,ki[9],VMAPS,EPOCHS)
 # EPS = rnd.normal(ki[10],shape=[EPOCHS,IT,2,VMAPS],dtype="float32")
 SELECT = jnp.eye(N_DOTS)[rnd.choice(ki[11],N_DOTS,(EPOCHS,VMAPS))]
 
@@ -276,7 +276,7 @@ theta = { "GRU" : {
         "SIGMA_A"      : SIGMA_A,
         "SIGMA_R"      : SIGMA_R,
         "STEP"         : STEP,
-        "DOTS"         : DOTS,
+        # "DOTS"         : DOTS,
         # "EPS"          : EPS,
         "SELECT"       : SELECT
         # removed aperture,neurons,n_dots,it,epochs
