@@ -236,7 +236,7 @@ def full_loop(loop_params,theta): # main routine: R_arr, std_arr = full_loop(par
 startTime = datetime.now()
 # ENV parameters
 SIGMA_A = jnp.float32(0.9) # 0.9
-SIGMA_R = jnp.float32(0.4) # 0.3
+SIGMA_R = jnp.float32(0.3) # 0.3
 SIGMA_N = jnp.float32(1.8) # 1.6
 STEP = jnp.float32(0.008) # play around with! 0.005
 APERTURE = jnp.pi/3
@@ -252,7 +252,7 @@ KEY_DOT = rnd.PRNGKey(1)
 INIT = jnp.float32(0.1) # 0.1
 
 # loop params
-EPOCHS = 5000
+EPOCHS = 8000
 IT = 25
 VMAPS = 200
 UPDATE = jnp.float32(0.0008) # 0.001
