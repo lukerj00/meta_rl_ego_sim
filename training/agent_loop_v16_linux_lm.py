@@ -24,17 +24,22 @@ import os
 # jax.config.update('jax_platform_name', 'cpu')
 
 # fnc definitions
-def csv_write(data,rav): # 1 (dis values in tot_reward), 0 (R scalars in R_arr)
-    if rav==1:
-        data = data.ravel()
-    else:
-        pass
-    path_ = str(Path(__file__).resolve().parents[1]) + '\\csv_plotter\\'
-    dt = datetime.now().strftime("%d_%m-%H%M")
-    # file_ = os.path.basename(__file__).split('.')[0]
-    with open(path_+'dis_csv'+dt,'a',newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(data)
+def csv_write(data,rav): # 1 (dis values in tot_reward), 2/3 (R scalars in R_arr)
+	if rav==1:
+		data = data.ravel()
+		str_ = 'dis'
+	elif rav==2:
+		str_ = 'R_arr'
+		pass
+	elif rav==3:
+		str_ = 'std_arr'
+		pass
+	path_ = '/homes/lrj34/projects/meta_rl_ego_sim/csv_plotter/' # str(Path(__file__).resolve().parents[1]) + '/csv_plotter/'
+	dt = datetime.now().strftime("%d_%m-%H%M")
+	# file_ = os.path.basename(__file__).split('.')[0]
+	with open(path_+str_+'_'+dt,'a',newline='') as file:
+		writer = csv.writer(file)
+		writer.writerow(data)
 # csv_write=jit(csv_write,static_argnums=(1))
 
 def save_params(param,str_):  # can't jit (can't pickle jax tracers)
@@ -43,6 +48,12 @@ def save_params(param,str_):  # can't jit (can't pickle jax tracers)
     # file_ = os.path.basename(__file__).split('.')[0]
     with open(path_+str_+dt+'.pkl','wb') as file:
         pickle.dump(param,file,pickle.HIGHEST_PROTOCOL)
+
+def save_npy(param,str_):
+	path_ = '/homes/lrj34/projects/meta_rl_ego_sim/pkl/' # str(Path(__file__).resolve().parents[1]) + '/pkl/'
+	dt = datetime.now().strftime("%d_%m-%H%M")
+	with open(path_+str_+'_'+dt+'.npy','wb') as file:
+		jnp.save(file,param,allow_pickle=False)
 
 def eval_(jaxpr_in): ### to do
     reg_ = r'(?<=DeviceArray\()(.*)(?=dtype)' # r'(?<=DeviceArray\(\[\[]])(.*)(?=\]\])'
@@ -149,14 +160,37 @@ def single_step(EHT_t_1,eps):
     
     return (EHT_t,R_dis)
 
+def true_fnc(esdr):
+	epoch,sel,dis,R_tot = esdr
+	path_ = str(Path(__file__).resolve().parents[1]) + '/stdout/'
+	dt = datetime.now().strftime("%d_%m-%H%M")
+	# txtdump = sys.stdout
+	# with open(path_+'dump_'+dt,'a') as sys.stdout:
+	jax.debug.print('epoch = {}', epoch)
+	jax.debug.print('\n')
+	jax.debug.print('sel = {}', sel)
+	jax.debug.print('\n')
+	jax.debug.print('dis={}', dis)
+	jax.debug.print('\n')
+	jax.debug.print('R_tot={}', R_tot)
+	return
+
+def false_fnc(edr):
+	return
+
 @jit
 def tot_reward(e0,h0,theta,sel,eps,epoch):
-    EHT_0 = (e0,h0,theta,sel)
-    EHT_,R_dis = jax.lax.scan(single_step,EHT_0,eps) # ,length=theta["ENV"]["IT"].astype(jnp.int32)) # DOESNT WORK WITH TRACER IT.astype(jnp.int32)) # IT.astype(int))
-    R_t,dis = R_dis
-    # if (epoch==0)|(epoch%50==0)|(epoch==(theta["ENV"]["EPOCHS"]-1)):
-    #     csv_write(dis,1) ### dt?
-    return jnp.sum(R_t)
+	# EHT_0 = (e0,h0,theta,sel)
+	EHT_,R_dis = jax.lax.scan(single_step,(e0,h0,theta,sel),eps)
+	R_tot,dis = R_dis # dis=[1,IT*N_DOTS[VMAPS]]
+	esdr=(epoch,sel,dis,R_tot)
+	jax.lax.cond((epoch%1000==0),true_fnc,false_fnc,esdr)
+	# if (epoch%50==0):
+	# 	jax.debug.print('dis={}',dis)
+	# theta['ENV']['DIS'] = theta['ENV']['DIS'].at[:,:].set(str(dis))
+	# if (epoch==0)|(epoch%50==0)|(epoch==(theta["ENV"]["EPOCHS"]-1)):
+	# 	csv_write(dis,1) ### dt?
+	return jnp.sum(R_tot)
 
 @jit
 def body_fnc(e,UTORR): # returns theta
@@ -218,7 +252,7 @@ KEY_DOT = rnd.PRNGKey(1)
 INIT = jnp.float32(0.1) # 0.1
 
 # loop params
-EPOCHS = 2000
+EPOCHS = 5000
 IT = 25
 VMAPS = 200
 UPDATE = jnp.float32(0.0008) # 0.001
@@ -294,14 +328,22 @@ time_elapsed = datetime.now() - startTime
 print(f'Completed in: {time_elapsed}, {time_elapsed/EPOCHS} s/epoch')
 ###
     #figure
-plt.figure()
-plt.errorbar(jnp.arange(EPOCHS),R_arr,yerr=std_arr/2,ecolor="black",elinewidth=0.5,capsize=1.5)
-plt.show(block=False)
-title__ = f'epochs={EPOCHS}, it={IT}, vmaps={VMAPS}, update={UPDATE:.3f}, SIGMA_A={SIGMA_A:.1f}, SIGMA_R={SIGMA_R:.1f}, SIGMA_N={SIGMA_N:.1f} \n colors={jnp.array_str(COLORS[0][:]) + jnp.array_str(COLORS[1][:]) + jnp.array_str(COLORS[2][:])}' #  + jnp.array_str(COLORS[3][:]) + jnp.array_str(COLORS[4][:])}'
-plt.title(title__,fontsize=8)
-plt.xlabel('Iteration')
-plt.ylabel('Reward')
-plt.show()
+# plt.figure()
+# plt.errorbar(jnp.arange(EPOCHS),R_arr,yerr=std_arr/2,ecolor="black",elinewidth=0.5,capsize=1.5)
+# plt.show(block=False)
+# title__ = f'epochs={EPOCHS}, it={IT}, vmaps={VMAPS}, update={UPDATE:.3f}, SIGMA_A={SIGMA_A:.1f}, SIGMA_R={SIGMA_R:.1f}, SIGMA_N={SIGMA_N:.1f} \n colors={jnp.array_str(COLORS[0][:]) + jnp.array_str(COLORS[1][:]) + jnp.array_str(COLORS[2][:])}' #  + jnp.array_str(COLORS[3][:]) + jnp.array_str(COLORS[4][:])}'
+# plt.title(title__,fontsize=8)
+# plt.xlabel('Iteration')
+# plt.ylabel('Reward')
+# plt.show()
+
+csv_write(R_arr,2)
+csv_write(std_arr,3)
+# save_params(R_arr,'R_arr')
+# save_params(std_arr,'std_arr')
+save_npy(R_arr,'R_arr')
+save_npy(std_arr,'std_arr')
+save_npy(SELECT,'SELECT')
 
 # path_ = str(Path(__file__).resolve().parents[1]) + '\\figs\\task6_multi\\'
 # plt.savefig(path_ + 'fig_' + dt + '.png')
