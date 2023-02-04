@@ -22,6 +22,7 @@ import re
 import os
 # from os.path import dirname, abspath
 # jax.config.update('jax_platform_name', 'cpu')
+# jax.XLA_PYTHON_CLIENT_PREALLOCATE=false
 
 # fnc definitions
 def csv_write(data,rav): # 1 (dis values in tot_reward), 2/3 (R scalars in R_arr)
@@ -252,7 +253,7 @@ KEY_DOT = rnd.PRNGKey(1)
 INIT = jnp.float32(0.1) # 0.1
 
 # loop params
-EPOCHS = 10000
+EPOCHS = 10
 IT = 25
 VMAPS = 200
 UPDATE = jnp.float32(0.0008) # 0.001
@@ -328,14 +329,14 @@ time_elapsed = datetime.now() - startTime
 print(f'Completed in: {time_elapsed}, {time_elapsed/EPOCHS} s/epoch')
 ###
     #figure
-# plt.figure()
-# plt.errorbar(jnp.arange(EPOCHS),R_arr,yerr=std_arr/2,ecolor="black",elinewidth=0.5,capsize=1.5)
-# plt.show(block=False)
-# title__ = f'epochs={EPOCHS}, it={IT}, vmaps={VMAPS}, update={UPDATE:.3f}, SIGMA_A={SIGMA_A:.1f}, SIGMA_R={SIGMA_R:.1f}, SIGMA_N={SIGMA_N:.1f} \n colors={jnp.array_str(COLORS[0][:]) + jnp.array_str(COLORS[1][:]) + jnp.array_str(COLORS[2][:])}' #  + jnp.array_str(COLORS[3][:]) + jnp.array_str(COLORS[4][:])}'
-# plt.title(title__,fontsize=8)
-# plt.xlabel('Iteration')
-# plt.ylabel('Reward')
-# plt.show()
+plt.figure()
+plt.errorbar(jnp.arange(EPOCHS),R_arr,yerr=std_arr/2,ecolor="black",elinewidth=0.5,capsize=1.5)
+plt.show(block=False)
+title__ = f'epochs={EPOCHS}, it={IT}, vmaps={VMAPS}, update={UPDATE:.3f}, SIGMA_A={SIGMA_A:.1f}, SIGMA_R={SIGMA_R:.1f}, SIGMA_N={SIGMA_N:.1f} \n colors={jnp.array_str(COLORS[0][:]) + jnp.array_str(COLORS[1][:]) + jnp.array_str(COLORS[2][:])}' #  + jnp.array_str(COLORS[3][:]) + jnp.array_str(COLORS[4][:])}'
+plt.title(title__,fontsize=8)
+plt.xlabel('Iteration')
+plt.ylabel('Reward')
+plt.show()
 
 csv_write(R_arr,2)
 csv_write(std_arr,3)
