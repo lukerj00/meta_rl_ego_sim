@@ -68,10 +68,6 @@ def eval_(jaxpr_in): ### to do
 	jaxpr_ = re.sub(r'(\[|\]|\.)','',jaxpr_)
 	jaxpr_ = jaxpr_.split(",")
 
-# @jit
-# def sigmoid(x):
-#   return 1 / (1 + jnp.exp(-x))
-
 def gen_neurons(NEURONS,APERTURE):
 	return jnp.linspace(-APERTURE,APERTURE,NEURONS,dtype="float32")
 gen_neurons = jit(gen_neurons,static_argnums=(0,1))  
@@ -240,7 +236,7 @@ INIT = jnp.float32(0.1) # 0.1
 EPOCHS = 5000
 IT = 25
 VMAPS = 500
-UPDATE = jnp.float32(0.001) # 0.001
+UPDATE = jnp.float32(0.0008) # 0.001
 R_arr = jnp.empty(EPOCHS)*jnp.nan
 std_arr = jnp.empty(EPOCHS)*jnp.nan
 optimizer = optax.adam(learning_rate=UPDATE)
@@ -255,11 +251,13 @@ loop_params = {
 # generate initial values
 ki = rnd.split(KEY_INIT,num=20)
 h0 = rnd.normal(ki[0],(G,),dtype="float32")
-W_f0 = (INIT/G*N)*rnd.normal(ki[1],(G,3*N+N_DOTS),dtype="float32")
-U_f0 = (INIT/G*G)*rnd.normal(ki[2],(G,G),dtype="float32")
-b_f0 = (INIT/G)*rnd.normal(ki[3],(G,),dtype="float32")
+W_z0 = (INIT/G*N)*rnd.normal(ki[1],(G,3*N+N_DOTS),dtype="float32")
+W_r0 = (INIT/G*N)*rnd.normal(ki[1],(G,3*N+N_DOTS),dtype="float32")
+U_z0 = (INIT/G*G)*rnd.normal(ki[2],(G,G),dtype="float32")
+U_r0 = (INIT/G*G)*rnd.normal(ki[2],(G,G),dtype="float32")
+b_z0 = (INIT/G)*rnd.normal(ki[3],(G,),dtype="float32")
+b_r0 = (INIT/G)*rnd.normal(ki[3],(G,),dtype="float32")
 W_h0 = (INIT/G*N)*rnd.normal(ki[4],(G,3*N+N_DOTS),dtype="float32")
-# W_s = (INIT)*rnd.normal(ki[5],(G,N_DOTS),dtype="float32")
 U_h0 = (INIT/G*G)*rnd.normal(ki[6],(G,G),dtype="float32")
 b_h0 = (INIT/G)*rnd.normal(ki[7],(G,),dtype="float32")
 C0 = (INIT/2*G)*rnd.normal(ki[8],(2,G),dtype="float32")
@@ -272,11 +270,13 @@ SELECT = jnp.eye(N_DOTS)[rnd.choice(ki[11],N_DOTS,(EPOCHS,VMAPS))]
 # assemble theta pytree
 theta = { "GRU" : {
     	"h0"   : h0, # ?
-    	"W_f"  : W_f0,
-    	"U_f"  : U_f0,
-    	"b_f"  : b_f0,
+    	"W_z"  : W_z0,
+    	"U_z"  : U_z0,
+    	"b_z"  : b_z0,
+    	"W_r"  : W_r0,
+    	"U_r"  : U_r0,
+    	"b_r"  : b_r0,
     	"W_h"  : W_h0,
-    	# "W_s"  : W_s,
     	"U_h"  : U_h0,
     	"b_h"  : b_h0,
     	"C"	: C0
@@ -318,11 +318,13 @@ plt.ylabel('Reward')
 path_ = str(Path(__file__).resolve().parents[1]) + '/figs/task7/'
 dt = datetime.now().strftime("%d_%m-%H%M")
 plt.savefig(path_ + 'fig_' + dt + '.png')
-csv_write(R_arr,2)
-csv_write(std_arr,3)
+
+#FOR DEBUGGING
+# csv_write(R_arr,2)
+# csv_write(std_arr,3)
 # save_params(R_arr,'R_arr')
 # save_params(std_arr,'std_arr')
 # save_npy(R_arr,'R_arr')
 # save_npy(std_arr,'std_arr')
-save_npy(COLORS,'COLORS')
-save_npy(SELECT,'SELECT')
+# save_npy(COLORS,'COLORS')
+# save_npy(SELECT,'SELECT')
