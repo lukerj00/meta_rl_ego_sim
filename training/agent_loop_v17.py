@@ -164,7 +164,7 @@ def true_fnc(esdr):
 	jax.debug.print('sel = {}', sel)
 	jax.debug.print('dis={}', dis)
 	jax.debug.print('R_tot={}', R_tot)
-	jax.debug.callback(callback_debug,R_tot)
+	# jax.debug.callback(callback_debug,R_tot)
 
 def false_fnc(esdr):
 	return
@@ -241,7 +241,7 @@ INIT = jnp.float32(0.1) # 0.1
 EPOCHS = 5000
 IT = 25
 VMAPS = 500
-UPDATE = jnp.float32(0.0008) # 0.001
+UPDATE = jnp.float32(0.0007) # 0.001
 R_arr = jnp.empty(EPOCHS)*jnp.nan
 std_arr = jnp.empty(EPOCHS)*jnp.nan
 optimizer = optax.adam(learning_rate=UPDATE)
