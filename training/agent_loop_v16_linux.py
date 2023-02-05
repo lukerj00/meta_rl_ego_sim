@@ -11,7 +11,9 @@ import jax.random as rnd
 # from jax.experimental.host_callback import id_print
 # from jax.experimental.host_callback import call
 import optax
+import matplotlib
 import matplotlib.pyplot as plt
+matplotlib.use('Agg')
 from drawnow import drawnow
 import numpy as np
 import csv
@@ -106,10 +108,10 @@ def abs_dist(e_t):
 
 @jit
 def single_step(EHT_t_1,eps):
-	# unpack values
-	e_t_1,h_t_1,theta,sel=EHT_t_1
+    # unpack values
+    e_t_1,h_t_1,theta,sel = EHT_t_1
     
-	# extract data from theta
+    # extract data from theta
     Wr_f = theta["GRU"]["Wr_f"]
     Wg_f = theta["GRU"]["Wg_f"]
     Wb_f = theta["GRU"]["Wb_f"]
@@ -131,31 +133,31 @@ def single_step(EHT_t_1,eps):
     COLORS = theta["ENV"]["COLORS"]
     STEP = theta["ENV"]["STEP"]
     
-	# neuron activations
+    # neuron activations
     (act_r,act_g,act_b) = neuron_act(e_t_1,THETA_J,THETA_I,SIGMA_A,COLORS)
     
-	# reward from neurons
+    # reward from neurons
     R_t = obj(e_t_1,sel,SIGMA_R)
     
-	# minimal GRU equations
+    # minimal GRU equations
     f_t = sigmoid(jnp.append( jnp.matmul(Wr_f,act_r) + jnp.matmul(Wg_f,act_g) + jnp.matmul(Wb_f,act_b), jnp.matmul(W_s,sel) ) + jnp.matmul(U_f,h_t_1) + b_f)
     hhat_t = jnp.tanh(jnp.append(jnp.matmul(Wr_h,act_r)  + jnp.matmul(Wg_h,act_g) + jnp.matmul(Wb_h,act_b), jnp.matmul(W_s,sel) ) + jnp.matmul(U_h,(jnp.multiply(f_t,h_t_1))) + b_h )
     h_t = jnp.multiply((1-f_t),h_t_1) + jnp.multiply(f_t,hhat_t) # dot?
     
-	# v_t = C*h_t + eps
-	v_t = STEP*(jnp.matmul(C,h_t) + SIGMA_N*eps) # 'motor noise'
+    # v_t = C*h_t + eps
+    v_t = STEP*(jnp.matmul(C,h_t) + SIGMA_N*eps) # 'motor noise'
     
-	# new env
+    # new env
     e_t = new_env(e_t_1,v_t)
 
-	# abs distance
-	dis = abs_dist(e_t) # [IT*N_DOTS]
+    # abs distance
+    dis = abs_dist(e_t) # finds dis with current e_t...
     
-	# assemble output
+    # assemble output
     EHT_t = (e_t,h_t,theta,sel)
-	R_dis = (R_t,dis)
-	
-	return (EHT_t,R_dis)
+    R_dis = (R_t,dis)
+    
+    return (EHT_t,R_dis)
 
 def true_fnc(esdr):
 	epoch,sel,dis,R_tot = esdr
@@ -164,15 +166,22 @@ def true_fnc(esdr):
 	# txtdump = sys.stdout
 	# with open(path_+'dump_'+dt,'a') as sys.stdout:
 	jax.debug.print('epoch = {}', epoch)
-	jax.debug.print('\n')
+	# jax.debug.print('\n')
 	jax.debug.print('sel = {}', sel)
-	jax.debug.print('\n')
+	# jax.debug.print('\n')
 	jax.debug.print('dis={}', dis)
-	jax.debug.print('\n')
+	# jax.debug.print('\n')
 	jax.debug.print('R_tot={}', R_tot)
-	return
+	jax.debug.callback(callback_debug,R_tot)
 
 def false_fnc(esdr):
+	return
+
+def callback_debug(R_tot):
+	if abs(R_tot[-1])>abs(R_tot[0]):
+		jax.debug.print('*******R_change = {}', 0)
+	else:
+		jax.debug.print('*******R_change = {}', 1)
 	return
 
 @jit
@@ -187,6 +196,7 @@ def tot_reward(e0,h0,theta,sel,eps,epoch):
 	# theta['ENV']['DIS'] = theta['ENV']['DIS'].at[:,:].set(str(dis))
 	# if (epoch==0)|(epoch%50==0)|(epoch==(theta["ENV"]["EPOCHS"]-1)):
 	# 	csv_write(dis,1) ### dt?
+	# jax.debug.callback(callback_debug)
 	return jnp.sum(R_tot)
 
 @jit
@@ -231,7 +241,7 @@ SIGMA_R = jnp.float32(0.3) # 0.3
 SIGMA_N = jnp.float32(1.8) # 1.6
 STEP = jnp.float32(0.005) # play around with! 0.005
 APERTURE = jnp.pi/3
-COLORS = jnp.float32([[255,100,50],[50,255,100]]) # ,[100,50,255]]) # ,[100,100,100],[200,200,200]]) # [[255,100,50],[50,255,100],[100,50,255],[200,0,50]]) # ,[50,0,200]]) # [[255,0,0],[0,200,200],[100,100,100]]
+COLORS = jnp.float32([[255,100,50],[50,255,100],[100,50,255]]) # ,[100,100,100],[200,200,200]]) # [[255,100,50],[50,255,100],[100,50,255],[200,0,50]]) # ,[50,0,200]]) # [[255,0,0],[0,200,200],[100,100,100]]
 N_DOTS = COLORS.shape[0]
 NEURONS = 11
 
@@ -242,7 +252,7 @@ KEY_INIT = rnd.PRNGKey(0) # 0
 INIT = jnp.float32(0.1) # 0.1
 
 # loop params
-EPOCHS = 100
+EPOCHS = 10000
 IT = 25
 VMAPS = 200
 UPDATE = jnp.float32(0.0005) # 0.001
@@ -322,22 +332,23 @@ print(f'Completed in: {time_elapsed}, {time_elapsed/EPOCHS} s/epoch')
 ###
 
 #figure
-# plt.figure()
-# plt.errorbar(jnp.arange(EPOCHS),R_arr,yerr=std_arr/2,ecolor="black",elinewidth=0.5,capsize=1.5)
-# plt.show(block=False)
-# title__ = f'epochs={EPOCHS}, it={IT}, vmaps={VMAPS}, update={UPDATE:.3f}, SIGMA_A={SIGMA_A:.1f}, SIGMA_R={SIGMA_R:.1f}, SIGMA_N={SIGMA_N:.1f} \n colors={jnp.array_str(COLORS[0][:]) + jnp.array_str(COLORS[1][:]) + jnp.array_str(COLORS[2][:])}' #  + jnp.array_str(COLORS[3][:]) + jnp.array_str(COLORS[4][:])}'
-# plt.title(title__,fontsize=8)
-# plt.xlabel('Iteration')
-# plt.ylabel('Reward')
+plt.figure()
+plt.errorbar(jnp.arange(EPOCHS),R_arr,yerr=std_arr/2,ecolor="black",elinewidth=0.5,capsize=1.5)
+plt.show(block=False)
+title__ = f'epochs={EPOCHS}, it={IT}, vmaps={VMAPS}, update={UPDATE:.3f}, SIGMA_A={SIGMA_A:.1f}, SIGMA_R={SIGMA_R:.1f}, SIGMA_N={SIGMA_N:.1f} \n colors={jnp.array_str(COLORS[0][:]) + jnp.array_str(COLORS[1][:])}' # + jnp.array_str(COLORS[2][:])}' #  + jnp.array_str(COLORS[3][:]) + jnp.array_str(COLORS[4][:])}'
+plt.title(title__,fontsize=8)
+plt.xlabel('Iteration')
+plt.ylabel('Reward')
 # plt.show()
 
 path_ = str(Path(__file__).resolve().parents[1]) + '/figs/task6_multi/'
 dt = datetime.now().strftime("%d_%m-%H%M")
-# plt.savefig(path_ + 'fig_' + dt + '.png')
+plt.savefig(path_ + 'fig_' + dt + '.png')
 csv_write(R_arr,2)
 csv_write(std_arr,3)
 # save_params(R_arr,'R_arr')
 # save_params(std_arr,'std_arr')
-save_npy(R_arr,'R_arr')
-save_npy(std_arr,'std_arr')
+# save_npy(R_arr,'R_arr')
+# save_npy(std_arr,'std_arr')
+save_npy(COLORS,'COLORS')
 save_npy(SELECT,'SELECT')
