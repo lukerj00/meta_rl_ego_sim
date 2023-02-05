@@ -107,55 +107,55 @@ def abs_dist(e_t):
 @jit
 def single_step(EHT_t_1,eps):
 	# unpack values
-	# e_t_1,h_t_1,theta,sel = EHT_t_1
+	e_t_1,h_t_1,theta,sel=EHT_t_1
     
 	# extract data from theta
-	Wr_f = EHT_t_1[2]["GRU"]["Wr_f"]
-	Wg_f = EHT_t_1[2]["GRU"]["Wg_f"]
-	Wb_f = EHT_t_1[2]["GRU"]["Wb_f"]
-	U_f = EHT_t_1[2]["GRU"]["U_f"]
-	b_f = EHT_t_1[2]["GRU"]["b_f"]
-	Wr_h = EHT_t_1[2]["GRU"]["Wr_h"]
-	Wg_h = EHT_t_1[2]["GRU"]["Wg_h"]
-	Wb_h = EHT_t_1[2]["GRU"]["Wb_h"]
-	W_s = EHT_t_1[2]["GRU"]["W_s"]
-	U_h = EHT_t_1[2]["GRU"]["U_h"]
-	b_h = EHT_t_1[2]["GRU"]["b_h"]
-	C = EHT_t_1[2]["GRU"]["C"]
+    Wr_f = theta["GRU"]["Wr_f"]
+    Wg_f = theta["GRU"]["Wg_f"]
+    Wb_f = theta["GRU"]["Wb_f"]
+    U_f = theta["GRU"]["U_f"]
+    b_f = theta["GRU"]["b_f"]
+    Wr_h = theta["GRU"]["Wr_h"]
+    Wg_h = theta["GRU"]["Wg_h"]
+    Wb_h = theta["GRU"]["Wb_h"]
+    W_s = theta["GRU"]["W_s"]
+    U_h = theta["GRU"]["U_h"]
+    b_h = theta["GRU"]["b_h"]
+    C = theta["GRU"]["C"]
     
-	THETA_J = EHT_t_1[2]["ENV"]["THETA_J"]
-	THETA_I = EHT_t_1[2]["ENV"]["THETA_I"]
-	SIGMA_A = EHT_t_1[2]["ENV"]["SIGMA_A"]
-	SIGMA_N = EHT_t_1[2]["ENV"]["SIGMA_N"]
-	SIGMA_R = EHT_t_1[2]["ENV"]["SIGMA_R"]
-	COLORS = EHT_t_1[2]["ENV"]["COLORS"]
-	STEP = EHT_t_1[2]["ENV"]["STEP"]
+    THETA_J = theta["ENV"]["THETA_J"]
+    THETA_I = theta["ENV"]["THETA_I"]
+    SIGMA_A = theta["ENV"]["SIGMA_A"]
+    SIGMA_N = theta["ENV"]["SIGMA_N"]
+    SIGMA_R = theta["ENV"]["SIGMA_R"]
+    COLORS = theta["ENV"]["COLORS"]
+    STEP = theta["ENV"]["STEP"]
     
 	# neuron activations
-	(act_r,act_g,act_b) = neuron_act(EHT_t_1[0],THETA_J,THETA_I,SIGMA_A,COLORS)
+    (act_r,act_g,act_b) = neuron_act(e_t_1,THETA_J,THETA_I,SIGMA_A,COLORS)
     
 	# reward from neurons
-	R_t = obj(EHT_t_1[0],EHT_t_1[3],SIGMA_R)
+    R_t = obj(e_t_1,sel,SIGMA_R)
     
 	# minimal GRU equations
-	f_t = sigmoid(jnp.append( jnp.matmul(Wr_f,act_r) + jnp.matmul(Wg_f,act_g) + jnp.matmul(Wb_f,act_b), jnp.matmul(W_s,EHT_t_1[3]) ) + jnp.matmul(U_f,EHT_t_1[1]) + b_f)
-	hhat_t = jnp.tanh(jnp.append(jnp.matmul(Wr_h,act_r)  + jnp.matmul(Wg_h,act_g) + jnp.matmul(Wb_h,act_b), jnp.matmul(W_s,EHT_t_1[3]) ) + jnp.matmul(U_h,(jnp.multiply(f_t,EHT_t_1[1]))) + b_h )
-	h_t = jnp.multiply((1-f_t),EHT_t_1[1]) + jnp.multiply(f_t,hhat_t)
+    f_t = sigmoid(jnp.append( jnp.matmul(Wr_f,act_r) + jnp.matmul(Wg_f,act_g) + jnp.matmul(Wb_f,act_b), jnp.matmul(W_s,sel) ) + jnp.matmul(U_f,h_t_1) + b_f)
+    hhat_t = jnp.tanh(jnp.append(jnp.matmul(Wr_h,act_r)  + jnp.matmul(Wg_h,act_g) + jnp.matmul(Wb_h,act_b), jnp.matmul(W_s,sel) ) + jnp.matmul(U_h,(jnp.multiply(f_t,h_t_1))) + b_h )
+    h_t = jnp.multiply((1-f_t),h_t_1) + jnp.multiply(f_t,hhat_t) # dot?
     
 	# v_t = C*h_t + eps
 	v_t = STEP*(jnp.matmul(C,h_t) + SIGMA_N*eps) # 'motor noise'
     
 	# new env
-	e_t = new_env(EHT_t_1[0],v_t)
+    e_t = new_env(e_t_1,v_t)
 
 	# abs distance
 	dis = abs_dist(e_t) # [IT*N_DOTS]
     
 	# assemble output
-	# EHT_t = (e_t,h_t,EHT_t_1[2],EHT_t_1[3])
-	# R_dis = (R_t,dis)
-    
-	return ( (e_t,h_t,EHT_t_1[2],EHT_t_1[3]) , (R_t,dis) )
+    EHT_t = (e_t,h_t,theta,sel)
+	R_dis = (R_t,dis)
+	
+	return (EHT_t,R_dis)
 
 def true_fnc(esdr):
 	epoch,sel,dis,R_tot = esdr
@@ -172,7 +172,7 @@ def true_fnc(esdr):
 	jax.debug.print('R_tot={}', R_tot)
 	return
 
-def false_fnc(edr):
+def false_fnc(esdr):
 	return
 
 @jit
@@ -191,25 +191,29 @@ def tot_reward(e0,h0,theta,sel,eps,epoch):
 
 @jit
 def body_fnc(e,UTORR): # returns theta
+    # unpack
+    (UPDATE,theta,opt_state,R_arr,std_arr) = UTORR #opt_state
+    # h0 = theta["GRU"]["h0"]
+    optimizer = optax.adam(learning_rate=UPDATE) # theta["ENV"]["OPT"] # put in GRU?
 
-	# unpack
-	# (UPDATE,theta,opt_state,R_arr,std_arr) = UTORR
-	opt_state,R_arr,std_arr = UTORR[2:]
-	optimizer = optax.adam(learning_rate=UTORR[0])
+    # use e
+    # e0 = theta["ENV"]["DOTS"][e,:,:,:] 
+    # sel = theta["ENV"]["SELECT"][e,:,:]
+    # eps = theta["ENV"]["EPS"][e,:,:,:]
 
-	# each iteration effects next LTRR (L{R_arr,std_arr},T{GRU}) # vmap tot_reward over dots (e0), eps (EPS) and sel (SELECT)); find avg r_tot, grad
-	val_grad_vmap = jax.vmap(jax.value_and_grad(tot_reward,argnums=2,allow_int=True),in_axes=(2,None,None,0,2,None),out_axes=(0,0))
-	R_tot,grads = val_grad_vmap(UTORR[1]["ENV"]["DOTS"][e,:,:,:],UTORR[1]["GRU"]["h0"],UTORR[1],UTORR[1]["ENV"]["SELECT"][e,:,:],UTORR[1]["ENV"]["EPS"][e,:,:,:],e)
-	grads_ = jax.tree_util.tree_map(lambda g: jnp.mean(g,axis=0), grads["GRU"])
-	R_arr = R_arr.at[e].set(jnp.mean(R_tot))
-	std_arr = std_arr.at[e].set(jnp.std(R_tot))
+    # each iteration effects next LTRR (L{R_arr,std_arr},T{GRU}) # vmap tot_reward over dots (e0), eps (EPS) and sel (SELECT)); find avg r_tot, grad
+    val_grad_vmap = jax.vmap(jax.value_and_grad(tot_reward,argnums=2,allow_int=True),in_axes=(2,None,None,0,2,None),out_axes=(0,0))
+    R_tot,grads = val_grad_vmap(theta["ENV"]["DOTS"][e,:,:,:],theta["GRU"]["h0"],theta,theta["ENV"]["SELECT"][e,:,:],theta["ENV"]["EPS"][e,:,:,:],e)
+    grads_ = jax.tree_util.tree_map(lambda g: jnp.mean(g,axis=0), grads["GRU"])
+    R_arr = R_arr.at[e].set(jnp.mean(R_tot))
+    std_arr = std_arr.at[e].set(jnp.std(R_tot))
     
-	# update theta
-	opt_update, opt_state = optimizer.update(grads_, opt_state, UTORR[1]["GRU"])
-	UTORR[1]["GRU"] = optax.apply_updates(UTORR[1]["GRU"], opt_update)
-	# UTORR = (UTORR[0],UTORR[1],opt_state,R_arr,std_arr)
+    # update theta
+    opt_update, opt_state = optimizer.update(grads_, opt_state, theta["GRU"])
+    theta["GRU"] = optax.apply_updates(theta["GRU"], opt_update)
+    UTORR = (UPDATE,theta,opt_state,R_arr,std_arr)
 
-	return (UTORR[0],UTORR[1],opt_state,R_arr,std_arr) # becomes new input
+    return UTORR # becomes new input
 
 @jit
 def full_loop(loop_params,theta): # main routine: R_arr, std_arr = full_loop(params)
@@ -225,9 +229,9 @@ startTime = datetime.now()
 SIGMA_A = jnp.float32(1) # 0.9
 SIGMA_R = jnp.float32(0.3) # 0.3
 SIGMA_N = jnp.float32(1.8) # 1.6
-STEP = jnp.float32(0.00) # play around with! 0.005
+STEP = jnp.float32(0.005) # play around with! 0.005
 APERTURE = jnp.pi/3
-COLORS = jnp.float32([[255,100,50],[50,255,100],[100,50,255]]) # ,[100,100,100],[200,200,200]]) # [[255,100,50],[50,255,100],[100,50,255],[200,0,50]]) # ,[50,0,200]]) # [[255,0,0],[0,200,200],[100,100,100]]
+COLORS = jnp.float32([[255,100,50],[50,255,100]]) # ,[100,50,255]]) # ,[100,100,100],[200,200,200]]) # [[255,100,50],[50,255,100],[100,50,255],[200,0,50]]) # ,[50,0,200]]) # [[255,0,0],[0,200,200],[100,100,100]]
 N_DOTS = COLORS.shape[0]
 NEURONS = 11
 
@@ -238,7 +242,7 @@ KEY_INIT = rnd.PRNGKey(0) # 0
 INIT = jnp.float32(0.1) # 0.1
 
 # loop params
-EPOCHS = 10000
+EPOCHS = 100
 IT = 25
 VMAPS = 200
 UPDATE = jnp.float32(0.0005) # 0.001
