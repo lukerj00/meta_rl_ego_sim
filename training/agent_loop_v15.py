@@ -264,9 +264,9 @@ def main():
     for e in range(EPOCHS):
 
         # get dots, select, eps
-        e0 = DOTS[e,:,:,:] # 2
-        sel = SELECT[e,:,:] # 0
-        eps = EPS[e,:,:,:] # 2
+        e0 = DOTS[e,:,:,:] # 2 OR e0 = gen_dots()
+        sel = SELECT[e,:,:] # 0 
+        eps = EPS[e,:,:,:] # 2 OR eps = gen_eps()
         
         # vmap tot_reward over dots (e0), eps (EPS) and sel (SELECT)); find avg r_tot, grad
         val_grad_vmap = jax.vmap(jax.value_and_grad(tot_reward,argnums=2,allow_int=True),in_axes=(2,None,None,0,2,None),out_axes=(0)) # ,None,None,0,0,None))
