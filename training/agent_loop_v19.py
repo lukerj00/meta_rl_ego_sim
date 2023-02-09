@@ -108,9 +108,12 @@ def single_step(EHT_t_1,eps):
     e_t_1,h_t_1,theta,sel = EHT_t_1
     
     # extract data from theta
-    W_f = theta["GRU"]["W_f"]
-    U_f = theta["GRU"]["U_f"]
-    b_f = theta["GRU"]["b_f"]
+    W_z = theta["GRU"]["W_z"]
+    U_z = theta["GRU"]["U_z"]
+    b_z = theta["GRU"]["b_z"]
+    W_r = theta["GRU"]["W_r"]
+    U_r = theta["GRU"]["U_r"]
+    b_r = theta["GRU"]["b_r"]
     W_h = theta["GRU"]["W_h"]
     W_s = theta["GRU"]["W_s"]
     U_h = theta["GRU"]["U_h"]
@@ -132,8 +135,9 @@ def single_step(EHT_t_1,eps):
     R_t = obj(e_t_1,sel,SIGMA_R)
     
     # minimal GRU equations
-    f_t = jax.nn.sigmoid(jnp.matmul(W_f, jnp.append(act_r,act_g,act_b,sel)) + jnp.matmul(U_f,h_t_1) + b_f)
-    hhat_t = jnp.tanh(jnp.matmul(W_h,jnp.append(act_r,act_g,act_b,sel)) + jnp.matmul(U_h,(jnp.multiply(f_t,h_t_1))) + b_h )
+    z_t = jax.nn.sigmoid(jnp.matmul(W_z,act_r) + jnp.matmul(Wg_z,act_g) + jnp.matmul(Wb_z,act_b) + jnp.matmul(W_s,sel) + jnp.matmul(U_z,h_t_1) + b_z)
+    f_t = jax.nn.sigmoid(jnp.matmul(Wr_f,act_r) + jnp.matmul(Wg_f,act_g) + jnp.matmul(Wb_f,act_b) + jnp.matmul(W_s,sel) + jnp.matmul(U_f,h_t_1) + b_f)
+    hhat_t = jnp.tanh(jnp.matmul(Wr_h,act_r)  + jnp.matmul(Wg_h,act_g) + jnp.matmul(Wb_h,act_b) + jnp.matmul(W_s,sel) + jnp.matmul(U_h,(jnp.multiply(f_t,h_t_1))) + b_h )
     h_t = jnp.multiply((1-f_t),h_t_1) + jnp.multiply(f_t,hhat_t)
     
     # v_t = C*h_t + eps
@@ -228,7 +232,7 @@ NEURONS = 11
 
 # GRU parameters
 N = NEURONS**2
-G = 80 # size of mGRU (total size = G+N_DOTS)
+G = 80 # size of mGRU
 KEY_INIT = rnd.PRNGKey(0) # 0
 INIT = jnp.float32(0.1) # 0.1
 
