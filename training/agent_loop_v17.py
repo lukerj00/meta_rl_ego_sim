@@ -68,7 +68,6 @@ def save_npy(param,str_):
 # 	jaxpr_ = re.sub(r'(\[|\]|\.)','',jaxpr_)
 # 	jaxpr_ = jaxpr_.split(",")
 
-
 def gen_neurons(NEURONS,APERTURE):
 	return jnp.linspace(-APERTURE,APERTURE,NEURONS,dtype="float32")
 gen_neurons = jit(gen_neurons,static_argnums=(0,1))  
@@ -208,6 +207,7 @@ def body_fnc(e,UTORR): # returns theta
     UTORR = (UPDATE,theta,opt_state,R_arr,std_arr)
 
     return UTORR # becomes new input
+	
 
 @jit
 def full_loop(loop_params,theta): # main routine: R_arr, std_arr = full_loop(params)
@@ -238,8 +238,8 @@ KEY_INIT = rnd.PRNGKey(0) # 0
 INIT = jnp.float32(0.1) # 0.1
 
 # loop params
-EPOCHS = 9001
-IT = 25
+EPOCHS = 5001
+IT = 20
 VMAPS = 500
 UPDATE = jnp.float32(0.0007) # 0.001
 R_arr = jnp.empty(EPOCHS)*jnp.nan

@@ -108,13 +108,19 @@ def single_step(EHT_t_1,eps):
     e_t_1,h_t_1,theta,sel = EHT_t_1
     
     # extract data from theta
-    W_z = theta["GRU"]["W_z"]
+    Wr_z = theta["GRU"]["Wr_z"]
+    Wg_z = theta["GRU"]["Wg_z"]
+    Wb_z = theta["GRU"]["Wb_z"]
     U_z = theta["GRU"]["U_z"]
     b_z = theta["GRU"]["b_z"]
-    W_r = theta["GRU"]["W_r"]
+    Wr_r = theta["GRU"]["Wr_r"]
+    Wg_r = theta["GRU"]["Wg_r"]
+    Wb_r = theta["GRU"]["Wb_r"]
     U_r = theta["GRU"]["U_r"]
     b_r = theta["GRU"]["b_r"]
-    W_h = theta["GRU"]["W_h"]
+    Wr_h = theta["GRU"]["Wr_h"]
+    Wg_h = theta["GRU"]["Wg_h"]
+    Wb_h = theta["GRU"]["Wb_h"]
     W_s = theta["GRU"]["W_s"]
     U_h = theta["GRU"]["U_h"]
     b_h = theta["GRU"]["b_h"]
@@ -135,10 +141,10 @@ def single_step(EHT_t_1,eps):
     R_t = obj(e_t_1,sel,SIGMA_R)
     
     # minimal GRU equations
-    z_t = jax.nn.sigmoid(jnp.matmul(W_z,act_r) + jnp.matmul(Wg_z,act_g) + jnp.matmul(Wb_z,act_b) + jnp.matmul(W_s,sel) + jnp.matmul(U_z,h_t_1) + b_z)
-    f_t = jax.nn.sigmoid(jnp.matmul(Wr_f,act_r) + jnp.matmul(Wg_f,act_g) + jnp.matmul(Wb_f,act_b) + jnp.matmul(W_s,sel) + jnp.matmul(U_f,h_t_1) + b_f)
+    z_t = jax.nn.sigmoid(jnp.matmul(Wr_z,act_r) + jnp.matmul(Wg_z,act_g) + jnp.matmul(Wb_z,act_b) + jnp.matmul(W_s,sel) + jnp.matmul(U_z,h_t_1) + b_z)
+    f_t = jax.nn.sigmoid(jnp.matmul(Wr_r,act_r) + jnp.matmul(Wg_r,act_g) + jnp.matmul(Wb_r,act_b) + jnp.matmul(W_s,sel) + jnp.matmul(U_r,h_t_1) + b_r)
     hhat_t = jnp.tanh(jnp.matmul(Wr_h,act_r)  + jnp.matmul(Wg_h,act_g) + jnp.matmul(Wb_h,act_b) + jnp.matmul(W_s,sel) + jnp.matmul(U_h,(jnp.multiply(f_t,h_t_1))) + b_h )
-    h_t = jnp.multiply((1-f_t),h_t_1) + jnp.multiply(f_t,hhat_t)
+    h_t = jnp.multiply(z_t,h_t_1) + jnp.multiply((1-z_t),hhat_t)# ((1-f_t),h_t_1) + jnp.multiply(f_t,hhat_t)
     
     # v_t = C*h_t + eps
     v_t = STEP*(jnp.matmul(C,h_t) + SIGMA_N*eps) # 'motor noise'
@@ -232,15 +238,15 @@ NEURONS = 11
 
 # GRU parameters
 N = NEURONS**2
-G = 80 # size of mGRU
+G = 80 # size of GRU
 KEY_INIT = rnd.PRNGKey(0) # 0
 INIT = jnp.float32(0.1) # 0.1
 
 # loop params
-EPOCHS = 5000
-IT = 25
+EPOCHS = 5001
+IT = 20
 VMAPS = 500
-UPDATE = jnp.float32(0.0008) # 0.001
+UPDATE = jnp.float32(0.0007) # 0.001
 R_arr = jnp.empty(EPOCHS)*jnp.nan
 std_arr = jnp.empty(EPOCHS)*jnp.nan
 optimizer = optax.adam(learning_rate=UPDATE)
@@ -255,16 +261,23 @@ loop_params = {
 # generate initial values
 ki = rnd.split(KEY_INIT,num=20)
 h0 = rnd.normal(ki[0],(G,),dtype="float32")
-W_z0 = (INIT/G*N)*rnd.normal(ki[1],(G,3*N+N_DOTS),dtype="float32")
-W_r0 = (INIT/G*N)*rnd.normal(ki[1],(G,3*N+N_DOTS),dtype="float32")
-U_z0 = (INIT/G*G)*rnd.normal(ki[2],(G,G),dtype="float32")
-U_r0 = (INIT/G*G)*rnd.normal(ki[2],(G,G),dtype="float32")
-b_z0 = (INIT/G)*rnd.normal(ki[3],(G,),dtype="float32")
-b_r0 = (INIT/G)*rnd.normal(ki[3],(G,),dtype="float32")
-W_h0 = (INIT/G*N)*rnd.normal(ki[4],(G,3*N+N_DOTS),dtype="float32")
-U_h0 = (INIT/G*G)*rnd.normal(ki[6],(G,G),dtype="float32")
-b_h0 = (INIT/G)*rnd.normal(ki[7],(G,),dtype="float32")
-C0 = (INIT/2*G)*rnd.normal(ki[8],(2,G),dtype="float32")
+Wr_z0 = (INIT/G*N)*rnd.normal(ki[1],(G,N),dtype=jnp.float32)
+Wg_z0 = (INIT/G*N)*rnd.normal(ki[1],(G,N),dtype=jnp.float32)
+Wb_z0 = (INIT/G*N)*rnd.normal(ki[1],(G,N),dtype=jnp.float32)
+U_z0 = (INIT/G*G)*rnd.normal(ki[2],(G,G),dtype=jnp.float32)
+b_z0 = (INIT/G)*rnd.normal(ki[3],(G,),dtype=jnp.float32)
+Wr_r0 = (INIT/G*N)*rnd.normal(ki[4],(G,N),dtype=jnp.float32)
+Wg_r0 = (INIT/G*N)*rnd.normal(ki[4],(G,N),dtype=jnp.float32)
+Wb_r0 = (INIT/G*N)*rnd.normal(ki[4],(G,N),dtype=jnp.float32)
+U_r0 = (INIT/G*G)*rnd.normal(ki[5],(G,G),dtype=jnp.float32)
+b_r0 = (INIT/G)*rnd.normal(ki[6],(G,),dtype=jnp.float32)
+Wr_h0 = (INIT/G*N)*rnd.normal(ki[7],(G,N),dtype=jnp.float32)
+Wg_h0 = (INIT/G*N)*rnd.normal(ki[7],(G,N),dtype=jnp.float32)
+Wb_h0 = (INIT/G*N)*rnd.normal(ki[7],(G,N),dtype=jnp.float32)
+U_h0 = (INIT/G*G)*rnd.normal(ki[8],(G,G),dtype=jnp.float32)
+b_h0 = (INIT/G)*rnd.normal(ki[9],(G,),dtype=jnp.float32)
+W_s0 = (INIT)*rnd.normal(ki[10],(G,N_DOTS),dtype=jnp.float32)
+C0 = (INIT/2*G)*rnd.normal(ki[11],(2,G),dtype=jnp.float32)
 THETA_I = gen_neurons(NEURONS,APERTURE)
 THETA_J = gen_neurons(NEURONS,APERTURE)
 DOTS = create_dots(N_DOTS,ki[9],VMAPS,EPOCHS)
@@ -274,15 +287,22 @@ SELECT = jnp.eye(N_DOTS)[rnd.choice(ki[11],N_DOTS,(EPOCHS,VMAPS))]
 # assemble theta pytree
 theta = { "GRU" : {
     	"h0"   : h0, # ?
-    	"W_z"  : W_z0,
+    	"Wr_z"  : Wr_z0,
+		"Wg_z"  : Wg_z0,
+		"Wb_z"  : Wb_z0,
     	"U_z"  : U_z0,
     	"b_z"  : b_z0,
-    	"W_r"  : W_r0,
+    	"Wr_r"  : Wr_r0,
+		"Wg_r"  : Wg_r0,
+		"Wb_r"  : Wb_r0,
     	"U_r"  : U_r0,
     	"b_r"  : b_r0,
-    	"W_h"  : W_h0,
+    	"Wr_h"  : Wr_h0,
+		"Wg_h"  : Wg_h0,
+		"Wb_h"  : Wb_h0,
     	"U_h"  : U_h0,
     	"b_h"  : b_h0,
+		"W_s"  : W_s0,
     	"C"	: C0
 	},
         	"ENV" : {
