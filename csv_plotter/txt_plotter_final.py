@@ -15,7 +15,7 @@ from datetime import datetime
 
 path_ = str(Path(__file__).resolve().parents[1])
 stdout_ = path_ + '\\stdout\\'
-dump_ = open(stdout_ + 'dump30.txt','r').read()
+dump_ = open(stdout_ + 'dump41.txt','r').read()
 # path_pkl = path_ + "\\pkl\\"
 # colors_ = open(path_pkl + colors_file,'rb')
 colors = np.float32([[255,100,50],[50,255,100],[100,50,255]])/255 # [[255,100,50],[50,255,100],[100,50,255],[200,0,50]]) # ,[# colors = pickle.load(colors_) # [r,g,b*5]
