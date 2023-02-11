@@ -168,8 +168,8 @@ def true_fnc(esdr):
 	jax.debug.print('epoch = {}', epoch)
 	jax.debug.print('sel = {}', sel)
 	jax.debug.print('dis={}', dis)
-	jax.debug.print('R_tot={}', R_tot)
-	jax.debug.callback(callback_debug,R_tot)
+	# jax.debug.print('R_tot={}', R_tot)
+	# jax.debug.callback(callback_debug,R_tot)
 
 def false_fnc(esdr):
 	return
