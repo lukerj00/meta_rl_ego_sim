@@ -15,12 +15,12 @@ from datetime import datetime
 
 path_ = str(Path(__file__).resolve().parents[1])
 stdout_ = path_ + '\\stdout\\'
-dump_ = open(stdout_ + 'dump41.txt','r').read() # 41(s,d),30(s,r,d)
+dump_ = open(stdout_ + 'dump42.txt','r').read() # 41(s,d),30(s,r,d)
 # path_pkl = path_ + "\\pkl\\"
 # colors_ = open(path_pkl + colors_file,'rb')
 colors = np.float32([[255,100,50],[50,255,100],[100,50,255]])/255 # [[255,100,50],[50,255,100],[100,50,255],[200,0,50]]) # ,[# colors = pickle.load(colors_) # [r,g,b*5]
 DOTS = colors.shape[0]
-EPOCHS_ = [0,1000,2000]
+EPOCHS_ = [0,1000,3000,4000,5000]
 VMAPS = 1 # 3
 IT = 20 # 25
 
@@ -63,11 +63,6 @@ for e in EPOCHS_:
     dis += dis_
 dis_arr = np.asarray(dis).reshape([-1,DOTS]).astype(np.float32) # [DOTS*IT,VMAPS]
 print('dis_arr',dis_arr.shape,dis_arr)
-# e=2
-# d=1
-# v=1
-# test = dis_arr[(e*(VMAPS*IT)+v*IT):(e*(VMAPS*IT)+(v+1)*IT-1),d] # old
-# print('dis_arr',dis_arr.shape,dis_arr,'\n test',test) # e=2,d=1,v=1
 
 # ### dis
 # dis = []
@@ -102,5 +97,6 @@ for e in range(len(EPOCHS_)):
                 print('e',e,'v',v,'d',d,'sel',sel_) # ,'indices:',(e*(DOTS*IT)+d*DOTS),(e*(DOTS*IT)+(d+1)*DOTS-1),v)
                 axis[e,v].plot(dis_arr[(e*(VMAPS*IT)+v*IT):(e*(VMAPS*IT)+(v+1)*IT-1),d],color=tuple(colors[d,:]))
                 axis[e,v].set_title(f'epoch {EPOCHS_[e]}, select = {sel_}',fontsize=8)
-fig.tight_layout(pad=1.5)
+                axis[e,v].tick_params(axis='both', labelsize=8)
+fig.tight_layout(pad=0.8)
 plt.show()
