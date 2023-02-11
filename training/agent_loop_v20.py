@@ -177,11 +177,11 @@ def true_debug(esdr):
     path_ = str(Path(__file__).resolve().parents[1]) + '/stdout/'
     dt = datetime.now().strftime("%d_%m-%H%M")
     jax.debug.print('epoch = {}', epoch)
-    # jax.debug.print('sel = {}', sel)
-    # jax.debug.print('dis={}', dis)
+    jax.debug.print('sel = {}', sel)
+    jax.debug.print('dis={}', dis)
     # jax.debug.print('R_tot={}', R_tot)
     # jax.debug.callback(callback_debug,R_tot)
-    jax.debug.print('\n &&& sigma_e={}', sigma_e)
+    # jax.debug.print('sigma_e={}', sigma_e)
 
 @jit
 def false_debug(esdr):
@@ -264,7 +264,7 @@ startTime = datetime.now()
 # ENV parameters
 SIGMA_A = jnp.float32(1) # 0.9
 SIGMA_R0 = jnp.float32(0.5) # 0.5
-SIGMA_RINF = jnp.float32(0.3) # 0.3
+SIGMA_RINF = jnp.float32(0.2) # 0.3
 SIGMA_N = jnp.float32(1.8) # 1.6
 STEP = jnp.float32(0.005) # play around with! 0.005
 APERTURE = jnp.pi/3
