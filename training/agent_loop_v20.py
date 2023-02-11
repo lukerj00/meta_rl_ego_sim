@@ -91,6 +91,7 @@ def neuron_act(e_t_1,th_j,th_i,SIGMA_A,COLORS):
 @jit
 def sigma_fnc(SIGMA_RH,SIGMA_RL,TAU,e):
     sigma_e = SIGMA_RL*(1-jnp.exp(-e/TAU))+SIGMA_RH*jnp.exp(-e/TAU)
+    # jax.debug.print('\n ***** sigma_e:{}',sigma_e)
     return sigma_e
 
 @jit
@@ -173,15 +174,14 @@ def single_step(EHT_t_1,eps):
 @jit
 def true_debug(esdr):
     epoch,sel,dis,R_tot,sigma_e = esdr
-    sigma_e = 3
     path_ = str(Path(__file__).resolve().parents[1]) + '/stdout/'
     dt = datetime.now().strftime("%d_%m-%H%M")
     jax.debug.print('epoch = {}', epoch)
-    jax.debug.print('sel = {}', sel)
-    jax.debug.print('dis={}', dis)
+    # jax.debug.print('sel = {}', sel)
+    # jax.debug.print('dis={}', dis)
     # jax.debug.print('R_tot={}', R_tot)
     # jax.debug.callback(callback_debug,R_tot)
-    jax.debug.print('sigma_e={}', sigma_e)
+    jax.debug.print('\n &&& sigma_e={}', sigma_e)
 
 @jit
 def false_debug(esdr):
@@ -279,7 +279,7 @@ KEY_INIT = rnd.PRNGKey(0) # 0
 INIT = jnp.float32(0.1) # 0.1
 
 # loop params
-EPOCHS = 8001
+EPOCHS = 2001
 IT = 20
 VMAPS = 500
 UPDATE = jnp.float32(0.0007) # 0.001
@@ -372,7 +372,7 @@ print(f'Completed in: {time_elapsed}, {time_elapsed/EPOCHS} s/epoch')
 
 #figure
 plt.figure()
-plt.errorbar(jnp.arange(EPOCHS),R_arr,yerr=std_arr/2,ecolor="black",elinewidth=0.5,capsize=1.5)
+plt.errorbar(jnp.arange(len(R_arr)),R_arr,yerr=std_arr/2,ecolor="black",elinewidth=0.5,capsize=1.5)
 plt.show(block=False)
 title__ = f'epochs={EPOCHS}, it={IT}, vmaps={VMAPS}, update={UPDATE:.4f}, SIGMA_A={SIGMA_A:.1f}, SIGMA_RH={SIGMA_RH:.1f}, SIGMA_N={SIGMA_N:.1f} \n colors={jnp.array_str(COLORS[0][:]) + jnp.array_str(COLORS[1][:]) + jnp.array_str(COLORS[2][:])}' #  + jnp.array_str(COLORS[3][:]) + jnp.array_str(COLORS[4][:])}'
 plt.title(title__,fontsize=8)
