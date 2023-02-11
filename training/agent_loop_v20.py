@@ -89,14 +89,14 @@ def neuron_act(e_t_1,th_j,th_i,SIGMA_A,COLORS):
 	return act_C
 
 @jit
-def sigma_fnc(SIGMA_RH,SIGMA_RL,TAU,e):
-    sigma_e = SIGMA_RL*(1-jnp.exp(-e/TAU))+SIGMA_RH*jnp.exp(-e/TAU)
+def sigma_fnc(SIGMA_R0,SIGMA_RINF,TAU,e):
+    sigma_e = SIGMA_RINF*(1-jnp.exp(-e/TAU))+SIGMA_R0*jnp.exp(-e/TAU)
     # jax.debug.print('\n ***** sigma_e:{}',sigma_e)
     return sigma_e
 
 @jit
-def obj(e_t_1,sel,SIGMA_RH,SIGMA_RL,TAU,e): # R_t
-    sigma_e = sigma_fnc(SIGMA_RH,SIGMA_RL,TAU,e)
+def obj(e_t_1,sel,SIGMA_R0,SIGMA_RINF,TAU,e): # R_t
+    sigma_e = sigma_fnc(SIGMA_R0,SIGMA_RINF,TAU,e)
     obj = -jnp.exp(-jnp.sum((e_t_1)**2,axis=1)/sigma_e**2)
     R_t = jnp.dot(obj,sel)
     return(R_t,sigma_e)
@@ -138,8 +138,8 @@ def single_step(EHT_t_1,eps):
     THETA_I = theta["ENV"]["THETA_I"]
     SIGMA_A = theta["ENV"]["SIGMA_A"]
     SIGMA_N = theta["ENV"]["SIGMA_N"]
-    SIGMA_RH = theta["ENV"]["SIGMA_RH"]
-    SIGMA_RL = theta["ENV"]["SIGMA_RL"]
+    SIGMA_R0 = theta["ENV"]["SIGMA_R0"]
+    SIGMA_RINF = theta["ENV"]["SIGMA_RINF"]
     TAU = theta["ENV"]["TAU"]
     COLORS = theta["ENV"]["COLORS"]
     STEP = theta["ENV"]["STEP"]
@@ -148,7 +148,7 @@ def single_step(EHT_t_1,eps):
     (act_r,act_g,act_b) = neuron_act(e_t_1,THETA_J,THETA_I,SIGMA_A,COLORS)
     
     # reward from neurons
-    (R_t,sigma_e) = obj(e_t_1,sel,SIGMA_RH,SIGMA_RL,TAU,epoch)
+    (R_t,sigma_e) = obj(e_t_1,sel,SIGMA_R0,SIGMA_RINF,TAU,epoch)
     
     # minimal GRU equations
     z_t = jax.nn.sigmoid(jnp.matmul(Wr_z,act_r) + jnp.matmul(Wg_z,act_g) + jnp.matmul(Wb_z,act_b) + jnp.matmul(W_s,sel) + jnp.matmul(U_z,h_t_1) + b_z)
@@ -263,8 +263,8 @@ def full_loop(loop_params,theta): # main routine: R_arr, std_arr = full_loop(par
 startTime = datetime.now()
 # ENV parameters
 SIGMA_A = jnp.float32(1) # 0.9
-SIGMA_RH = jnp.float32(0.5) # 0.5
-SIGMA_RL = jnp.float32(0.3) # 0.3
+SIGMA_R0 = jnp.float32(0.5) # 0.5
+SIGMA_RINF = jnp.float32(0.3) # 0.3
 SIGMA_N = jnp.float32(1.8) # 1.6
 STEP = jnp.float32(0.005) # play around with! 0.005
 APERTURE = jnp.pi/3
@@ -279,7 +279,7 @@ KEY_INIT = rnd.PRNGKey(0) # 0
 INIT = jnp.float32(0.1) # 0.1
 
 # loop params
-EPOCHS = 2001
+EPOCHS = 8001
 IT = 20
 VMAPS = 500
 UPDATE = jnp.float32(0.0007) # 0.001
@@ -318,8 +318,8 @@ C0 = (INIT/2*G)*rnd.normal(ki[11],(2,G),dtype=jnp.float32)
 THETA_I = gen_neurons(NEURONS,APERTURE)
 THETA_J = gen_neurons(NEURONS,APERTURE)
 DOTS = create_dots(N_DOTS,ki[9],VMAPS,EPOCHS)
-EPS = rnd.normal(ki[10],shape=[EPOCHS,IT,2,VMAPS],dtype="float32")
-SELECT = jnp.eye(N_DOTS)[rnd.choice(ki[11],N_DOTS,(EPOCHS,VMAPS))]
+EPS = rnd.normal(ki[12],shape=[EPOCHS,IT,2,VMAPS],dtype="float32")
+SELECT = jnp.eye(N_DOTS)[rnd.choice(ki[14],N_DOTS,(EPOCHS,VMAPS))]
 
 # assemble theta pytree
 theta = { "GRU" : {
@@ -348,8 +348,8 @@ theta = { "GRU" : {
     	"COLORS"   	: COLORS,
     	"SIGMA_N"  	: SIGMA_N,
     	"SIGMA_A"  	: SIGMA_A,
-    	"SIGMA_RH"  : SIGMA_RH,
-        "SIGMA_RL"  : SIGMA_RL,
+    	"SIGMA_R0"  : SIGMA_R0,
+        "SIGMA_RINF": SIGMA_RINF,
         "TAU"       : TAU,
     	"STEP"     	: STEP,
     	"DOTS"     	: DOTS,
@@ -374,7 +374,7 @@ print(f'Completed in: {time_elapsed}, {time_elapsed/EPOCHS} s/epoch')
 plt.figure()
 plt.errorbar(jnp.arange(len(R_arr)),R_arr,yerr=std_arr/2,ecolor="black",elinewidth=0.5,capsize=1.5)
 plt.show(block=False)
-title__ = f'epochs={EPOCHS}, it={IT}, vmaps={VMAPS}, update={UPDATE:.4f}, SIGMA_A={SIGMA_A:.1f}, SIGMA_RH={SIGMA_RH:.1f}, SIGMA_N={SIGMA_N:.1f} \n colors={jnp.array_str(COLORS[0][:]) + jnp.array_str(COLORS[1][:]) + jnp.array_str(COLORS[2][:])}' #  + jnp.array_str(COLORS[3][:]) + jnp.array_str(COLORS[4][:])}'
+title__ = f'epochs={EPOCHS}, it={IT}, vmaps={VMAPS}, update={UPDATE:.4f}, SIGMA_A={SIGMA_A:.1f}, SIGMA_RINF={SIGMA_RINF:.1f}, SIGMA_N={SIGMA_N:.1f} \n colors={jnp.array_str(COLORS[0][:]) + jnp.array_str(COLORS[1][:]) + jnp.array_str(COLORS[2][:])}' #  + jnp.array_str(COLORS[3][:]) + jnp.array_str(COLORS[4][:])}'
 plt.title(title__,fontsize=8)
 plt.xlabel('Iteration')
 plt.ylabel('Reward')
