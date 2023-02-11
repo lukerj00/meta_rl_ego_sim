@@ -285,10 +285,10 @@ KEY_INIT = rnd.PRNGKey(0) # 0
 INIT = jnp.float32(0.1) # 0.1
 
 # loop params
-EPOCHS = 3001
+EPOCHS = 6001
 IT = 20
 VMAPS = 500
-UPDATE = jnp.float32(0.0009) # 0.001
+UPDATE = jnp.float32(0.0007) # 0.001
 R_arr = jnp.empty(EPOCHS)*jnp.nan
 std_arr = jnp.empty(EPOCHS)*jnp.nan
 optimizer = optax.adam(learning_rate=UPDATE)
