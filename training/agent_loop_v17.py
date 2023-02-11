@@ -224,7 +224,7 @@ startTime = datetime.now()
 # ENV parameters
 SIGMA_A = jnp.float32(1.2) # 0.9
 SIGMA_R = jnp.float32(0.5) # 0.3
-SIGMA_N = jnp.float32(1.8) # 1.6
+SIGMA_N = jnp.float32(2) # 1.6
 STEP = jnp.float32(0.005) # play around with! 0.005
 APERTURE = jnp.pi/3
 COLORS = jnp.float32([[255,100,50],[50,255,100],[100,50,255]]) # ,[100,100,100],[200,200,200]]) # [[255,100,50],[50,255,100],[100,50,255],[200,0,50]]) # ,[50,0,200]]) # [[255,0,0],[0,200,200],[100,100,100]]
@@ -238,7 +238,7 @@ KEY_INIT = rnd.PRNGKey(0) # 0
 INIT = jnp.float32(0.1) # 0.1
 
 # loop params
-EPOCHS = 5001
+EPOCHS = 6001
 IT = 20
 VMAPS = 500
 UPDATE = jnp.float32(0.0007) # 0.001
