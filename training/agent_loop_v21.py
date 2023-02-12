@@ -117,8 +117,7 @@ def keep_dots(evrnve):
 @jit
 def new_env(e_t_1,v_t,R_t,ALPHA,N_DOTS,VMAPS,EPOCHS,epoch): # create hyperparam for start of dot randomising
     evrnve = (e_t_1,v_t,R_t,N_DOTS,VMAPS,EPOCHS)
-    cond = (jnp.abs(R_t)>ALPHA)&(epoch>4000)
-    e_t = jax.lax.cond(cond,switch_dots,keep_dots,evrnve)
+    e_t = jax.lax.cond((jnp.abs(R_t)>ALPHA)&(epoch>4000),switch_dots,keep_dots,evrnve)
     return e_t
 
 @jit
@@ -286,7 +285,7 @@ SIGMA_A = jnp.float32(1) # 0.9
 SIGMA_R0 = jnp.float32(0.5) # 0.5
 SIGMA_RINF = jnp.float32(0.5) # 0.3
 SIGMA_N = jnp.float32(1.8) # 1.6
-ALPHA = jnp.float32(0.9) # 0.5
+ALPHA = jnp.float32(0.85) # 0.9
 STEP = jnp.float32(0.005) # play around with! 0.005
 APERTURE = jnp.pi/3
 COLORS = jnp.float32([[255,100,50],[50,255,100],[100,50,255]]) # ,[100,100,100],[200,200,200]]) # [[255,100,50],[50,255,100],[100,50,255],[200,0,50]]) # ,[50,0,200]]) # [[255,0,0],[0,200,200],[100,100,100]]
