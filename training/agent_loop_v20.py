@@ -264,7 +264,7 @@ startTime = datetime.now()
 # ENV parameters
 SIGMA_A = jnp.float32(1) # 0.9
 SIGMA_R0 = jnp.float32(0.5) # 0.5
-SIGMA_RINF = jnp.float32(0.2) # 0.3
+SIGMA_RINF = jnp.float32(0.05) # 0.3
 SIGMA_N = jnp.float32(1.8) # 1.6
 STEP = jnp.float32(0.005) # play around with! 0.005
 APERTURE = jnp.pi/3
@@ -317,8 +317,8 @@ W_s0 = (INIT)*rnd.normal(ki[10],(G,N_DOTS),dtype=jnp.float32)
 C0 = (INIT/2*G)*rnd.normal(ki[11],(2,G),dtype=jnp.float32)
 THETA_I = gen_neurons(NEURONS,APERTURE)
 THETA_J = gen_neurons(NEURONS,APERTURE)
-DOTS = create_dots(N_DOTS,ki[9],VMAPS,EPOCHS)
-EPS = rnd.normal(ki[12],shape=[EPOCHS,IT,2,VMAPS],dtype="float32")
+DOTS = create_dots(N_DOTS,ki[12],VMAPS,EPOCHS) # [EPOCHS,N_DOTS,2,VMAPS]
+EPS = rnd.normal(ki[13],shape=[EPOCHS,IT,2,VMAPS],dtype=jnp.float32)
 SELECT = jnp.eye(N_DOTS)[rnd.choice(ki[14],N_DOTS,(EPOCHS,VMAPS))]
 
 # assemble theta pytree
@@ -374,7 +374,7 @@ print(f'Completed in: {time_elapsed}, {time_elapsed/EPOCHS} s/epoch')
 plt.figure()
 plt.errorbar(jnp.arange(len(R_arr)),R_arr,yerr=std_arr/2,ecolor="black",elinewidth=0.5,capsize=1.5)
 plt.show(block=False)
-title__ = f'epochs={EPOCHS}, it={IT}, vmaps={VMAPS}, update={UPDATE:.4f}, SIGMA_A={SIGMA_A:.1f}, SIGMA_RINF={SIGMA_RINF:.1f}, SIGMA_N={SIGMA_N:.1f} \n colors={jnp.array_str(COLORS[0][:]) + jnp.array_str(COLORS[1][:]) + jnp.array_str(COLORS[2][:])}' #  + jnp.array_str(COLORS[3][:]) + jnp.array_str(COLORS[4][:])}'
+title__ = f'epochs={EPOCHS}, it={IT}, vmaps={VMAPS}, update={UPDATE:.4f}, SIGMA_A={SIGMA_A:.1f}, SIGMA_RINF={SIGMA_RINF:.2f}, SIGMA_N={SIGMA_N:.1f} \n colors={jnp.array_str(COLORS[0][:]) + jnp.array_str(COLORS[1][:]) + jnp.array_str(COLORS[2][:])}' #  + jnp.array_str(COLORS[3][:]) + jnp.array_str(COLORS[4][:])}'
 plt.title(title__,fontsize=8)
 plt.xlabel('Iteration')
 plt.ylabel('Reward')
