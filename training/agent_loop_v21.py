@@ -101,13 +101,21 @@ def obj(e_t_1,sel,SIGMA_R0,SIGMA_RINF,TAU,e): # R_t
     R_t = jnp.dot(obj,sel)
     return(R_t,sigma_e)
 
+def body_fnc__(i,evk_1):
+    (e_t_1,v_t,key) = evk_1
+    keys = rnd.split(key,1)
+    e_t_1 = e_t_1.at[i,:].set(rnd.uniform(keys[-1],shape=(2,),minval=-jnp.pi,maxval=jnp.pi,dtype="float32"))
+    return (e_t_1,v_t,keys[-1])
+
 @jit
-def switch_dots(evrnve):
+def switch_dots(evrnve): ### NEEDS FIXING
     (e_t_1,v_t,R_t,N_DOTS,VMAPS,EPOCHS) = evrnve
     key = rnd.PRNGKey(jnp.int32(jnp.floor(1000*(v_t[0]+v_t[1]))))
-    e_t_1 += rnd.uniform(key,shape=[2,],minval=0,maxval=1000,dtype=jnp.float32)
-    e_t_ = (e_t_1 + jnp.pi)%(2*jnp.pi)-jnp.pi
-    return e_t_ # rnd.uniform(key,shape=[N_DOTS,2],minval=-jnp.pi,maxval=jnp.pi,dtype="float32")
+    evk_1 = (e_t_1,v_t,key)
+    e_t_1 = e_t_1.at[:,:].set(rnd.uniform(key,shape=[3,2],minval=-jnp.pi,maxval=jnp.pi,dtype=jnp.float32))
+    # e_t_ = (e_t_1 + jnp.pi)%(2*jnp.pi)-jnp.pi
+    # (e_t_,v_t_,key_) = jax.lax.fori_loop(0,N_DOTS,body_fnc__,evk_1)
+    return e_t_1 # rnd.uniform(key,shape=[N_DOTS,2],minval=-jnp.pi,maxval=jnp.pi,dtype="float32")
 
 @jit
 def keep_dots(evrnve):
@@ -285,7 +293,7 @@ SIGMA_A = jnp.float32(1) # 0.9
 SIGMA_R0 = jnp.float32(0.5) # 0.5
 SIGMA_RINF = jnp.float32(0.5) # 0.3
 SIGMA_N = jnp.float32(1.8) # 1.6
-ALPHA = jnp.float32(0.85) # 0.9
+ALPHA = jnp.float32(0.8) # 0.9
 STEP = jnp.float32(0.005) # play around with! 0.005
 APERTURE = jnp.pi/3
 COLORS = jnp.float32([[255,100,50],[50,255,100],[100,50,255]]) # ,[100,100,100],[200,200,200]]) # [[255,100,50],[50,255,100],[100,50,255],[200,0,50]]) # ,[50,0,200]]) # [[255,0,0],[0,200,200],[100,100,100]]
