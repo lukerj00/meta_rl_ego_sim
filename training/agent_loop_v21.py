@@ -107,8 +107,8 @@ def body_fnc__(i,evk_1):
     e_t_1 = e_t_1.at[i,:].set(rnd.uniform(keys[-1],shape=(2,),minval=-jnp.pi,maxval=jnp.pi,dtype="float32"))
     return (e_t_1,v_t,keys[-1])
 
-@jit
-def switch_dots(evrnve): ### NEEDS FIXING
+# @jit
+def switch_dots(evrnve): ### NEEDS FIXING - use shape/loop through all elements in e_t_1
     (e_t_1,v_t,R_t,N_DOTS,VMAPS,EPOCHS) = evrnve
     key = rnd.PRNGKey(jnp.int32(jnp.floor(1000*(v_t[0]+v_t[1]))))
     evk_1 = (e_t_1,v_t,key)
@@ -325,7 +325,7 @@ loop_params = {
 
 # generate initial values
 ki = rnd.split(KEY_INIT,num=20)
-h0 = rnd.normal(ki[0],(G,),dtype="float32")
+h0 = rnd.normal(ki[0],(G,),dtype=jnp.float32)
 Wr_z0 = (INIT/G*N)*rnd.normal(ki[1],(G,N),dtype=jnp.float32)
 Wg_z0 = (INIT/G*N)*rnd.normal(ki[1],(G,N),dtype=jnp.float32)
 Wb_z0 = (INIT/G*N)*rnd.normal(ki[1],(G,N),dtype=jnp.float32)
