@@ -15,7 +15,7 @@ from datetime import datetime
 
 path_ = str(Path(__file__).resolve().parents[1])
 stdout_ = path_ + '\\stdout\\'
-dump_ = open(stdout_ + 'dump53.txt','r').read() # 41(s,d),30(s,r,d)
+dump_ = open(stdout_ + 'dump55.txt','r').read() # 41(s,d),30(s,r,d)
 # path_pkl = path_ + "\\pkl\\"
 # colors_ = open(path_pkl + colors_file,'rb')
 colors = np.float32([[255,0,0],[0,255,0],[0,0,255]])/255 # [[255,100,50],[50,255,100],[100,50,255],[200,0,50]]) # ,[# colors = pickle.load(colors_) # [r,g,b*5]
@@ -52,12 +52,12 @@ for e in EPOCHS_:
     epoch_reg0 = r'(?<=epoch \= '+re.escape(str(e))+')'+r'(.*)(?=epoch \= '+re.escape(str(e+1000))+')' # r'(?<=DeviceArray\(\[\[]])(.*)(?=\]\])'
     dumpstr_ = repr(dump_)
     epoch_ = re.findall(epoch_reg0,dumpstr_,re.DOTALL) # returns set of matching strings. DOTALL matches across lines
-    print('epoch_',epoch_)
+    # print('epoch_',epoch_)
     epoch_ = ' '.join(epoch_) # joins all matches with space
     epoch_ = re.sub(r'\s+',' ',epoch_) # replaces one or more whitespace with single whitespace
     dis_reg = r'(?<=dis\=\[)(.*)(?=\]\])' # \]\]\\nsel # finds dis = [ ... ]]\nsel
     dis_ = re.findall(dis_reg,epoch_)
-    print('dis_',dis_)
+    # print('dis_',dis_)
     dis_ = ''.join(dis_) # (only matching once)
     dis_ = re.sub('dis',' ',dis_)
     dis_ = re.sub(r'(\[|\]|\\n|\=|dis)','',dis_) # removes [ ] \n =
