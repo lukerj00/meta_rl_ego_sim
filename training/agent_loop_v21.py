@@ -206,7 +206,7 @@ def true_debug(esdr):
     jax.debug.print('epoch = {}', epoch)
     jax.debug.print('sel = {}', sel)
     jax.debug.print('dis={}', dis)
-    jax.debug.print('dots={}', e0)
+    # jax.debug.print('dots={}', e0) #wrong; need to extract at each timestep
     # jax.debug.print('R_tot={}', R_tot)
     # jax.debug.callback(callback_debug,R_tot)
     # jax.debug.print('sigma_e={}', sigma_e)
@@ -294,7 +294,7 @@ SIGMA_A = jnp.float32(1) # 0.9
 SIGMA_R0 = jnp.float32(0.5) # 0.5
 SIGMA_RINF = jnp.float32(0.3) # 0.3
 SIGMA_N = jnp.float32(1.8) # 1.6
-ALPHA = jnp.float32(0.7) # 0.9
+ALPHA = jnp.float32(0.65) # 0.9
 STEP = jnp.float32(0.005) # play around with! 0.005
 APERTURE = jnp.pi/3
 COLORS = jnp.float32([[255,100,50],[50,255,100],[100,50,255]]) # ,[100,100,100],[200,200,200]]) # [[255,100,50],[50,255,100],[100,50,255],[200,0,50]]) # ,[50,0,200]]) # [[255,0,0],[0,200,200],[100,100,100]]
@@ -308,7 +308,7 @@ KEY_INIT = rnd.PRNGKey(0) # 0
 INIT = jnp.float32(0.1) # 0.1
 
 # loop params
-EPOCHS = 6001
+EPOCHS = 7001
 IT = 50
 VMAPS = 500
 UPDATE = jnp.float32(0.0007) # 0.001
