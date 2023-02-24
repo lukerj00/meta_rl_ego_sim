@@ -15,12 +15,12 @@ from datetime import datetime
 
 path_ = str(Path(__file__).resolve().parents[1])
 stdout_ = path_ + '\\stdout\\'
-dump_ = open(stdout_ + 'dump55.txt','r').read() # 41(s,d),30(s,r,d)
+dump_ = open(stdout_ + 'dump58.txt','r').read() # 41(s,d),30(s,r,d)
 # path_pkl = path_ + "\\pkl\\"
 # colors_ = open(path_pkl + colors_file,'rb')
 colors = np.float32([[255,0,0],[0,255,0],[0,0,255]])/255 # [[255,100,50],[50,255,100],[100,50,255],[200,0,50]]) # ,[# colors = pickle.load(colors_) # [r,g,b*5]
 DOTS = colors.shape[0]
-EPOCHS_ = [0,1000,3000,4000,5000]
+EPOCHS_ = [0,1000,3000,4000,5000,6000]
 VMAPS = 1 # 3
 IT = 50 # 25
 
@@ -97,7 +97,7 @@ axis = axis.reshape(-1,VMAPS)
 for e in range(len(EPOCHS_)):
     for v in range(VMAPS):
             for d in range(DOTS):
-                sel_ = [1,0,0] # sel_ = sel_arr[VMAPS*e+v] # [EPOCHS*VMAPS,]
+                sel_ = sel_arr[VMAPS*e+v] # [EPOCHS*VMAPS,] # [1,0,0]
                 # print('e',e,'v',v,'d',d,'sel',sel_) # ,'indices:',(e*(DOTS*IT)+d*DOTS),(e*(DOTS*IT)+(d+1)*DOTS-1),v)
                 axis[e,v].plot(dis_arr[(e*(VMAPS*IT)+v*IT):(e*(VMAPS*IT)+(v+1)*IT-1),d],color=tuple(colors[d,:]))
                 axis[e,v].set_title(f'epoch {EPOCHS_[e]}, select = {sel_}',fontsize=8)
