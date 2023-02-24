@@ -134,7 +134,7 @@ def keep_dots(evrnve):
 @jit
 def new_env(e_t_1,v_t,R_t,ALPHA,N_DOTS,VMAPS,EPOCHS,epoch): # create hyperparam for start of dot randomising
     evrnve = (e_t_1,v_t,R_t,N_DOTS,VMAPS,EPOCHS)
-    e_t = jax.lax.cond((jnp.abs(R_t)>ALPHA)&(epoch>4000),switch_dots,keep_dots,evrnve)
+    e_t = jax.lax.cond((jnp.abs(R_t)>ALPHA)&(epoch>=4000),switch_dots,keep_dots,evrnve)
     return e_t
 
 @jit
@@ -188,8 +188,8 @@ def single_step(EHT_t_1,eps):
     
     # minimal GRU equations
     z_t = jax.nn.sigmoid(jnp.matmul(Wr_z,act_r) + jnp.matmul(Wg_z,act_g) + jnp.matmul(Wb_z,act_b) + R_t*W_r + jnp.matmul(U_z,h_t_1) + b_z) # matmul(W_r,R_t)
-    f_t = jax.nn.sigmoid(jnp.matmul(Wr_r,act_r) + jnp.matmul(Wg_r,act_g) + jnp.matmul(Wb_r,act_b) + jnp.matmul(W_r,R_t) + jnp.matmul(U_r,h_t_1) + b_r)
-    hhat_t = jnp.tanh(jnp.matmul(Wr_h,act_r)  + jnp.matmul(Wg_h,act_g) + jnp.matmul(Wb_h,act_b) + jnp.matmul(W_r,R_t) + jnp.matmul(U_h,(jnp.multiply(f_t,h_t_1))) + b_h )
+    f_t = jax.nn.sigmoid(jnp.matmul(Wr_r,act_r) + jnp.matmul(Wg_r,act_g) + jnp.matmul(Wb_r,act_b) + R_t*W_r + jnp.matmul(U_r,h_t_1) + b_r)
+    hhat_t = jnp.tanh(jnp.matmul(Wr_h,act_r)  + jnp.matmul(Wg_h,act_g) + jnp.matmul(Wb_h,act_b) + R_t*W_r + jnp.matmul(U_h,(jnp.multiply(f_t,h_t_1))) + b_h )
     h_t = jnp.multiply(z_t,h_t_1) + jnp.multiply((1-z_t),hhat_t)# ((1-f_t),h_t_1) + jnp.multiply(f_t,hhat_t)
     
     # v_t = C*h_t + eps
@@ -300,7 +300,7 @@ startTime = datetime.now()
 # ENV parameters
 SIGMA_A = jnp.float32(1) # 0.9
 SIGMA_R0 = jnp.float32(0.5) # 0.5
-SIGMA_RINF = jnp.float32(0.5) # 0.3
+SIGMA_RINF = jnp.float32(0.3) # 0.3
 SIGMA_N = jnp.float32(1.8) # 1.6
 ALPHA = jnp.float32(0.8) # 0.9
 STEP = jnp.float32(0.005) # play around with! 0.005
@@ -350,7 +350,7 @@ Wg_h0 = (INIT/G*N)*rnd.normal(ki[7],(G,N),dtype=jnp.float32)
 Wb_h0 = (INIT/G*N)*rnd.normal(ki[7],(G,N),dtype=jnp.float32)
 U_h0 = (INIT/G*G)*rnd.normal(ki[8],(G,G),dtype=jnp.float32)
 b_h0 = (INIT/G)*rnd.normal(ki[9],(G,),dtype=jnp.float32)
-W_r0 = (INIT/G)*rnd.normal(ki[10],(G,1),dtype=jnp.float32) # (G,N_DOTS)
+W_r0 = (INIT/G)*rnd.normal(ki[10],(G,),dtype=jnp.float32) # W_s = [G,N_DOTS], W_r = [G,] (needs to be 1d)
 C0 = (INIT/2*G)*rnd.normal(ki[11],(2,G),dtype=jnp.float32)
 THETA_I = gen_neurons(NEURONS,APERTURE)
 THETA_J = gen_neurons(NEURONS,APERTURE)
