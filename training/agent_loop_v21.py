@@ -125,7 +125,7 @@ def keep_dots(evrnve):
 @jit
 def new_env(e_t_1,v_t,R_t,ALPHA,N_DOTS,VMAPS,EPOCHS,epoch): # create hyperparam for start of dot randomising
     evrnve = (e_t_1,v_t,R_t,N_DOTS,VMAPS,EPOCHS)
-    e_t = jax.lax.cond((jnp.abs(R_t)>ALPHA)&(epoch>4000),switch_dots,keep_dots,evrnve)
+    e_t = jax.lax.cond((jnp.abs(R_t)>ALPHA)&(epoch>=4000),switch_dots,keep_dots,evrnve)
     return e_t
 
 @jit
@@ -200,12 +200,13 @@ def single_step(EHT_t_1,eps):
 
 @jit
 def true_debug(esdr):
-    epoch,sel,dis,R_tot,sigma_e = esdr
+    epoch,sel,dis,R_tot,sigma_e,e0 = esdr
     path_ = str(Path(__file__).resolve().parents[1]) + '/stdout/'
     dt = datetime.now().strftime("%d_%m-%H%M")
     jax.debug.print('epoch = {}', epoch)
     jax.debug.print('sel = {}', sel)
     jax.debug.print('dis={}', dis)
+    jax.debug.print('dots={}', e0)
     # jax.debug.print('R_tot={}', R_tot)
     # jax.debug.callback(callback_debug,R_tot)
     # jax.debug.print('sigma_e={}', sigma_e)
@@ -227,7 +228,7 @@ def tot_reward(e0,h0,theta,sel,eps,epoch):
 	EHT_0 = (e0,h0,theta,sel,epoch)
 	EHT_,R_dis = jax.lax.scan(single_step,EHT_0,eps)
 	R_tot,dis,sigma_e = R_dis # dis=[1,IT*N_DOTS[VMAPS]]
-	esdr=(epoch,sel,dis,R_tot,sigma_e)
+	esdr=(epoch,sel,dis,R_tot,sigma_e,e0)
 	jax.lax.cond((epoch%1000==0),true_debug,false_debug,esdr)
 	return jnp.sum(R_tot)
 
@@ -293,7 +294,7 @@ SIGMA_A = jnp.float32(1) # 0.9
 SIGMA_R0 = jnp.float32(0.5) # 0.5
 SIGMA_RINF = jnp.float32(0.5) # 0.3
 SIGMA_N = jnp.float32(1.8) # 1.6
-ALPHA = jnp.float32(0.8) # 0.9
+ALPHA = jnp.float32(0.75) # 0.9
 STEP = jnp.float32(0.005) # play around with! 0.005
 APERTURE = jnp.pi/3
 COLORS = jnp.float32([[255,100,50],[50,255,100],[100,50,255]]) # ,[100,100,100],[200,200,200]]) # [[255,100,50],[50,255,100],[100,50,255],[200,0,50]]) # ,[50,0,200]]) # [[255,0,0],[0,200,200],[100,100,100]]
@@ -308,7 +309,7 @@ INIT = jnp.float32(0.1) # 0.1
 
 # loop params
 EPOCHS = 6001
-IT = 20
+IT = 50
 VMAPS = 500
 UPDATE = jnp.float32(0.0007) # 0.001
 TAU = jnp.float32((1-1/jnp.e)*EPOCHS) # 0.01
