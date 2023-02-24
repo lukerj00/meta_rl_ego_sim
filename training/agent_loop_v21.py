@@ -255,6 +255,15 @@ def RG_vmap(ehtsee):
     return (R_tot,grads_)
 
 @jit
+def RG_vmap_TEST(ehtsee):
+    (e0,h0,theta,SELECT,EPS,e) = ehtsee
+    val_grad = jax.value_and_grad(tot_reward,argnums=2,allow_int=True)
+    val_grad_vmap = jax.vmap(val_grad,in_axes=(2,None,None,0,2,None),out_axes=(0,0))
+    R_tot,grads = val_grad_vmap(e0,h0,theta,SELECT,EPS,e)
+    grads_ = jax.tree_util.tree_map(lambda g: (0)*jnp.mean(g,axis=0), grads["GRU"])
+    return (R_tot,grads_)
+
+@jit
 def body_fnc(e,UTORR): # returns theta
     # unpack
     (UPDATE,theta,opt_state,R_arr,std_arr) = UTORR #opt_state
@@ -266,7 +275,7 @@ def body_fnc(e,UTORR): # returns theta
 
     # each iteration effects next LTRR (L{R_arr,std_arr},T{GRU}) # vmap tot_reward over dots (e0), eps (EPS) and sel (SELECT)); find avg r_tot, grad
     ehtsee = (e0,h0,theta,SELECT,EPS,e)
-    (R_tot,grads_) = jax.lax.cond((e%1000==0),RG_no_vmap,RG_vmap,ehtsee)
+    (R_tot,grads_) = jax.lax.cond((e%1000==0),RG_no_vmap,RG_vmap,ehtsee) # change cond to return 0 grad after 4k
     R_arr = R_arr.at[e].set(jnp.mean(R_tot))
     std_arr = std_arr.at[e].set(jnp.std(R_tot))
     
@@ -294,7 +303,7 @@ SIGMA_A = jnp.float32(1) # 0.9
 SIGMA_R0 = jnp.float32(0.5) # 0.5
 SIGMA_RINF = jnp.float32(0.3) # 0.3
 SIGMA_N = jnp.float32(1.8) # 1.6
-ALPHA = jnp.float32(0.65) # 0.9
+ALPHA = jnp.float32(0.58) # 0.9
 STEP = jnp.float32(0.005) # play around with! 0.005
 APERTURE = jnp.pi/3
 COLORS = jnp.float32([[255,100,50],[50,255,100],[100,50,255]]) # ,[100,100,100],[200,200,200]]) # [[255,100,50],[50,255,100],[100,50,255],[200,0,50]]) # ,[50,0,200]]) # [[255,0,0],[0,200,200],[100,100,100]]
