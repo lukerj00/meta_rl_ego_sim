@@ -15,14 +15,14 @@ from datetime import datetime
 
 path_ = str(Path(__file__).resolve().parents[1])
 stdout_ = path_ + '\\stdout\\'
-dump_ = open(stdout_ + 'dump48.txt','r').read() # 41(s,d),30(s,r,d)
+dump_ = open(stdout_ + 'dump53.txt','r').read() # 41(s,d),30(s,r,d)
 # path_pkl = path_ + "\\pkl\\"
 # colors_ = open(path_pkl + colors_file,'rb')
-colors = np.float32([[255,100,50],[50,255,100],[100,50,255]])/255 # [[255,100,50],[50,255,100],[100,50,255],[200,0,50]]) # ,[# colors = pickle.load(colors_) # [r,g,b*5]
+colors = np.float32([[255,0,0],[0,255,0],[0,0,255]])/255 # [[255,100,50],[50,255,100],[100,50,255],[200,0,50]]) # ,[# colors = pickle.load(colors_) # [r,g,b*5]
 DOTS = colors.shape[0]
 EPOCHS_ = [0,1000,3000,4000,5000]
 VMAPS = 1 # 3
-IT = 20 # 25
+IT = 50 # 25
 
 ### txt to arrays (regex)
 ### sel
@@ -39,7 +39,7 @@ for e in EPOCHS_:
     sel_ = re.findall(r'\d+',sel_)
     sel_ = ''.join(sel_)
     sel_ = sel_[:DOTS*VMAPS]
-    sel_ = [sel_[i:i+DOTS] for i in range(0, DOTS*VMAPS, DOTS)]# sel_ = sel_.lstrip(r'\[')
+    sel_ = [sel_[i:i+DOTS] for i in range(0, DOTS*VMAPS, DOTS)] # sel_ = sel_.lstrip(r'\[')
     sel += sel_
 sel_arr = np.asarray(sel)
 # print('sel',sel_arr.shape,sel_arr)
@@ -61,7 +61,7 @@ for e in EPOCHS_:
     dis_ = list(filter(None, dis_))
     dis_ = dis_[:(DOTS*IT*VMAPS)] # max VMAP=4
     dis += dis_
-dis_arr = np.asarray(dis).reshape([-1,DOTS]).astype(np.float32) # [DOTS*IT,VMAPS]
+dis_arr = np.asarray(dis).reshape([-1,DOTS]).astype(np.float32) # [EPOCHS*(VMAPS*IT),DOTS]
 print('dis_arr',dis_arr.shape,dis_arr)
 
 # ### dis
