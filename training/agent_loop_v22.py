@@ -139,7 +139,7 @@ def new_env(e_t_1,v_t,R_t,ALPHA,N_DOTS,VMAPS,EPOCHS,epoch): # create hyperparam 
 
 @jit
 def abs_dist(e_t):
-	e_t_ = (e_t + jnp.pi)%(2*jnp.pi)-jnp.pi
+	e_t_=e_t# e_t_ = (e_t + jnp.pi)%(2*jnp.pi)-jnp.pi
 	return jnp.sqrt(e_t_[:,0]**2+e_t_[:,1]**2)
 
 @jit
@@ -302,7 +302,7 @@ SIGMA_A = jnp.float32(1) # 0.9
 SIGMA_R0 = jnp.float32(0.5) # 0.5
 SIGMA_RINF = jnp.float32(0.3) # 0.3
 SIGMA_N = jnp.float32(1.8) # 1.6
-ALPHA = jnp.float32(0.8) # 0.9
+ALPHA = jnp.float32(0.75) # 0.9
 STEP = jnp.float32(0.005) # play around with! 0.005
 APERTURE = jnp.pi/3
 COLORS = jnp.float32([[255,0,0],[0,255,0],[0,0,255]]) # ,[100,100,100],[200,200,200]]) # [[255,100,50],[50,255,100],[100,50,255],[200,0,50]]) # ,[50,0,200]]) # [[255,0,0],[0,200,200],[100,100,100]]
@@ -319,7 +319,7 @@ INIT = jnp.float32(0.1) # 0.1
 EPOCHS = 6001
 IT = 50
 VMAPS = 500
-UPDATE = jnp.float32(0.0007) # 0.001
+UPDATE = jnp.float32(0.0005) # 0.001
 TAU = jnp.float32((1-1/jnp.e)*EPOCHS) # 0.01
 R_arr = jnp.empty(EPOCHS)*jnp.nan
 std_arr = jnp.empty(EPOCHS)*jnp.nan
