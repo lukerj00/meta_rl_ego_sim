@@ -8,11 +8,11 @@ pandas
 Pillow
 ply
 pygame
-pyls-spyder
-PyQt5
-PyQtWebEngine
+# pyls-spyder
+# PyQt5
+# PyQtWebEngine
 PyYAML
 scipy
-webencodings
-wincertstore
+# webencodings
+# wincertstore
 
