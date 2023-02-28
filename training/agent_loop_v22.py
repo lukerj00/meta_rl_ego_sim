@@ -98,8 +98,8 @@ def sigma_fnc(SIGMA_R0,SIGMA_RINF,TAU,e):
 def obj(e_t_1,sel,SIGMA_R0,SIGMA_RINF,TAU,e): # R_t
     sigma_e = sigma_fnc(SIGMA_R0,SIGMA_RINF,TAU,e)
     obj = -jnp.exp(-jnp.sum((e_t_1)**2,axis=1)/sigma_e**2)
-    sel_ = jnp.array([1,0,0]) # always red dot
-    R_t = jnp.dot(obj,sel_)
+    # sel = jnp.array([1,0,0]) # always red dot
+    R_t = jnp.dot(obj,sel)
     return(R_t,sigma_e)
 
 # def body_fnc__(i,evk_1): # ?
@@ -215,7 +215,8 @@ def true_debug(esdr):
     jax.debug.print('epoch = {}', epoch)
     jax.debug.print('sel = {}', sel)
     jax.debug.print('dis={}', dis)
-    # jax.debug.print('R_tot={}', R_tot)
+    # jax.debug.print('dots={}', e0) #wrong; need to extract at each timestep
+    jax.debug.print('R_tot={}', R_tot)
     # jax.debug.callback(callback_debug,R_tot)
     # jax.debug.print('sigma_e={}', sigma_e)
 
@@ -255,11 +256,21 @@ def RG_no_vmap(ehtsee):
 
 @jit
 def RG_vmap(ehtsee):
+    # cond -> train vs test
     (e0,h0,theta,SELECT,EPS,e) = ehtsee
     val_grad = jax.value_and_grad(tot_reward,argnums=2,allow_int=True)
     val_grad_vmap = jax.vmap(val_grad,in_axes=(2,None,None,0,2,None),out_axes=(0,0))
     R_tot,grads = val_grad_vmap(e0,h0,theta,SELECT,EPS,e)
     grads_ = jax.tree_util.tree_map(lambda g: jnp.mean(g,axis=0), grads["GRU"])
+    return (R_tot,grads_)
+
+@jit
+def RG_vmap_TEST(ehtsee):
+    (e0,h0,theta,SELECT,EPS,e) = ehtsee
+    val_grad = jax.value_and_grad(tot_reward,argnums=2,allow_int=True)
+    val_grad_vmap = jax.vmap(val_grad,in_axes=(2,None,None,0,2,None),out_axes=(0,0))
+    R_tot,grads = val_grad_vmap(e0,h0,theta,SELECT,EPS,e)
+    grads_ = jax.tree_util.tree_map(lambda g: (0)*jnp.mean(g,axis=0), grads["GRU"])
     return (R_tot,grads_)
 
 @jit
@@ -300,7 +311,7 @@ startTime = datetime.now()
 # ENV parameters
 SIGMA_A = jnp.float32(1) # 0.9
 SIGMA_R0 = jnp.float32(0.5) # 0.5
-SIGMA_RINF = jnp.float32(0.3) # 0.3
+SIGMA_RINF = jnp.float32(0.1) # 0.3
 SIGMA_N = jnp.float32(1.8) # 1.6
 ALPHA = jnp.float32(0.7) # 0.9
 STEP = jnp.float32(0.005) # play around with! 0.005
@@ -316,7 +327,7 @@ KEY_INIT = rnd.PRNGKey(0) # 0
 INIT = jnp.float32(0.1) # 0.1
 
 # loop params
-EPOCHS = 6001
+EPOCHS = 7001
 IT = 50
 VMAPS = 500
 UPDATE = jnp.float32(0.0005) # 0.001
