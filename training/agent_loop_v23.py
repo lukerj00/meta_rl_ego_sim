@@ -8,8 +8,6 @@ import jax
 import jax.numpy as jnp
 from jax import jit
 import jax.random as rnd
-# from jax.experimental.host_callback import id_print
-# from jax.experimental.host_callback import call
 import optax
 import matplotlib
 import matplotlib.pyplot as plt
@@ -95,12 +93,17 @@ def sigma_fnc(SIGMA_R0,SIGMA_RINF,TAU,e):
     return sigma_e
 
 @jit
-def obj(e_t_1,sel,SIGMA_R0,SIGMA_RINF,TAU,e): # R_t
+def obj(e_t_1,sel,SIGMA_R0,SIGMA_RINF,TAU,e): # modify
     sigma_e = sigma_fnc(SIGMA_R0,SIGMA_RINF,TAU,e)
     obj = -jnp.exp(-jnp.sum((e_t_1)**2,axis=1)/sigma_e**2)
-    # sel_ = jnp.array([1,0,0]) # always red dot
-    R_t = jnp.dot(obj,sel)
-    return(R_t,sigma_e)
+    # cost = g*C_a + (1-g)*C_r
+    R_t = jnp.dot(obj,sel) # + lambda_*cost
+    return (R_t,sigma_e)
+
+@jit
+def cost_fnc(C_a,C_r,g):
+    cost = g*C_a + (1-g)*C_r
+    return cost
 
 # def body_fnc__(i,evk_1): # ?
 #     (e_t_1,v_t,key) = evk_1
@@ -109,7 +112,7 @@ def obj(e_t_1,sel,SIGMA_R0,SIGMA_RINF,TAU,e): # R_t
 #     return (e_t_1,v_t,keys[-1])
 
 # @jit
-def switch_dots(evrnve): ### NEEDS FIXING - use shape/loop through all elements in e_t_1
+def switch_dots(evrnve):
     (e_t_1,v_t,R_t,N_DOTS,VMAPS,EPOCHS) = evrnve # N_DOTS = e_t_1.shape[0]?
     key1 = rnd.PRNGKey(jnp.int32(jnp.floor(1000*(v_t[0]+v_t[1]))))
     key2 = rnd.PRNGKey(jnp.int32(jnp.floor(1000*(v_t[0]-v_t[1]))))
@@ -122,8 +125,6 @@ def switch_dots(evrnve): ### NEEDS FIXING - use shape/loop through all elements 
     e_t_1 = e_t_1.at[0,:].set(rnd.uniform(key2,shape=[2,],minval=-jnp.pi,maxval=jnp.pi,dtype=jnp.float32))
     e_t_1 = e_t_1.at[1:,:].set(e_t_1[0,:] + jnp.matmul(abs_transform, theta_transform))
     e_t_1 = (e_t_1 + jnp.pi)%(2*jnp.pi)-jnp.pi # reset back to [-pi,pi]
-    ### e_t_1 = e_t_1.at[:,:].set(rnd.uniform(key,shape=[3,2],minval=-jnp.pi,maxval=jnp.pi,dtype=jnp.float32)) # 
-    # (e_t_,v_t_,key_) = jax.lax.fori_loop(0,N_DOTS,body_fnc__,evk_1)
     return e_t_1
 
 @jit
@@ -165,6 +166,7 @@ def single_step(EHT_t_1,eps):
     U_h = theta["GRU"]["U_h"]
     b_h = theta["GRU"]["b_h"]
     C = theta["GRU"]["C"]
+    G = theta["GRU"]["G"]
     
     THETA_J = theta["ENV"]["THETA_J"]
     THETA_I = theta["ENV"]["THETA_I"]
@@ -179,27 +181,39 @@ def single_step(EHT_t_1,eps):
     VMAPS = theta["ENV"]["VMAPS"]
     EPOCHS = theta["ENV"]["EPOCHS"]
     ALPHA = theta["ENV"]["ALPHA"]
+    LAMBDA = theta["ENV"]["LAMBDA"]
+    C_a = theta["ENV"]["C_a"]
+    C_r = theta["ENV"]["C_r"]
     
     # neuron activations
     (act_r,act_g,act_b) = neuron_act(e_t_1,THETA_J,THETA_I,SIGMA_A,COLORS)
     
     # reward from neurons
-    (R_t,sigma_e) = obj(e_t_1,sel,SIGMA_R0,SIGMA_RINF,TAU,epoch)
+    (R_t,sigma_e) = obj(e_t_1,sel,SIGMA_R0,SIGMA_RINF,TAU,epoch,LAMBDA,C_a,C_r,g)
     
     # minimal GRU equations
-    z_t = jax.nn.sigmoid(jnp.matmul(Wr_z,act_r) + jnp.matmul(Wg_z,act_g) + jnp.matmul(Wb_z,act_b) + R_t*W_r + jnp.matmul(U_z,h_t_1) + b_z) # matmul(W_r,R_t)
+    z_t = jax.nn.sigmoid(jnp.matmul(Wr_z,act_r) + jnp.matmul(Wg_z,act_g) + jnp.matmul(Wb_z,act_b) + R_t*W_r + jnp.matmul(U_z,h_t_1) + b_z)
     f_t = jax.nn.sigmoid(jnp.matmul(Wr_r,act_r) + jnp.matmul(Wg_r,act_g) + jnp.matmul(Wb_r,act_b) + R_t*W_r + jnp.matmul(U_r,h_t_1) + b_r)
     hhat_t = jnp.tanh(jnp.matmul(Wr_h,act_r)  + jnp.matmul(Wg_h,act_g) + jnp.matmul(Wb_h,act_b) + R_t*W_r + jnp.matmul(U_h,(jnp.multiply(f_t,h_t_1))) + b_h )
-    h_t = jnp.multiply(z_t,h_t_1) + jnp.multiply((1-z_t),hhat_t)# ((1-f_t),h_t_1) + jnp.multiply(f_t,hhat_t)
+    h_t = jnp.multiply(z_t,h_t_1) + jnp.multiply((1-z_t),hhat_t)
     
+    # g gate
+    key = jax.random.PRNGKey(jnp.int32(jnp.floor(1000*(h_t[0]-h_t[1]))))
+    p_t = jax.nn.sigmoid(jnp.matmul(G,h_t))
+    g_t = rnd.bernoulli(key,p=p_t)
+
     # v_t = C*h_t + eps
-    v_t = STEP*(jnp.matmul(C,h_t) + SIGMA_N*eps) # 'motor noise'
+    v_t = g_t*STEP*(jnp.matmul(C,h_t) + SIGMA_N*eps) # 'motor noise'
     
     # new env
     e_t = new_env(e_t_1,v_t,R_t,ALPHA,N_DOTS,VMAPS,EPOCHS,epoch)
 
     # abs distance
     dis = abs_dist(e_t)
+
+    # add cost
+    cost = cost_fnc(C_a,C_r,g)
+    R_t = R_t + LAMBDA*cost
     
     # assemble output
     EHT_t = (e_t,h_t,theta,sel,epoch)
@@ -308,6 +322,9 @@ APERTURE = jnp.pi/3
 COLORS = jnp.float32([[255,0,0],[0,255,0],[0,0,255]]) # ,[100,100,100],[200,200,200]]) # [[255,100,50],[50,255,100],[100,50,255],[200,0,50]]) # ,[50,0,200]]) # [[255,0,0],[0,200,200],[100,100,100]]
 N_DOTS = COLORS.shape[0]
 NEURONS = 11
+LAMBDA = 0.1
+C_a = 0.4
+C_r = 0.12
 
 # GRU parameters
 N = NEURONS**2
@@ -352,15 +369,16 @@ U_h0 = (INIT/G*G)*rnd.normal(ki[8],(G,G),dtype=jnp.float32)
 b_h0 = (INIT/G)*rnd.normal(ki[9],(G,),dtype=jnp.float32)
 W_r0 = (INIT/G)*rnd.normal(ki[10],(G,),dtype=jnp.float32) # W_s = [G,N_DOTS], W_r = [G,] (needs to be 1d)
 C0 = (INIT/2*G)*rnd.normal(ki[11],(2,G),dtype=jnp.float32)
+G0 = (INIT/G)*rnd.normal(ki[12],(1,G),dtype=jnp.float32)
 THETA_I = gen_neurons(NEURONS,APERTURE)
 THETA_J = gen_neurons(NEURONS,APERTURE)
-DOTS = create_dots(N_DOTS,ki[12],VMAPS,EPOCHS) # [EPOCHS,N_DOTS,2,VMAPS]
-EPS = rnd.normal(ki[13],shape=[EPOCHS,IT,2,VMAPS],dtype=jnp.float32)
-SELECT = jnp.eye(N_DOTS)[rnd.choice(ki[14],N_DOTS,(EPOCHS,VMAPS))]
+DOTS = create_dots(N_DOTS,ki[13],VMAPS,EPOCHS) # [EPOCHS,N_DOTS,2,VMAPS]
+EPS = rnd.normal(ki[14],shape=[EPOCHS,IT,2,VMAPS],dtype=jnp.float32)
+SELECT = jnp.eye(N_DOTS)[rnd.choice(ki[15],N_DOTS,(EPOCHS,VMAPS))]
 
 # assemble theta pytree
 theta = { "GRU" : {
-    	"h0"     : h0, # ?
+    	"h0"     : h0,
     	"Wr_z"   : Wr_z0,
 		"Wg_z"   : Wg_z0,
 		"Wb_z"   : Wb_z0,
@@ -377,7 +395,8 @@ theta = { "GRU" : {
     	"U_h"    : U_h0,
     	"b_h"    : b_h0,
 		"W_r"    : W_r0,
-    	"C"	     : C0
+    	"C"	     : C0,
+	    "G"      : G0
 	},
         	"ENV" : {
     	"THETA_I"  	: THETA_I,
@@ -395,7 +414,10 @@ theta = { "GRU" : {
         "N_DOTS"    : N_DOTS,
         "VMAPS"     : VMAPS,
         "EPOCHS"    : EPOCHS,
-        "ALPHA"     : ALPHA
+        "ALPHA"     : ALPHA,
+        "LAMBDA"    : LAMBDA,
+        "C_a"       : C_a,
+        "C_r"       : C_r
 	}
         	}
 theta["ENV"] = jax.lax.stop_gradient(theta["ENV"])
