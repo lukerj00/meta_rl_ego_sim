@@ -189,12 +189,12 @@ def single_step(EHT_t_1,eps):
     (act_r,act_g,act_b) = neuron_act(e_t_1,THETA_J,THETA_I,SIGMA_A,COLORS)
     
     # reward from neurons
-    (R_t_,sigma_e) = obj(e_t_1,sel,SIGMA_R0,SIGMA_RINF,TAU,epoch)
+    (R_t,sigma_e) = obj(e_t_1,sel,SIGMA_R0,SIGMA_RINF,TAU,epoch)
     
     # minimal GRU equations
-    z_t = jax.nn.sigmoid(jnp.matmul(Wr_z,act_r) + jnp.matmul(Wg_z,act_g) + jnp.matmul(Wb_z,act_b) + R_t_*W_r + jnp.matmul(U_z,h_t_1) + b_z)
-    f_t = jax.nn.sigmoid(jnp.matmul(Wr_r,act_r) + jnp.matmul(Wg_r,act_g) + jnp.matmul(Wb_r,act_b) + R_t_*W_r + jnp.matmul(U_r,h_t_1) + b_r)
-    hhat_t = jnp.tanh(jnp.matmul(Wr_h,act_r)  + jnp.matmul(Wg_h,act_g) + jnp.matmul(Wb_h,act_b) + R_t_*W_r + jnp.matmul(U_h,(jnp.multiply(f_t,h_t_1))) + b_h )
+    z_t = jax.nn.sigmoid(jnp.matmul(Wr_z,act_r) + jnp.matmul(Wg_z,act_g) + jnp.matmul(Wb_z,act_b) + R_t*W_r + jnp.matmul(U_z,h_t_1) + b_z)
+    f_t = jax.nn.sigmoid(jnp.matmul(Wr_r,act_r) + jnp.matmul(Wg_r,act_g) + jnp.matmul(Wb_r,act_b) + R_t*W_r + jnp.matmul(U_r,h_t_1) + b_r)
+    hhat_t = jnp.tanh(jnp.matmul(Wr_h,act_r)  + jnp.matmul(Wg_h,act_g) + jnp.matmul(Wb_h,act_b) + R_t*W_r + jnp.matmul(U_h,(jnp.multiply(f_t,h_t_1))) + b_h )
     h_t = jnp.multiply(z_t,h_t_1) + jnp.multiply((1-z_t),hhat_t)
     
     # g gate
@@ -213,11 +213,11 @@ def single_step(EHT_t_1,eps):
 
     # add cost
     cost = cost_fnc(C_a,C_r,g_t)
-    R_t = R_t_ + LAMBDA*cost
+    R_t_ = R_t + LAMBDA*cost
     
     # assemble output
     EHT_t = (e_t,h_t,theta,sel,epoch)
-    R_dis = (R_t,cost,dis,sigma_e)
+    R_dis = (R_t_,cost,dis,sigma_e)
     
     return (EHT_t,R_dis)
 
@@ -250,10 +250,10 @@ def callback_debug(R_tot): # (can implement general callback functionality)
 def tot_reward(e0,h0,theta,sel,eps,epoch):
 	EHT_0 = (e0,h0,theta,sel,epoch)
 	EHT_,R_dis = jax.lax.scan(single_step,EHT_0,eps)
-	R_tot,cost,dis,sigma_e = R_dis # dis=[1,IT*N_DOTS[VMAPS]]
-	esdr=(epoch,sel,dis,R_tot,cost,sigma_e)
+	R_t,cost,dis,sigma_e = R_dis # dis=[1,IT*N_DOTS[VMAPS]]
+	esdr=(epoch,sel,dis,R_t,cost,sigma_e)
 	jax.lax.cond((epoch%1000==0),true_debug,false_debug,esdr)
-	return jnp.sum(R_tot)
+	return jnp.sum(R_t)
 
 @jit
 def RG_no_vmap(ehtsee):
@@ -266,6 +266,7 @@ def RG_no_vmap(ehtsee):
     val_grad_vmap = jax.vmap(val_grad,in_axes=(2,None,None,0,2,None),out_axes=(0,0))
     R_tot,grads = val_grad_vmap(e0,h0,theta,SELECT,EPS,e)# R_tot,grads = val_grad(e0,h0,theta,SELECT,EPS,e)
     grads_ = jax.tree_util.tree_map(lambda g: (0)*jnp.mean(g,axis=0), grads["GRU"])
+    # jax.debug.print('grads_DEBUG={}', grads_) (correct)
     return (R_tot,grads_)
 
 @jit
@@ -297,6 +298,7 @@ def body_fnc(e,UTORR): # returns theta
     opt_update, opt_state = optimizer.update(grads_, opt_state, theta["GRU"])
     theta["GRU"] = optax.apply_updates(theta["GRU"], opt_update)
     UTORR = (UPDATE,theta,opt_state,R_arr,std_arr)
+    jax.debug.print('g_DEBUG={}',theta["GRU"]["G"])
 
     return UTORR # becomes new input
 
@@ -309,7 +311,6 @@ def full_loop(loop_params,theta): # main routine: R_arr, std_arr = full_loop(par
     opt_state = optimizer.init(theta["GRU"])
     UTORR_0 = (UPDATE,theta,opt_state,R_arr,std_arr)
     UPDATE_,theta_,opt_state_,R_arr,std_arr = jax.lax.fori_loop(0, EPOCHS, body_fnc, UTORR_0)
-    jax.debug.print(theta["GRU"]["g"])
     return (R_arr,std_arr)
 
 startTime = datetime.now()
@@ -335,8 +336,8 @@ KEY_INIT = rnd.PRNGKey(0) # 0
 INIT = jnp.float32(0.1) # 0.1
 
 # loop params
-EPOCHS = 8001
-IT = 50
+EPOCHS = 5001
+IT = 30
 VMAPS = 500
 UPDATE = jnp.float32(0.0005) # 0.001
 TAU = jnp.float32((1-1/jnp.e)*EPOCHS) # 0.01
@@ -433,7 +434,7 @@ dt = datetime.now().strftime("%d_%m-%H%M")
 # 	print('R_arr: {} \n std_arr: {}',R_arr,std_arr)
 print(f'R_arr: {R_arr} \n std_arr: {std_arr}')
 time_elapsed = datetime.now() - startTime
-print(f'Completed in: {time_elapsed}, {time_elapsed/EPOCHS} s/epoch')
+print(f'Completed in: {time_elapsed}, {time_elapsed/EPOCHS} s/epoch, ',datetime.now().strftime("%d_%m-%H%M"))
 
 #figure
 plt.figure()
