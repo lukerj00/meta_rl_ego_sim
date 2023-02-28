@@ -189,7 +189,7 @@ def single_step(EHT_t_1,eps):
     (act_r,act_g,act_b) = neuron_act(e_t_1,THETA_J,THETA_I,SIGMA_A,COLORS)
     
     # reward from neurons
-    (R_t,sigma_e) = obj(e_t_1,sel,SIGMA_R0,SIGMA_RINF,TAU,epoch,LAMBDA,C_a,C_r,g)
+    (R_t,sigma_e) = obj(e_t_1,sel,SIGMA_R0,SIGMA_RINF,TAU,epoch)
     
     # minimal GRU equations
     z_t = jax.nn.sigmoid(jnp.matmul(Wr_z,act_r) + jnp.matmul(Wg_z,act_g) + jnp.matmul(Wb_z,act_b) + R_t*W_r + jnp.matmul(U_z,h_t_1) + b_z)
@@ -212,7 +212,7 @@ def single_step(EHT_t_1,eps):
     dis = abs_dist(e_t)
 
     # add cost
-    cost = cost_fnc(C_a,C_r,g)
+    cost = cost_fnc(C_a,C_r,g_t)
     R_t = R_t + LAMBDA*cost
     
     # assemble output
