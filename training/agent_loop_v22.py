@@ -208,7 +208,7 @@ def single_step(EHT_t_1,eps):
     return (EHT_t,R_dis)
 
 @jit
-def true_debug(esdr):
+def true_debug(esdr): # debug
     epoch,sel,dis,R_tot,sigma_e = esdr
     path_ = str(Path(__file__).resolve().parents[1]) + '/stdout/'
     dt = datetime.now().strftime("%d_%m-%H%M")
@@ -238,11 +238,11 @@ def tot_reward(e0,h0,theta,sel,eps,epoch):
 	EHT_,R_dis = jax.lax.scan(single_step,EHT_0,eps)
 	R_tot,dis,sigma_e = R_dis # dis=[1,IT*N_DOTS[VMAPS]]
 	esdr=(epoch,sel,dis,R_tot,sigma_e)
-	jax.lax.cond(((epoch%1000==0)|((epoch>=4000)|(epoch%500==0))),true_debug,false_debug,esdr)
+	jax.lax.cond(((epoch%1000==0)|((epoch>=4000)&(epoch%500==0))),true_debug,false_debug,esdr)
 	return jnp.sum(R_tot)
 
 @jit
-def RG_no_vmap(ehtsee):
+def RG_no_vmap(ehtsee): # test (no grads)
     (e0,h0,theta,SELECT,EPS,e) = ehtsee
     shape_ = e0.shape
     shape_s = SELECT.shape
@@ -255,8 +255,7 @@ def RG_no_vmap(ehtsee):
     return (R_tot,grads_)
 
 @jit
-def RG_vmap(ehtsee):
-    # cond -> train vs test
+def RG_vmap(ehtsee): # train
     (e0,h0,theta,SELECT,EPS,e) = ehtsee
     val_grad = jax.value_and_grad(tot_reward,argnums=2,allow_int=True)
     val_grad_vmap = jax.vmap(val_grad,in_axes=(2,None,None,0,2,None),out_axes=(0,0))
@@ -265,7 +264,7 @@ def RG_vmap(ehtsee):
     return (R_tot,grads_)
 
 @jit
-def RG_vmap_TEST(ehtsee):
+def RG_vmap_TEST(ehtsee): # allow for multiple episodes at testing by disabling vmap
     (e0,h0,theta,SELECT,EPS,e) = ehtsee
     val_grad = jax.value_and_grad(tot_reward,argnums=2,allow_int=True)
     val_grad_vmap = jax.vmap(val_grad,in_axes=(2,None,None,0,2,None),out_axes=(0,0))
