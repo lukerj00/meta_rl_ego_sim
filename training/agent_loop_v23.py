@@ -166,7 +166,7 @@ def single_step(EHT_t_1,eps):
     U_h = theta["GRU"]["U_h"]
     b_h = theta["GRU"]["b_h"]
     C = theta["GRU"]["C"]
-    G = theta["GRU"]["G"]
+    G = theta["GRU"]["G_"]
     
     THETA_J = theta["ENV"]["THETA_J"]
     THETA_I = theta["ENV"]["THETA_I"]
@@ -200,7 +200,8 @@ def single_step(EHT_t_1,eps):
     # g gate
     key = jax.random.PRNGKey(jnp.int32(jnp.floor(1000*(h_t[0]-h_t[1]))))
     p_t = jax.nn.sigmoid(jnp.matmul(G,h_t))
-    g_t = rnd.bernoulli(key,p=p_t)
+    g_t = rnd.bernoulli(key,p=p_t) # discontinuous? stops gradient flow
+    # jax.debug.print('g_t_DEBUG={}',g_t)
 
     # v_t = C*h_t + eps
     v_t = g_t*STEP*(jnp.matmul(C,h_t) + SIGMA_N*eps) # 'motor noise'
@@ -217,20 +218,21 @@ def single_step(EHT_t_1,eps):
     
     # assemble output
     EHT_t = (e_t,h_t,theta,sel,epoch)
-    R_dis = (R_t_,cost,dis,sigma_e)
+    R_dis = (R_t_,R_t,cost,dis,sigma_e)
     
     return (EHT_t,R_dis)
 
 @jit
 def true_debug(esdr):
-    epoch,sel,dis,R_tot,cost,sigma_e = esdr
+    epoch,sel,dis,R_t,R_torig,cost,sigma_e = esdr
     path_ = str(Path(__file__).resolve().parents[1]) + '/stdout/'
     dt = datetime.now().strftime("%d_%m-%H%M")
     jax.debug.print('epoch = {}', epoch)
     jax.debug.print('sel = {}', sel)
     jax.debug.print('dis={}', dis)
-    jax.debug.print('R_tot={}', R_tot)
-    jax.debug.print('cost_t={}', cost)
+    jax.debug.print('R_t={}', R_t)
+    jax.debug.print('R_torig={}', R_torig)
+    # jax.debug.print('cost_t={}', cost) 
     # jax.debug.callback(callback_debug,R_tot)
     # jax.debug.print('sigma_e={}', sigma_e)
 
@@ -250,9 +252,9 @@ def callback_debug(R_tot): # (can implement general callback functionality)
 def tot_reward(e0,h0,theta,sel,eps,epoch):
 	EHT_0 = (e0,h0,theta,sel,epoch)
 	EHT_,R_dis = jax.lax.scan(single_step,EHT_0,eps)
-	R_t,cost,dis,sigma_e = R_dis # dis=[1,IT*N_DOTS[VMAPS]]
-	esdr=(epoch,sel,dis,R_t,cost,sigma_e)
-	jax.lax.cond((epoch%1000==0),true_debug,false_debug,esdr)
+	R_t,R_torig,cost,dis,sigma_e = R_dis # dis=[1,IT*N_DOTS[VMAPS]]
+	esdr=(epoch,sel,dis,R_t,R_torig,cost,sigma_e)
+	jax.lax.cond(((epoch%1000==0)|((epoch>=4000)|(epoch%500==0))),true_debug,false_debug,esdr)
 	return jnp.sum(R_t)
 
 @jit
@@ -266,7 +268,7 @@ def RG_no_vmap(ehtsee):
     val_grad_vmap = jax.vmap(val_grad,in_axes=(2,None,None,0,2,None),out_axes=(0,0))
     R_tot,grads = val_grad_vmap(e0,h0,theta,SELECT,EPS,e)# R_tot,grads = val_grad(e0,h0,theta,SELECT,EPS,e)
     grads_ = jax.tree_util.tree_map(lambda g: (0)*jnp.mean(g,axis=0), grads["GRU"])
-    # jax.debug.print('grads_DEBUG={}', grads_) (correct)
+    jax.debug.print('grads_NVM_DEBUG={}', grads_["G_"]) # (correct)
     return (R_tot,grads_)
 
 @jit
@@ -276,6 +278,7 @@ def RG_vmap(ehtsee):
     val_grad_vmap = jax.vmap(val_grad,in_axes=(2,None,None,0,2,None),out_axes=(0,0))
     R_tot,grads = val_grad_vmap(e0,h0,theta,SELECT,EPS,e)
     grads_ = jax.tree_util.tree_map(lambda g: jnp.mean(g,axis=0), grads["GRU"])
+    # jax.debug.print('grads_DEBUG={}', grads_["G_"]) # (correct)
     return (R_tot,grads_)
 
 @jit
@@ -298,7 +301,7 @@ def body_fnc(e,UTORR): # returns theta
     opt_update, opt_state = optimizer.update(grads_, opt_state, theta["GRU"])
     theta["GRU"] = optax.apply_updates(theta["GRU"], opt_update)
     UTORR = (UPDATE,theta,opt_state,R_arr,std_arr)
-    jax.debug.print('g_DEBUG={}',theta["GRU"]["G"])
+    # jax.debug.print('g_DEBUG={}',theta["GRU"]["G_"])
 
     return UTORR # becomes new input
 
@@ -337,7 +340,7 @@ INIT = jnp.float32(0.1) # 0.1
 
 # loop params
 EPOCHS = 5001
-IT = 30
+IT = 50
 VMAPS = 500
 UPDATE = jnp.float32(0.0005) # 0.001
 TAU = jnp.float32((1-1/jnp.e)*EPOCHS) # 0.01
@@ -399,7 +402,7 @@ theta = { "GRU" : {
     	"b_h"    : b_h0,
 		"W_r"    : W_r0,
     	"C"	     : C0,
-	    "G"      : G0
+	    "G_"      : G0
 	},
         	"ENV" : {
     	"THETA_I"  	: THETA_I,
