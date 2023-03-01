@@ -98,8 +98,8 @@ def sigma_fnc(SIGMA_R0,SIGMA_RINF,TAU,e):
 def obj(e_t_1,sel,SIGMA_R0,SIGMA_RINF,TAU,e): # R_t
     sigma_e = sigma_fnc(SIGMA_R0,SIGMA_RINF,TAU,e)
     obj = -jnp.exp(-jnp.sum((e_t_1)**2,axis=1)/sigma_e**2)
-    sel_ = jnp.array([1,0,0]) # always red dot
-    R_t = jnp.dot(obj,sel_)
+    # sel_ = jnp.array([1,0,0]) # always red dot
+    R_t = jnp.dot(obj,sel)
     return(R_t,sigma_e)
 
 # def body_fnc__(i,evk_1): # ?
@@ -238,7 +238,7 @@ def tot_reward(e0,h0,theta,sel,eps,epoch):
 	EHT_,R_dis = jax.lax.scan(single_step,EHT_0,eps)
 	R_tot,dis,sigma_e = R_dis # dis=[1,IT*N_DOTS[VMAPS]]
 	esdr=(epoch,sel,dis,R_tot,sigma_e)
-	jax.lax.cond((epoch%1000==0),true_debug,false_debug,esdr)
+	jax.lax.cond(((epoch%1000==0)|((epoch>=4000)|(epoch%500==0))),true_debug,false_debug,esdr)
 	return jnp.sum(R_tot)
 
 @jit
@@ -285,7 +285,7 @@ def body_fnc(e,UTORR): # returns theta
 
     # each iteration effects next LTRR (L{R_arr,std_arr},T{GRU}) # vmap tot_reward over dots (e0), eps (EPS) and sel (SELECT)); find avg r_tot, grad
     ehtsee = (e0,h0,theta,SELECT,EPS,e)
-    (R_tot,grads_) = jax.lax.cond((e%1000==0),RG_no_vmap,RG_vmap,ehtsee)
+    (R_tot,grads_) = jax.lax.cond((e%1000==0)|(e>=4000),RG_no_vmap,RG_vmap,ehtsee)
     R_arr = R_arr.at[e].set(jnp.mean(R_tot))
     std_arr = std_arr.at[e].set(jnp.std(R_tot))
     
