@@ -216,7 +216,7 @@ def true_debug(esdr): # debug
     jax.debug.print('sel = {}', sel)
     jax.debug.print('dis={}', dis)
     # jax.debug.print('dots={}', e0) #wrong; need to extract at each timestep
-    jax.debug.print('R_tot={}', R_tot)
+    # jax.debug.print('R_tot={}', R_tot)
     # jax.debug.callback(callback_debug,R_tot)
     # jax.debug.print('sigma_e={}', sigma_e)
 
@@ -310,7 +310,7 @@ startTime = datetime.now()
 # ENV parameters
 SIGMA_A = jnp.float32(1) # 0.9
 SIGMA_R0 = jnp.float32(0.5) # 0.5
-SIGMA_RINF = jnp.float32(0.1) # 0.3
+SIGMA_RINF = jnp.float32(0.5) # 0.3
 SIGMA_N = jnp.float32(1.8) # 1.6
 ALPHA = jnp.float32(0.7) # 0.9
 STEP = jnp.float32(0.005) # play around with! 0.005
@@ -326,7 +326,7 @@ KEY_INIT = rnd.PRNGKey(0) # 0
 INIT = jnp.float32(0.1) # 0.1
 
 # loop params
-EPOCHS = 5001
+EPOCHS = 6001
 IT = 50
 VMAPS = 500
 UPDATE = jnp.float32(0.0005) # 0.001
