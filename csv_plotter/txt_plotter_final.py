@@ -15,13 +15,13 @@ from datetime import datetime
 
 path_ = str(Path(__file__).resolve().parents[1])
 print('path_',path_)
-stdout_ = path_ + '//stdout//' # \\ on windows
-dump_ = open(stdout_ + 'dump61.txt','r').read() # 41(e,s,d),30(e,s,r,d)
+stdout_ = path_ + '/stdout/' # \\ on windows
+dump_ = open(stdout_ + 'dump.txt','r').read() # 41(e,s,d),30(e,s,r,d)
 # path_pkl = path_ + "\\pkl\\"
 # colors_ = open(path_pkl + colors_file,'rb')
 colors = np.float32([[255,0,0],[0,255,0],[0,0,255]])/255 # [[255,100,50],[50,255,100],[100,50,255],[200,0,50]]) # ,[# colors = pickle.load(colors_) # [r,g,b*5]
 DOTS = colors.shape[0]
-EPOCHS_ = [0,1000,3000,4000,5000,6000]
+EPOCHS_ = [0,1000,2000,3000,4000,5000,6000]
 VMAPS = 1 # 3
 IT = 50 # 25
 
