@@ -57,19 +57,21 @@ def sigma_fnc(SIGMA_R0,SIGMA_RINF,TAU,e):
     sigma_e = SIGMA_RINF*(1-jnp.exp(-e/TAU))+SIGMA_R0*jnp.exp(-e/TAU) # exp decay to 1/e mag in 1/e time
     return sigma_e
 
-@jit
-def loss_env(e_t_hat,e_t_1):
-    theta_0 = jnp.arctan2(e_t_hat[0],e_t_hat[1])
-    theta_1 = jnp.arctan2(e_t_hat[2],e_t_hat[3])
-    R_env = jnp.exp((jnp.cos(theta_0 - e_t_1[:,0]) + jnp.cos(theta_1 - e_t_hat[:,1]) - 2)) # sigma?
+@jit 
+def loss_env(pos_hat,pos_t): 
+    theta_e_0 = jnp.arctan2(pos_hat[0],pos_hat[1]) #x=atan(sinx/cosx)
+    theta_e_1 = jnp.arctan2(pos_hat[2],pos_hat[3]) #y=atan(siny/cosy)
+    R_env = jnp.exp((jnp.cos(theta_e_0 - pos_t[0]) + jnp.cos(theta_e_1 - pos_t[1]) - 2)) # sigma?
     return R_env
 
 @jit
-def loss_dot(dot_hat):
-    # readout
-    # atan2()
-    # von mises
-    return
+def loss_dot(dot_hat,e_t_1,sel):
+    sel = sel.reshape((1,sel.size))
+    dot = jnp.matmul(sel,e_t_1)
+    theta_d_0 = jnp.arctan2(dot[0],dot[1]) #x=atan(sinx/cosx)
+    theta_d_1 = jnp.arctan2(dot[2],dot[3]) #y=atan(siny/cosy)
+    R_env = jnp.exp((jnp.cos(theta_d_0 - dot[0]) + jnp.cos(theta_d_1 - dot[1]) - 2)) # sigma?
+    return R_env
 
 @jit
 def loss_sel(sel_hat,sel):
@@ -81,14 +83,14 @@ def loss_obj(e_t_1,sel,e,pos,SIGMA_R0,SIGMA_RINF,TAU,LAMBDA_N,LAMBDA_E,LAMBDA_D,
     SIGMA_R0 = theta["ENV"]["SIGMA_R0"]
     SIGMA_RINF = theta["ENV"]["SIGMA_RINF"]
     TAU = theta["ENV"]["TAU"]
-    LAMBDA_N = theta["ENV"]["LAMBDA_N"]
+    # LAMBDA_N = theta["ENV"]["LAMBDA_N"]
     sigma_e = sigma_fnc(SIGMA_R0,SIGMA_RINF,TAU,e)
     e_rel = e_t_1-pos
-    obj = -jnp.exp((jnp.cos(e_rel[:,0]) + jnp.cos(e_rel[:,1]) - 2)/sigma_e**2) ### edit with pos
-    R_obj_ = jnp.dot(obj,sel)
-    loss_norm = LAMBDA_N*jnp.linalg.norm(theta["GRU"],2)
+    obj = -jnp.exp((jnp.cos(e_rel[:,0]) + jnp.cos(e_rel[:,1]) - 2)/sigma_e**2) ### standard loss (-)
+    R_obj = jnp.dot(obj,sel)
+    # loss_norm = LAMBDA_N*jnp.linalg.norm(theta["GRU"],2)
     # R_t = R_t_ + LAMBDA_E*loss_env + LAMBDA_D*loss_dot + LAMBDA_S*loss_sel + LAMBDA_N*loss_norm
-    R_obj = R_obj_ + LAMBDA_N*loss_norm
+    # R_obj = R_obj_
     return(R_obj,sigma_e)
 
 # @jit
@@ -170,23 +172,20 @@ def single_step(EHT_t_1,eps):
     EPOCHS = theta["ENV"]["EPOCHS"]
     ALPHA = theta["ENV"]["ALPHA"]
 
-    # initialise agent position
-  
-    
     # neuron activations
-    (act_r,act_g,act_b) = neuron_act(e_t_1,THETA_J,THETA_I,SIGMA_A,COLORS,pos_t) ###
+    act_r,act_g,act_b = neuron_act(e_t_1,THETA_J,THETA_I,SIGMA_A,COLORS,pos_t) ###
     
     # reward from neurons
-    (R_obj,sigma_e) = loss_obj(e_t_1,sel,epoch,pos_t,SIGMA_R0,SIGMA_RINF,TAU,LAMBDA_N,LAMBDA_E,LAMBDA_D,LAMBDA_S) ###
+    R_obj,sigma_e = loss_obj(e_t_1,sel,epoch,pos_t,SIGMA_R0,SIGMA_RINF,TAU,LAMBDA_N,LAMBDA_E,LAMBDA_D,LAMBDA_S) ###
     
     # minimal GRU equations
-    z_t = jax.nn.sigmoid(jnp.matmul(Wr_z,act_r) + jnp.matmul(Wg_z,act_g) + jnp.matmul(Wb_z,act_b) + R_t*W_r + jnp.matmul(U_z,h_t_1) + b_z) # matmul(W_r,R_t)
-    f_t = jax.nn.sigmoid(jnp.matmul(Wr_r,act_r) + jnp.matmul(Wg_r,act_g) + jnp.matmul(Wb_r,act_b) + R_t*W_r + jnp.matmul(U_r,h_t_1) + b_r)
-    hhat_t = jnp.tanh(jnp.matmul(Wr_h,act_r) + jnp.matmul(Wg_h,act_g) + jnp.matmul(Wb_h,act_b) + R_t*W_r + jnp.matmul(U_h,(jnp.multiply(f_t,h_t_1))) + b_h )
+    z_t = jax.nn.sigmoid(jnp.matmul(Wr_z,act_r) + jnp.matmul(Wg_z,act_g) + jnp.matmul(Wb_z,act_b) + R_obj*W_r + jnp.matmul(U_z,h_t_1) + b_z) # matmul(W_r,R_t)
+    f_t = jax.nn.sigmoid(jnp.matmul(Wr_r,act_r) + jnp.matmul(Wg_r,act_g) + jnp.matmul(Wb_r,act_b) + R_obj*W_r + jnp.matmul(U_r,h_t_1) + b_r)
+    hhat_t = jnp.tanh(jnp.matmul(Wr_h,act_r) + jnp.matmul(Wg_h,act_g) + jnp.matmul(Wb_h,act_b) + R_obj*W_r + jnp.matmul(U_h,(jnp.multiply(f_t,h_t_1))) + b_h )
     h_t = jnp.multiply(z_t,h_t_1) + jnp.multiply((1-z_t),hhat_t) # ((1-f_t),h_t_1) + jnp.multiply(f_t,hhat_t)
     
     # env, dot, sel readouts
-    # e_t_hat = jnp.matmul(E,h_t)
+    # pos_hat = jnp.matmul(E,h_t)
     # dot_hat = jnp.matmul(D,h_t)
     # sel_hat = jnp.matmul(S,h_t)
 
@@ -198,29 +197,34 @@ def single_step(EHT_t_1,eps):
     # e_t = new_env(e_t_1,v_t,R_t,ALPHA,N_DOTS,VMAPS,EPOCHS,epoch) ###
 
     # dot/env/sel prediction losses
-    # R_env = loss_env(e_t_hat,e_t_1) ###
-    # R_dot = loss_dot(dot_hat,dot) ###
-    # R_sel = loss_sel(sel_hat,sel) ###
-    R_t = R_obj #+ LAMBDA_E*R_env + LAMBDA_S*R_sel # + LAMBDA_D*R_dot
+    # R_env = 0 #LAMBDA_E*loss_env(pos_hat,pos_t,) ###
+    # R_dot = 0 #LAMBDA_D*loss_dot(dot_hat,e_t_1,sel) ###
+    # R_sel = 0 #LAMBDA_S*loss_sel(sel_hat,sel) ###
+    R_t = R_obj #+ R_env + R_dot + R_sel
 
     # abs distance
     dis = abs_dist(e_t_1,pos_t) ###
     
     # assemble output
-    EHT_t = (e_t_1,h_t,theta,pos_t,sel,epoch)
-    R_dis = (R_t,dis,sigma_e)
+    EHT_t = (e_t_1,h_t,theta,pos_t,sel,epoch) # carry
+    R_dis = (R_t,R_obj,dis,sigma_e,pos_t) # ,R_env,R_dot,R_sel; print at every timestep (vmap'd)
     
     return (EHT_t,R_dis)
 
 @jit
 def true_debug(esdr): # debug
-    epoch,sel,dis,R_tot,sigma_e,pos_t = esdr
+    (sel,epoch,R_t,R_obj,dis,sigma_e,pos_t) = esdr #R_env,R_dot,R_sel
     path_ = str(Path(__file__).resolve().parents[1]) + '/stdout/'
     dt = datetime.now().strftime("%d_%m-%H%M")
     jax.debug.print('epoch = {}', epoch)
     jax.debug.print('sel = {}', sel)
     jax.debug.print('dis={}', dis)
     jax.debug.print('pos_t={}', pos_t)
+    jax.debug.print('R_t={}', R_t)
+    jax.debug.print('R_obj={}', R_obj)
+    # jax.debug.print('R_env={}', R_env)
+    # jax.debug.print('R_dot={}', R_dot)
+    # jax.debug.print('R_sel={}', R_sel)
     # jax.debug.print('dis2={}', dis2)
     # jax.debug.print('dots={}', e0) #wrong; need to extract at each timestep
     # jax.debug.print('R_tot={}', R_tot)
@@ -232,25 +236,25 @@ def false_debug(esdr):
 	return
 
 @jit
-def tot_reward(e0,h0,theta,sel,eps,epoch):
-    pos_t = jnp.array([0,0],shape=[2,],dtype=jnp.float32)
+def tot_reward(e0,h0,theta,sel,eps,epoch): # ehtsee
+    pos_t = jnp.array([0,0],dtype=jnp.float32)
     EHT_0 = (e0,h0,theta,pos_t,sel,epoch)
     EHT_,R_dis = jax.lax.scan(single_step,EHT_0,eps)
-    R_tot,dis,sigma_e = R_dis # dis=[1,IT*N_DOTS[VMAPS]]
-    esdr=(epoch,sel,dis,R_tot,sigma_e,pos_t)
+    (R_t,R_obj,dis,sigma_e,pos_t) = R_dis # R_env,R_dot,R_sel,dis=[1,IT*N_DOTS[VMAPS]]
+    esdr=(sel,epoch,R_t,R_obj,dis,sigma_e,pos_t) # R_env,R_dot,R_sel
     jax.lax.cond(((epoch%1000==0)|((epoch>=4000)&(epoch%500==0))),true_debug,false_debug,esdr)
-    return jnp.sum(R_tot)
+    return jnp.sum(R_t) # R_tot
 
 @jit
-def RG_no_vmap(ehtsee): # test (no grads)
+def RG_no_vmap(ehtsee): # test (no grads) - something abt scanning this fnc means that output shape doesnt match input
     (e0,h0,theta,SELECT,EPS,e) = ehtsee
-    shape_ = e0.shape
+    shape_e = e0.shape
     shape_s = SELECT.shape
-    e0 = jnp.resize(e0[:,:,0],(shape_[2],shape_[0],shape_[1])).transpose(1,2,0)
+    e0 = jnp.resize(e0[:,:,0],(shape_e[2],shape_e[0],shape_e[1])).transpose(1,2,0)
     SELECT = jnp.resize(SELECT[0,:],(shape_s[0],shape_s[1]))
     val_grad = jax.value_and_grad(tot_reward,argnums=2,allow_int=True)
     val_grad_vmap = jax.vmap(val_grad,in_axes=(2,None,None,0,2,None),out_axes=(0,0))
-    R_tot,grads = val_grad_vmap(e0,h0,theta,SELECT,EPS,e)# R_tot,grads = val_grad(e0,h0,theta,SELECT,EPS,e)
+    R_tot,grads = val_grad_vmap(e0,h0,theta,SELECT,EPS,e) # R_tot,grads = val_grad(e0,h0,theta,SELECT,EPS,e)
     grads_ = jax.tree_util.tree_map(lambda g: (0)*jnp.mean(g,axis=0), grads["GRU"])
     return (R_tot,grads_)
 
@@ -258,7 +262,7 @@ def RG_no_vmap(ehtsee): # test (no grads)
 def RG_vmap(ehtsee): # train
     (e0,h0,theta,SELECT,EPS,e) = ehtsee
     val_grad = jax.value_and_grad(tot_reward,argnums=2,allow_int=True)
-    val_grad_vmap = jax.vmap(val_grad,in_axes=(2,None,None,0,2,None),out_axes=(0,0))
+    val_grad_vmap = jax.vmap(val_grad,in_axes=(2,None,None,0,2,None),out_axes=(0,0)) # (0,0)
     R_tot,grads = val_grad_vmap(e0,h0,theta,SELECT,EPS,e)
     grads_ = jax.tree_util.tree_map(lambda g: jnp.mean(g,axis=0), grads["GRU"])
     return (R_tot,grads_)
@@ -267,16 +271,16 @@ def RG_vmap(ehtsee): # train
 def RG_vmap_TEST(ehtsee): # allow for multiple episodes at testing by disabling vmap
     (e0,h0,theta,SELECT,EPS,e) = ehtsee
     val_grad = jax.value_and_grad(tot_reward,argnums=2,allow_int=True)
-    val_grad_vmap = jax.vmap(val_grad,in_axes=(2,None,None,0,2,None),out_axes=(0,0))
+    val_grad_vmap = jax.vmap(val_grad,in_axes=(2,None,None,0,2,None),out_axes=(0,0)) # (0,0)
     R_tot,grads = val_grad_vmap(e0,h0,theta,SELECT,EPS,e)
-    grads_ = jax.tree_util.tree_map(lambda g: (0)*jnp.mean(g,axis=0), grads["GRU"])
+    grads_ = jax.tree_util.tree_map(lambda g: 0*jnp.mean(g,axis=0), grads["GRU"])
     return (R_tot,grads_)
 
 @jit
 def body_fnc(e,UTORR): # returns theta
     # unpack
-    (UPDATE,theta,opt_state,R_arr,std_arr) = UTORR #opt_state
-    optimizer = optax.adam(learning_rate=UPDATE) # theta["ENV"]["OPT"] # put in GRU?
+    (UPDATE,WD,theta,opt_state,R_arr,std_arr) = UTORR #opt_state
+    optimizer = optax.adam(learning_rate=UPDATE) #optax.adamw(learning_rate=UPDATE,weight_decay=WD) # theta["ENV"]["OPT"] # put in GRU?
     e0 = theta["ENV"]["DOTS"][e,:,:,:]
     h0 = theta["GRU"]["h0"]
     SELECT = theta["ENV"]["SELECT"][e,:,:]
@@ -284,38 +288,38 @@ def body_fnc(e,UTORR): # returns theta
 
     # each iteration effects next LTRR (L{R_arr,std_arr},T{GRU}) # vmap tot_reward over dots (e0), eps (EPS) and sel (SELECT)); find avg r_tot, grad
     ehtsee = (e0,h0,theta,SELECT,EPS,e)
-    (R_tot,grads_) = jax.lax.cond((e%1000==0)|(e>=4000),RG_no_vmap,RG_vmap,ehtsee)
+    (R_tot,grads_) = jax.lax.cond((e%1000==0)|(e>=4000),RG_vmap,RG_vmap,ehtsee) # no_vmap,vmap #jax.lax.cond((e>=7000),RG_no_vmap,RG_vmap,ehtsee) # jax.lax.cond((e%1000==0)|(e>=4000),RG_no_vmap,RG_vmap,ehtsee) # ,RG_no_vmap,RG_vmap,ehtsee)
     R_arr = R_arr.at[e].set(jnp.mean(R_tot))
     std_arr = std_arr.at[e].set(jnp.std(R_tot))
-    
     # update theta
     opt_update, opt_state = optimizer.update(grads_, opt_state, theta["GRU"])
     theta["GRU"] = optax.apply_updates(theta["GRU"], opt_update)
-    UTORR = (UPDATE,theta,opt_state,R_arr,std_arr)
+    UTORR = (UPDATE,WD,theta,opt_state,R_arr,std_arr) # must be same shape as input...
 
     return UTORR # becomes new input
 
 @jit
 def full_loop(loop_params,theta): # main routine: R_arr, std_arr = full_loop(params)
     UPDATE = loop_params['UPDATE']
+    WD = loop_params['WD']
     R_arr = loop_params['R_arr']
     std_arr = loop_params['std_arr']
-    optimizer = optax.adam(learning_rate=UPDATE) ### add weight decay
+    optimizer = optax.adam(learning_rate=UPDATE)#optax.adamw(learning_rate=UPDATE,weight_decay=WD) ### add weight decay
     opt_state = optimizer.init(theta["GRU"])
-    UTORR_0 = (UPDATE,theta,opt_state,R_arr,std_arr)
-    UPDATE_,theta_,opt_state_,R_arr,std_arr = jax.lax.fori_loop(0, EPOCHS, body_fnc, UTORR_0)
+    UTORR_0 = (UPDATE,WD,theta,opt_state,R_arr,std_arr)
+    UPDATE_,WD_,theta_,opt_state_,R_arr,std_arr = jax.lax.fori_loop(0, EPOCHS, body_fnc, UTORR_0) # 
     return (R_arr,std_arr)
 
 startTime = datetime.now()
 # ENV parameters
 SIGMA_A = jnp.float32(1) # 0.9
-SIGMA_R0 = jnp.float32(0.6) # 0.5
+SIGMA_R0 = jnp.float32(1) # 0.5
 SIGMA_RINF = jnp.float32(0.3) # 0.3
 SIGMA_N = jnp.float32(1.8) # 1.6
 LAMBDA_N = jnp.float32(0.00001)
-LAMBDA_E = jnp.float32(0.1) ### check
-LAMBDA_D = jnp.float32(0.1) ### check
-LAMBDA_S = jnp.float32(0.1) ### check
+LAMBDA_E = jnp.float32(0.001) ### check
+LAMBDA_D = jnp.float32(0.001) ### check
+LAMBDA_S = jnp.float32(0.001) ### check
 ALPHA = jnp.float32(0.7) # 0.9
 STEP = jnp.float32(0.005) # play around with! 0.005
 APERTURE = jnp.pi/3
@@ -327,22 +331,24 @@ NEURONS = 11
 N = NEURONS**2
 G = 80 # size of GRU
 KEY_INIT = rnd.PRNGKey(0) # 0
-INIT = jnp.float32(0.1) # 0.1
+INIT = jnp.float32(100) # 0.1
 
 # loop params
-EPOCHS = 4001
+EPOCHS = 501 # 1001
 IT = 30 # 50
-VMAPS = 200 # 500
-UPDATE = jnp.float32(0.0005) # 0.001
+VMAPS = 400 # 500
+UPDATE = jnp.float32(0.0001) # 0.001
+WD = jnp.float32(0) # 0.0005,0.0000001
 TAU = jnp.float32((1-1/jnp.e)*EPOCHS) # 0.01
 R_arr = jnp.empty(EPOCHS)*jnp.nan
 std_arr = jnp.empty(EPOCHS)*jnp.nan
-optimizer = optax.adam(learning_rate=UPDATE)
+optimizer = optax.adam(learning_rate=UPDATE) #optax.adamw(learning_rate=UPDATE,weight_decay=WD)
 
 # assemble loop_params pytree
 loop_params = {
-    	'UPDATE':   jnp.float32(UPDATE),
-    	'R_arr':	jnp.zeros(EPOCHS)*jnp.nan,
+    	'UPDATE' :  jnp.float32(UPDATE),
+        'WD'     :  jnp.float32(WD),
+    	'R_arr'  :	jnp.zeros(EPOCHS)*jnp.nan,
     	'std_arr':  jnp.zeros(EPOCHS)*jnp.nan
 	}
 
@@ -368,7 +374,7 @@ W_r0 = (INIT/G)*rnd.normal(ki[10],(G,),dtype=jnp.float32) # W_s = [G,N_DOTS], W_
 C0 = (INIT/2*G)*rnd.normal(ki[11],(2,G),dtype=jnp.float32)
 E0 = (INIT/4*G)*rnd.normal(ki[12],(4,G),dtype=jnp.float32)
 D0 = (INIT/4*G)*rnd.normal(ki[13],(4,G),dtype=jnp.float32)
-S0 = (INIT/3*G)*rnd.normal(ki[14],(3,G),dtype=jnp.float32) # check... (produce logits?)
+S0 = (INIT/N_DOTS*G)*rnd.normal(ki[14],(3,G),dtype=jnp.float32) # check... (produce logits?)
 THETA_I = gen_neurons(NEURONS,APERTURE)
 THETA_J = gen_neurons(NEURONS,APERTURE)
 DOTS = create_dots(N_DOTS,ki[15],VMAPS,EPOCHS) # [EPOCHS,N_DOTS,2,VMAPS]
@@ -394,7 +400,10 @@ theta = { "GRU" : {
     	"U_h"    : U_h0,
     	"b_h"    : b_h0,
 		"W_r"    : W_r0,
-    	"C"	     : C0
+    	"C"	     : C0,
+        "E"      : E0,
+        "D"      : D0,
+        "S"      : S0
 	},
         	"ENV" : {
     	"THETA_I"  	: THETA_I,
