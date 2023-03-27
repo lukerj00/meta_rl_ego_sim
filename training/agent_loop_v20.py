@@ -264,7 +264,7 @@ startTime = datetime.now()
 # ENV parameters
 SIGMA_A = jnp.float32(1) # 0.9
 SIGMA_R0 = jnp.float32(0.5) # 0.5
-SIGMA_RINF = jnp.float32(0.05) # 0.3
+SIGMA_RINF = jnp.float32(0.3) # 0.3
 SIGMA_N = jnp.float32(1.8) # 1.6
 STEP = jnp.float32(0.005) # play around with! 0.005
 APERTURE = jnp.pi/3
@@ -279,10 +279,10 @@ KEY_INIT = rnd.PRNGKey(0) # 0
 INIT = jnp.float32(0.1) # 0.1
 
 # loop params
-EPOCHS = 8001
-IT = 20
+EPOCHS = 4001
+IT = 25
 VMAPS = 500
-UPDATE = jnp.float32(0.0007) # 0.001
+UPDATE = jnp.float32(0.0005) # 0.0007
 TAU = jnp.float32((1-1/jnp.e)*EPOCHS) # 0.01
 R_arr = jnp.empty(EPOCHS)*jnp.nan
 std_arr = jnp.empty(EPOCHS)*jnp.nan
@@ -358,6 +358,8 @@ theta = { "GRU" : {
 	}
         	}
 theta["ENV"] = jax.lax.stop_gradient(theta["ENV"])
+
+jax.debug.print('v20_sc')
 R_arr,std_arr = full_loop(loop_params,theta)
 R_arr = jnp.delete(R_arr,jnp.array(list(range(0,EPOCHS,1000))))
 std_arr = jnp.delete(std_arr,jnp.array(list(range(0,EPOCHS,1000))))
@@ -374,7 +376,7 @@ print(f'Completed in: {time_elapsed}, {time_elapsed/EPOCHS} s/epoch')
 plt.figure()
 plt.errorbar(jnp.arange(len(R_arr)),R_arr,yerr=std_arr/2,ecolor="black",elinewidth=0.5,capsize=1.5)
 plt.show(block=False)
-title__ = f'epochs={EPOCHS}, it={IT}, vmaps={VMAPS}, update={UPDATE:.4f}, SIGMA_A={SIGMA_A:.1f}, SIGMA_RINF={SIGMA_RINF:.2f}, SIGMA_N={SIGMA_N:.1f} \n colors={jnp.array_str(COLORS[0][:]) + jnp.array_str(COLORS[1][:]) + jnp.array_str(COLORS[2][:])}' #  + jnp.array_str(COLORS[3][:]) + jnp.array_str(COLORS[4][:])}'
+title__ = f'v20, epochs={EPOCHS}, it={IT}, vmaps={VMAPS}, update={UPDATE:.4f}, SIGMA_A={SIGMA_A:.1f}, SIGMA_RINF={SIGMA_RINF:.2f}, SIGMA_N={SIGMA_N:.1f} \n colors={jnp.array_str(COLORS[0][:]) + jnp.array_str(COLORS[1][:]) + jnp.array_str(COLORS[2][:])}' #  + jnp.array_str(COLORS[3][:]) + jnp.array_str(COLORS[4][:])}'
 plt.title(title__,fontsize=8)
 plt.xlabel('Iteration')
 plt.ylabel('Reward')

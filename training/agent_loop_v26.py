@@ -93,7 +93,7 @@ def loss_obj(e_t_1,sel,e,pos,SIGMA_R0,SIGMA_RINF,TAU,LAMBDA_N,LAMBDA_E,LAMBDA_D,
     # R_obj = R_obj_
     return(R_obj,sigma_e)
 
-# @jit
+@jit
 def switch_dots(evrnve): ### change to teleport pos, not e_t
     (e_t_1,v_t,R_t,N_DOTS,VMAPS,EPOCHS) = evrnve # N_DOTS = e_t_1.shape[0]?
     key1 = rnd.PRNGKey(jnp.int32(jnp.floor(1000*(v_t[0]+v_t[1]))))
@@ -228,6 +228,7 @@ def true_debug(esdr): # debug
     # jax.debug.print('dis2={}', dis2)
     # jax.debug.print('dots={}', e0) #wrong; need to extract at each timestep
     # jax.debug.print('R_tot={}', R_tot)
+    # INVESTIGATE CALLBACK FUNCTIONALITY
     # jax.debug.callback(callback_debug,R_tot)
     # jax.debug.print('sigma_e={}', sigma_e)
 
