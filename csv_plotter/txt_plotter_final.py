@@ -21,9 +21,9 @@ dump_ = open(stdout_ + 'dump41.txt','r').read() # 41(e,s,d),30(e,s,r,d)
 # colors_ = open(path_pkl + colors_file,'rb')
 colors = np.float32([[255,0,0],[0,255,0],[0,0,255]])/255 # [[255,100,50],[50,255,100],[100,50,255],[200,0,50]]) # ,[# colors = pickle.load(colors_) # [r,g,b*5]
 DOTS = colors.shape[0]
-EPOCHS_ = [0,1000,2000,3000,4000,5000,6000] ### CHECK
+EPOCHS_ = [0,1000,2000,3000] ### CHECK
 VMAPS = 3 # 3
-IT = 25 ### CHECK
+IT = 50 ### CHECK
 
 ### txt to arrays (regex)
 ### sel
