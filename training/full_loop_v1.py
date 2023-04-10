@@ -205,7 +205,7 @@ def single_step(EHT_t_1,eps):
     
     # new env
     sel_ = sel.reshape((1,sel.size))
-    dot = jnp.matmul(sel_,e_t).reshape((2,))
+    dot = jnp.matmul(sel_,e0).reshape((2,))
     pos_t += v_t
     e_t = new_env(e0,v_t,R_obj,ALPHA,N_DOTS,VMAPS,EPOCHS,epoch,dot,pos_t)#check
 
@@ -358,7 +358,7 @@ KEY_INIT = rnd.PRNGKey(0) # 0
 INIT = jnp.float32(0.1) # 0.1
 
 # loop params
-EPOCHS = 1000
+EPOCHS = 100
 IT = 50
 VMAPS = 500 # 500
 TESTS = 10
@@ -465,6 +465,7 @@ print(f'Completed in: {time_elapsed}, {time_elapsed/EPOCHS} s/epoch')
 
 # plot training
 (R_tot,R_obj,R_env,R_dot,R_sel),(sd_tot,sd_obj,sd_env,sd_dot,sd_sel) = vals_train
+plt.figure()
 plt.subplots(2,2,figsize=(10,10))
 plt.subplot(2,2,1)
 plt.errorbar(jnp.arange(len(R_obj)),R_obj,yerr=sd_obj/2,ecolor="black",elinewidth=0.5,capsize=1.5)
@@ -484,7 +485,7 @@ plt.ylabel(r'R_{sel}')
 plt.xlabel(r'Iteration')
 title__ = f'v1 training, epochs={EPOCHS}, it={IT}, vmaps={VMAPS}, update={UPDATE:.4f}, SIGMA_A={SIGMA_A:.1f}, SIGMA_RINF={SIGMA_RINF:.1f}, STEP={STEP:.3f} \n WD={WD:.5f}, LAMBDA_D={LAMBDA_D:.4f}, LAMBDA_E={LAMBDA_E:.4f}, LAMBDA_S={LAMBDA_S:.4f}' # \n colors={jnp.array_str(COLORS[0][:]) + jnp.array_str(COLORS[1][:]) + jnp.array_str(COLORS[2][:])}' #  + jnp.array_str(COLORS[3][:]) + jnp.array_str(COLORS[4][:])}'
 plt.title(title__,fontsize=8)
-plt.show()
+# plt.show()
 
 #plot testing
 # R_obj_t,R_env_t,R_dot_t,R_sel_t,dis_t,pos_t = vals_test
@@ -500,6 +501,6 @@ plt.show()
 
 # print(f'R_arr: {R_arr} \n std_arr: {std_arr}')
 
-# path_ = str(Path(__file__).resolve().parents[1]) + '/figs/task8/'
+path_ = str(Path(__file__).resolve().parents[1]) + '/figs/task8/'
 dt = datetime.now().strftime("%d_%m-%H%M")
-# plt.savefig(path_ + 'fig_' + dt + '.png')
+plt.savefig(path_ + 'fig_' + dt + '.png')
