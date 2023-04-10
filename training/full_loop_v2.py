@@ -94,7 +94,7 @@ def loss_obj(e_t_1,sel,e,pos,SIGMA_R0,SIGMA_RINF,TAU,LAMBDA_N,LAMBDA_E,LAMBDA_D,
     e_rel = e_t_1-pos
     obj = -jnp.exp((jnp.cos(e_rel[:,0]) + jnp.cos(e_rel[:,1]) - 2)/sigma_e**2) ### standard loss (-)
     R_obj = jnp.dot(obj,sel)
-    return(R_obj,sigma_e)
+    return(R_obj)#,sigma_e
 
 # @jit
 def switch_dots(evrnve):###change to distance-based
@@ -137,18 +137,19 @@ def abs_dist(e_t,pos):###CHECK behaviour at pi
 
 @jit
 def true_debug(esdr): # debug
-    (epoch,sel,R_obj,R_env,R_dot,R_sel,R_tot,dis,dot,pos_t) = esdr
+    (epoch,sel,R_test,R_tot,R_obj,R_env,R_dot,R_sel,dis,dot,pos_t) = esdr
     # path_ = str(Path(__file__).resolve().parents[1]) + '/stdout/'
     # dt = datetime.now().strftime("%d_%m-%H%M")
     jax.debug.print('epoch = {}', epoch)
     jax.debug.print('sel = {}', sel)
     jax.debug.print('dis = {}', dis)
     jax.debug.print('pos_t = {}', pos_t)
+    jax.debug.print('R_test = {}', R_test)
+    jax.debug.print('R_tot = {}', R_tot)
     jax.debug.print('R_obj = {}', R_obj)
     jax.debug.print('R_env = {}', R_env)
     jax.debug.print('R_dot = {}', R_dot)
     jax.debug.print('R_sel = {}', R_sel)
-    jax.debug.print('R_tot = {}', R_tot)
     jax.debug.print('dot = {}', dot)
     # jax.debug.print('R_tot={}', R_tot)
     # jax.debug.callback(callback_debug,R_tot)
@@ -161,7 +162,7 @@ def false_debug(esdr):
 @jit
 def single_step(EHT_t_1,eps):
     # unpack values
-    e_t_1,h_t_1,theta,pos_t,sel,epoch,dot,R_tot,R_obj,R_env,R_dot,R_sel = EHT_t_1
+    e_t_1,h_t_1,theta,pos_t,sel,epoch,dot,R_obj,R_env,R_dot,R_sel = EHT_t_1#R_tot
 
     # extract data from theta
     Wr_z = theta["GRU"]["Wr_z"]
@@ -207,12 +208,12 @@ def single_step(EHT_t_1,eps):
     (act_r,act_g,act_b) = neuron_act(e_t_1,THETA_J,THETA_I,SIGMA_A,COLORS,pos_t)
     
     # reward from neurons
-    (R_obj,_) = loss_obj(e_t_1,sel,epoch,pos_t,SIGMA_R0,SIGMA_RINF,TAU,LAMBDA_N,LAMBDA_E,LAMBDA_D,LAMBDA_S)
-    
+    R_temp = loss_obj(e_t_1,sel,epoch,pos_t,SIGMA_R0,SIGMA_RINF,TAU,LAMBDA_N,LAMBDA_E,LAMBDA_D,LAMBDA_S)
+
     # minimal GRU equations
-    z_t = jax.nn.sigmoid(jnp.matmul(Wr_z,act_r) + jnp.matmul(Wg_z,act_g) + jnp.matmul(Wb_z,act_b) + R_obj*W_r + jnp.matmul(U_z,h_t_1) + b_z) # matmul(W_r,R_t)
-    f_t = jax.nn.sigmoid(jnp.matmul(Wr_r,act_r) + jnp.matmul(Wg_r,act_g) + jnp.matmul(Wb_r,act_b) + R_obj*W_r + jnp.matmul(U_r,h_t_1) + b_r)
-    hhat_t = jnp.tanh(jnp.matmul(Wr_h,act_r)  + jnp.matmul(Wg_h,act_g) + jnp.matmul(Wb_h,act_b) + R_obj*W_r + jnp.matmul(U_h,(jnp.multiply(f_t,h_t_1))) + b_h )
+    z_t = jax.nn.sigmoid(jnp.matmul(Wr_z,act_r) + jnp.matmul(Wg_z,act_g) + jnp.matmul(Wb_z,act_b) + R_temp*W_r + jnp.matmul(U_z,h_t_1) + b_z) # matmul(W_r,R_t)
+    f_t = jax.nn.sigmoid(jnp.matmul(Wr_r,act_r) + jnp.matmul(Wg_r,act_g) + jnp.matmul(Wb_r,act_b) + R_temp*W_r + jnp.matmul(U_r,h_t_1) + b_r)
+    hhat_t = jnp.tanh(jnp.matmul(Wr_h,act_r)  + jnp.matmul(Wg_h,act_g) + jnp.matmul(Wb_h,act_b) + R_temp*W_r + jnp.matmul(U_h,(jnp.multiply(f_t,h_t_1))) + b_h )
     h_t = jnp.multiply(z_t,h_t_1) + jnp.multiply((1-z_t),hhat_t)# ((1-f_t),h_t_1) + jnp.multiply(f_t,hhat_t)
     
     # env, dot, sel readouts
@@ -230,18 +231,19 @@ def single_step(EHT_t_1,eps):
     pos_t += v_t
     ### e_t = new_env(e_t_1,v_t,dot,pos_t,ALPHA,epoch) #check, e0,v_t,R_obj,ALPHA,N_DOTS,VMAPS,EPOCHS,epoch,dot,pos_t
 
-    # accumulate rewards    
+    # accumulate rewards
+    R_obj = R_obj + R_temp
     R_env += LAMBDA_E*loss_env(e_t_hat,pos_t) ###
     R_dot += LAMBDA_D*loss_dot(dot_hat,e_t_1,sel) ###
     R_sel += LAMBDA_S*loss_sel(sel_hat,sel) ###
-    R_tot += R_obj #5* + R_env + R_dot + R_sel ### 
+    # R_tot = R_obj #5* + R_env + R_dot + R_sel ### 
 
     # abs distance
     dis_t = abs_dist(e_t_1,pos_t)
     
     # assemble output
-    EHT_t = (e_t_1,h_t,theta,pos_t,sel,epoch,dot,R_tot,R_obj,R_env,R_dot,R_sel)
-    pos_dis = (pos_t,dis_t) ###
+    EHT_t = (e_t_1,h_t,theta,pos_t,sel,epoch,dot,R_obj,R_env,R_dot,R_sel)#R_tot
+    pos_dis = (pos_t,dis_t,R_temp) ###
 
     return (EHT_t,pos_dis)
 
@@ -254,11 +256,13 @@ def tot_reward(e0,h0,theta,sel,eps,epoch):
     # R_env=jnp.float32(0)
     # R_dot=jnp.float32(0)
     # R_sel=jnp.float32(0)
-    EHT_0 = (e0,h0,theta,pos_t,sel,epoch,dot,R_tot,R_obj,R_env,R_dot,R_sel)
+    EHT_0 = (e0,h0,theta,pos_t,sel,epoch,dot,R_obj,R_env,R_dot,R_sel)#R_tot
     EHT_,pos_dis_ = jax.lax.scan(single_step,EHT_0,eps)
-    *_,dot,R_tot_,R_obj_,R_env_,R_dot_,R_sel_ = EHT_
-    pos_t,dis_t = pos_dis_
-    esdr=(epoch,sel,R_tot_,R_obj_,R_env_,R_dot_,R_sel_,dis_t,dot,pos_t)
+    *_,dot,R_obj_,R_env_,R_dot_,R_sel_ = EHT_#R_tot_
+    # R_tot_ = R_obj_ #5* + R_env_ + R_dot_ + R_sel_
+    pos_t,dis_t,R_temp = pos_dis_
+    R_tot_ = jnp.sum(R_temp)
+    esdr=(epoch,sel,R_temp,R_tot_,R_obj_,R_env_,R_dot_,R_sel_,dis_t,dot,pos_t)#R_tot_
     jax.lax.cond(((epoch%500==0)),true_debug,false_debug,esdr)
     R_aux = (pos_t,dis_t,R_obj_,R_env_,R_dot_,R_sel_)
     return R_tot_,R_aux
@@ -275,7 +279,7 @@ def train_body(e,LTORS): # (body_fnc) returns theta etc after each trial
     SELECT = theta_0["ENV"]["SELECT"][e,:,:]
     EPS = theta_0["ENV"]["EPS"][e,:,:,:]
     val_grad = jax.value_and_grad(tot_reward,argnums=2,allow_int=True,has_aux=True)
-    val_grad_vmap = jax.vmap(val_grad,in_axes=(2,None,None,0,2,None),out_axes=(0,0))#(stack over axes 0 for both outputs)
+    val_grad_vmap = jax.vmap(val_grad,in_axes=(2,None,None,0,2,None),out_axes=(0))#(stack over axes 0 for both outputs)
     values,grads = val_grad_vmap(e0,h0,theta_0,SELECT,EPS,e)#((R_tot_,R_aux),grads))[vmap'd]
     R_tot_,R_aux = values
     (*_,R_obj_,R_env_,R_dot_,R_sel_) = R_aux
@@ -363,12 +367,12 @@ KEY_INIT = rnd.PRNGKey(0) # 0
 INIT = jnp.float32(0.1) # 0.1
 
 # loop params
-EPOCHS = 1000
+EPOCHS = 3000
 # EPOCHS_TEST = 5
-IT = 50
+IT = 25
 VMAPS = 500 # 500
 TESTS = 2
-UPDATE = jnp.float32(0.0002) # 0.0001,0.00008
+UPDATE = jnp.float32(0.00005) # 0.0001,0.00008
 WD = jnp.float32(0.00015) # 0.00001
 TAU = jnp.float32((1-1/jnp.e)*EPOCHS) # 0.01
 optimizer = optax.adamw(learning_rate=UPDATE,weight_decay=WD) #optax.adam(learning_rate=UPDATE)#
@@ -471,22 +475,26 @@ print(f'Completed in: {time_elapsed}, {time_elapsed/EPOCHS} s/epoch')
 # plot training
 (R_tot,R_obj,R_env,R_dot,R_sel),(sd_tot,sd_obj,sd_env,sd_dot,sd_sel) = vals_train
 fig = plt.figure()
-plt.subplots(2,2,figsize=(10,10))
+plt.subplots(2,3,figsize=(15,10))
 title__ = f'v1 training, epochs={EPOCHS}, it={IT}, vmaps={VMAPS}, update={UPDATE:.4f}, SIGMA_A={SIGMA_A:.1f}, SIGMA_RINF={SIGMA_RINF:.1f}, STEP={STEP:.3f} \n WD={WD:.5f}, LAMBDA_D={LAMBDA_D:.4f}, LAMBDA_E={LAMBDA_E:.4f}, LAMBDA_S={LAMBDA_S:.4f}' # \n colors={jnp.array_str(COLORS[0][:]) + jnp.array_str(COLORS[1][:]) + jnp.array_str(COLORS[2][:])}' #  + jnp.array_str(COLORS[3][:]) + jnp.array_str(COLORS[4][:])}'
 fig.suptitle(title__,fontsize=8)
-plt.subplot(2,2,1)
-plt.errorbar(jnp.arange(len(R_tot)),R_tot,yerr=sd_obj/2,ecolor="black",elinewidth=0.5,capsize=1.5)
+plt.subplot(2,3,1)
+plt.errorbar(jnp.arange(len(R_tot)),R_tot,yerr=sd_tot/2,ecolor="black",elinewidth=0.5,capsize=1.5)
+plt.ylabel(r'$R_{tot}$')
+plt.xlabel(r'Iteration')
+plt.subplot(2,3,2)
+plt.errorbar(jnp.arange(len(R_obj)),R_obj,yerr=sd_obj/2,ecolor="black",elinewidth=0.5,capsize=1.5)
 plt.ylabel(r'$R_{obj}$')
 plt.xlabel(r'Iteration')
-plt.subplot(2,2,2)
-plt.errorbar(jnp.arange(len(R_obj)),R_obj,yerr=sd_obj/2,ecolor="black",elinewidth=0.5,capsize=1.5)
+plt.subplot(2,3,3)
+plt.errorbar(jnp.arange(len(R_env)),R_env,yerr=sd_env/2,ecolor="black",elinewidth=0.5,capsize=1.5)
 plt.ylabel(r'$R_{env}$')
 plt.xlabel(r'Iteration')
-plt.subplot(2,2,3)
+plt.subplot(2,3,4)
 plt.errorbar(jnp.arange(len(R_dot)),R_dot,yerr=sd_dot/2,ecolor="black",elinewidth=0.5,capsize=1.5)
 plt.ylabel(r'$R_{dot}$')
 plt.xlabel(r'Iteration')
-plt.subplot(2,2,4)
+plt.subplot(2,3,5)
 plt.errorbar(jnp.arange(len(R_sel)),R_sel,yerr=sd_sel/2,ecolor="black",elinewidth=0.5,capsize=1.5)
 plt.ylabel(r'$R_{sel}$')
 plt.xlabel(r'Iteration')
