@@ -292,7 +292,7 @@ def tot_reward(e0,h0,theta,sel,eps,epoch):
     pos_t = jnp.array([0,0],dtype=jnp.float32)
     dot = jnp.array([0,0],dtype=jnp.float32)
     EHT_0 = (e0,h0,theta,pos_t,sel,epoch,dot)
-    EHT_,R_dis = jax.lax.scan(single_step,EHT_0,eps)
+    EHT_,R_dis = jax.lax.scan(single_step,EHT_0,eps)# carry total reward to EHT_
     (R_t,R_obj,R_env,R_dot,R_sel,dis,pos_t) = R_dis ### R_env,R_dot,R_sel, dis=[1,IT*N_DOTS[VMAPS]]
     (e_t_1_,h_t_,theta_,pos_t_,sel_,epoch_,dot) = EHT_
     esdr=(sel,epoch,R_t,R_obj,R_env,R_dot,R_sel,dis,dot,pos_t)
@@ -322,7 +322,7 @@ def RG_vmap(ehtsee): # train
     return (R_tot,grads_)
 
 @jit
-def RG_vmap_TEST(ehtsee): # allow for multiple episodes at testing by disabling grads
+def RG_vmap_TEST(ehtsee): # 0 grads, to allow for multiple vmaps at testing
     (e0,h0,theta,SELECT,EPS,e) = ehtsee
     val_grad = jax.value_and_grad(tot_reward,argnums=2,allow_int=True)
     val_grad_vmap = jax.vmap(val_grad,in_axes=(2,None,None,0,2,None),out_axes=(0,0))
@@ -342,7 +342,7 @@ def body_fnc(e,UTORR): # returns theta
 
     # each iteration effects next LTRR (L{R_arr,std_arr},T{GRU}) # vmap tot_reward over dots (e0), eps (EPS) and sel (SELECT)); find avg r_tot, grad
     ehtsee = (e0,h0,theta,SELECT,EPS,e)
-    (R_tot,grads_) = jax.lax.cond((e%1000==0)|(e>=4000),RG_vmap_TEST,RG_vmap,ehtsee) #always change TRUE cond (left) RG_no_vmap=only one vmap/no grads; use for testing sel
+    (R_tot,grads_) = jax.lax.cond(((epoch%1000==0)|((epoch>=4000)&(epoch%100==0))),RG_vmap_TEST,RG_vmap,ehtsee) #always change TRUE cond (left) RG_no_vmap=only one vmap/no grads; use for testing sel
     R_arr = R_arr.at[e].set(jnp.mean(R_tot))
     std_arr = std_arr.at[e].set(jnp.std(R_tot))
     
@@ -362,7 +362,9 @@ def full_loop(loop_params,theta): # main routine: R_arr, std_arr = full_loop(par
     optimizer = optax.adamw(learning_rate=UPDATE,weight_decay=WD) # optax.adam(learning_rate=UPDATE) ### add weight decay
     opt_state = optimizer.init(theta["GRU"])
     UTORR_0 = (UPDATE,WD,theta,opt_state,R_arr,std_arr)
-    UPDATE_,WD_,theta_,opt_state_,R_arr,std_arr = jax.lax.fori_loop(0, EPOCHS, body_fnc, UTORR_0)
+    UTORR_1, _ = jax.lax.scan(lambda state, _ : jax.lax.fori_loop(0, EPOCHS/10, body_fnc, state); return state, None, UTORR_0, jnp.arange(10))
+    UPDATE_,WD_,theta_,opt_state_,R_arr,std_arr = UTORR_1
+    # call some result-generating fnc e/10
     return (R_arr,std_arr)
 
 startTime = datetime.now()
@@ -438,7 +440,7 @@ SELECT = jnp.eye(N_DOTS)[rnd.choice(ki[16],N_DOTS,(EPOCHS,VMAPS))]
 
 # assemble theta pytree
 theta = { "GRU" : {
-    	"h0"     : h0,
+    	"h0"     : h0, # ?
     	"Wr_z"   : Wr_z0,
 		"Wg_z"   : Wg_z0,
 		"Wb_z"   : Wb_z0,
