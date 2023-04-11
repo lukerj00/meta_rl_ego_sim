@@ -389,7 +389,7 @@ KEY_INIT = rnd.PRNGKey(0) # 0
 INIT = jnp.float32(0.1) # 0.1
 
 # loop params
-EPOCHS = 4501
+EPOCHS = 1501
 IT = 50 # 50
 VMAPS = 500 # 500
 UPDATE = jnp.float32(0.00008) # 0.0005
