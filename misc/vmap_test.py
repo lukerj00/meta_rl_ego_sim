@@ -8,11 +8,11 @@ from pprint import pprint
 #     x=x+xs
 #     return x,x
 
-# def fnc_2(W,x):
-#     y = jnp.matmul(W,x)
-#     return y
+def fnc_2(W,x):
+    y = jnp.matmul(W,x)
+    return y
 
-# vmap_fnc = jax.vmap(fnc_2,in_axes=(None,0),out_axes=1)
+vmap_fnc = jax.vmap(fnc_2,in_axes=(None,0),out_axes=(0,0))
 
 # # x_0 = jnp.arange(24,dtype=jnp.float32).reshape((2,3,4))
 # # xs = jnp.ones((6,4),dtype=jnp.float32)
@@ -25,28 +25,29 @@ from pprint import pprint
 # #     x=x_0+i
 # #     print(i.shape,x_0.shape,xs.shape)
 
-# W = jnp.ones([3,3])
-# k = jnp.array([1,2,3])
-# k3 = 3*jnp.arange(9).reshape((3,3))
+W = jnp.ones([3,3])
+k = jnp.array([1,2,3])
+k3 = 3*jnp.arange(9).reshape((3,3))
 # # 1 1 1   0 3 6
 # # 1 1 1   9 12 15
 # # 1 1 1   18 21 24
-# y = fnc_2(W,k)
-# y_vmap = vmap_fnc(W,k3)
-# print('k3',k3,'y',y,'y_vmap',y_vmap)
+y = fnc_2(W,k)
+y_vmap = vmap_fnc(W,k3)
+print('k3',k3,'y',y,'y_vmap',y_vmap)
 # print(k3[0,:])
 
 #sel 3,
 #e_t 3,2
 #dot 2,
 
-# e_t = jnp.arange(6).reshape([3,2])
+# e_t = jnp.arange(3).reshape([3,])
+# print(jnp.linalg.norm(e_t,2))
 # sel = jnp.array([0,1,0])
 # dot_ = jnp.dot(sel,e_t)
 # print(dot_)
 
-a=b=c=0
+# a=b=c=0
 
-a+=5
+# a+=5
 
-print(a,b,c)
+# print(a,b,c)
