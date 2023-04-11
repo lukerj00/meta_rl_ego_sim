@@ -279,7 +279,7 @@ def train_body(e,LTORS): # (body_fnc) returns theta etc after each trial
     SELECT = theta_0["ENV"]["SELECT"][e,:,:]
     EPS = theta_0["ENV"]["EPS"][e,:,:,:]
     val_grad = jax.value_and_grad(tot_reward,argnums=2,allow_int=True,has_aux=True)
-    val_grad_vmap = jax.vmap(val_grad,in_axes=(2,None,None,0,2,None),out_axes=(0))#(stack over axes 0 for both outputs)
+    val_grad_vmap = jax.vmap(val_grad,in_axes=(2,None,None,0,2,None),out_axes=((0,0),0))#(stack over axes 0 for both outputs)
     values,grads = val_grad_vmap(e0,h0,theta_0,SELECT,EPS,e)#((R_tot_,R_aux),grads))[vmap'd]
     R_tot_,R_aux = values
     (*_,R_obj_,R_env_,R_dot_,R_sel_) = R_aux
