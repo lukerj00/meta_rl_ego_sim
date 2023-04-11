@@ -265,7 +265,7 @@ def tot_reward(e0,h0,theta,sel,eps,epoch):
     esdr=(epoch,sel,R_temp,R_tot_,R_obj_,R_env_,R_dot_,R_sel_,dis_t,dot,pos_t)#R_tot_
     jax.lax.cond(((epoch%500==0)),true_debug,false_debug,esdr)
     R_aux = (pos_t,dis_t,R_obj_,R_env_,R_dot_,R_sel_)
-    return R_tot_,R_aux
+    return R_tot_ #,R_aux
 
 @jit
 def train_body(e,LTORS): # (body_fnc) returns theta etc after each trial
@@ -278,22 +278,22 @@ def train_body(e,LTORS): # (body_fnc) returns theta etc after each trial
     h0 = theta_0["GRU"]["h0"]
     SELECT = theta_0["ENV"]["SELECT"][e,:,:]
     EPS = theta_0["ENV"]["EPS"][e,:,:,:]
-    val_grad = jax.value_and_grad(tot_reward,argnums=2,allow_int=True,has_aux=True)
-    val_grad_vmap = jax.vmap(val_grad,in_axes=(2,None,None,0,2,None),out_axes=((0,0),0))#(stack over axes 0 for both outputs)
+    val_grad = jax.value_and_grad(tot_reward,argnums=2,allow_int=True)#,has_aux=True)
+    val_grad_vmap = jax.vmap(val_grad,in_axes=(2,None,None,0,2,None),out_axes=(0,0))#((0,0),0)(stack over axes 0 for both outputs)
     values,grads = val_grad_vmap(e0,h0,theta_0,SELECT,EPS,e)#((R_tot_,R_aux),grads))[vmap'd]
-    R_tot_,R_aux = values
-    (*_,R_obj_,R_env_,R_dot_,R_sel_) = R_aux
+    R_tot_ = values #,R_aux
+    # (*_,R_obj_,R_env_,R_dot_,R_sel_) = R_aux
     grads_ = jax.tree_util.tree_map(lambda g: jnp.mean(g,axis=0), grads["GRU"])
     R_tot = R_tot.at[e].set(jnp.mean(R_tot_))
     sd_tot = sd_tot.at[e].set(jnp.std(R_tot_))#
-    R_obj = R_obj.at[e].set(jnp.mean(R_obj_))
-    sd_obj = sd_obj.at[e].set(jnp.std(R_obj_))#
-    R_env = R_env.at[e].set(jnp.mean(R_env_))
-    sd_env = sd_env.at[e].set(jnp.std(R_env_))#
-    R_dot = R_dot.at[e].set(jnp.mean(R_dot_))
-    sd_dot = sd_dot.at[e].set(jnp.std(R_dot_))#
-    R_sel = R_sel.at[e].set(jnp.mean(R_sel_))
-    sd_sel = sd_sel.at[e].set(jnp.std(R_sel_))#
+    # R_obj = R_obj.at[e].set(jnp.mean(R_obj_))
+    # sd_obj = sd_obj.at[e].set(jnp.std(R_obj_))#
+    # R_env = R_env.at[e].set(jnp.mean(R_env_))
+    # sd_env = sd_env.at[e].set(jnp.std(R_env_))#
+    # R_dot = R_dot.at[e].set(jnp.mean(R_dot_))
+    # sd_dot = sd_dot.at[e].set(jnp.std(R_dot_))#
+    # R_sel = R_sel.at[e].set(jnp.mean(R_sel_))
+    # sd_sel = sd_sel.at[e].set(jnp.std(R_sel_))#
     R_arr = (R_tot,R_obj,R_env,R_dot,R_sel)
     sd_arr = (sd_tot,sd_obj,sd_env,sd_dot,sd_sel)#
 
@@ -341,8 +341,8 @@ def test_loop(loop_params,theta_test):
 
 def full_loop(loop_params,theta_0): # main routine: R_arr, std_arr = full_loop(params)
     theta_test,vals_train = train_loop(loop_params,theta_0)
-    vals_test = test_loop(loop_params,theta_test) #check inputs/outputs
-    return (vals_train,vals_test)
+    # vals_test = test_loop(loop_params,theta_test) #check inputs/outputs
+    return (vals_train)#,vals_test)
 
 # ENV parameters
 SIGMA_A = jnp.float32(1) # 0.9
@@ -468,7 +468,7 @@ theta_0["ENV"] = jax.lax.stop_gradient(theta_0["ENV"])
 
 ###
 startTime = datetime.now()
-(vals_train,vals_test) = full_loop(loop_params,theta_0) #,vals_test
+(vals_train) = full_loop(loop_params,theta_0) #,vals_test
 time_elapsed = datetime.now() - startTime
 print(f'Completed in: {time_elapsed}, {time_elapsed/EPOCHS} s/epoch')
 
@@ -501,8 +501,8 @@ plt.xlabel(r'Iteration')
 # plt.show()
 
 #plot testing
-pos_arr,dis_arr = vals_test # R_obj_t,R_env_t,R_dot_t,R_sel_t,dis_t,pos_t = vals_test
-print('pos_arr=',pos_arr,pos_arr.shape,'dis_arr=',dis_arr,dis_arr.shape)
+# pos_arr,dis_arr = vals_test # R_obj_t,R_env_t,R_dot_t,R_sel_t,dis_t,pos_t = vals_test
+# print('pos_arr=',pos_arr,pos_arr.shape,'dis_arr=',dis_arr,dis_arr.shape)
 # (array of tuples to array)
 # for each 1d array of pos/dis
 # fig,axis = plt.subplots(1,TESTS,figsize=(10,5))
