@@ -95,7 +95,7 @@ def loss_obj(e_t_1,sel,e,pos,SIGMA_R0,SIGMA_RINF,TAU,LAMBDA_N,LAMBDA_E,LAMBDA_D,
     sigma_e = sigma_fnc(SIGMA_R0,SIGMA_RINF,TAU,e)
     # pos_ = (pos+jnp.pi)%(2*jnp.pi)-jnp.pi
     e_rel = e_t_1-pos
-    obj = -jnp.exp((jnp.cos(e_rel[:,0]) + jnp.cos(e_rel[:,1]) - 2)/sigma_e**2) ### standard loss (-)
+    obj = -(1/(sigma_e*jnp.sqrt(2*jnp.pi)))*jnp.exp((jnp.cos(e_rel[:,0]) + jnp.cos(e_rel[:,1]) - 2)/sigma_e**2) ### standard loss (-)
     R_obj = jnp.dot(obj,sel)
     return(R_obj)#,sigma_e
 
