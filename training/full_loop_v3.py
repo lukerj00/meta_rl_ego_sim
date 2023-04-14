@@ -58,7 +58,7 @@ gen_eps = jit(gen_eps,static_argnums=(1,2,3))
 
 def gen_select(KEY_SEL,N_DOTS,EPOCHS,VMAPS):
     return jnp.eye(N_DOTS)[rnd.choice(KEY_SEL,N_DOTS,(EPOCHS,VMAPS))]
-gen_select = jit(gen_select,static_argnums=(1,2))
+gen_select = jit(gen_select,static_argnums=(1,2,3))
 
 @jit
 def neuron_act(e_t_1,th_j,th_i,SIGMA_A,COLORS,pos):
@@ -384,7 +384,7 @@ def test_body(e,LTP):
     return LTP
 
 def train_loop(loop_params,theta_0):
-    R_tot,sd_tot,R_obj,sd_obj,R_env,sd_env,R_dot,sd_dot,R_sel,sd_sel=(jnp.empty([loop_params["EPOCHS"]]) for _ in range(10))
+    R_tot,sd_tot,R_obj,sd_obj,R_env,sd_env,R_dot,sd_dot,R_sel,sd_sel=(jnp.empty(theta_0["ENV"]["EPOCHS"]) for _ in range(10))
     R_arr = (R_tot,R_obj,R_env,R_dot,R_sel)
     sd_arr = (sd_tot,sd_obj,sd_env,sd_dot,sd_sel)
     optimizer = optax.adamw(learning_rate=loop_params['UPDATE'],weight_decay=loop_params['WD'])
@@ -402,12 +402,12 @@ def test_loop(loop_params,theta_test):
     # dis_arr = dis_arr.at[:,:,0,:].set(jnp.float32([0,0,0]))
     LTP_0 = (loop_params,theta_test,pos_arr,dis_arr,R_test)
     *_,pos_arr,dis_arr,R_test = jax.lax.fori_loop(0,loop_params["TESTS"],test_body,LTP_0)
-
     vals_test = (pos_arr,dis_arr,R_test)
     return vals_test
 
 def train_outer_loop(x,LTV):
     (loop_params,theta,vals_train_tot) = LTV
+    test_arr = jnp.empty(loop_params["TESTS"])
     theta_,vals_train_ = train_loop(loop_params,theta_0)
     # R_arr_,sd_arr_ = vals_train_
     (R_tot,R_obj,R_env,R_dot,R_sel),(sd_tot,sd_obj,sd_env,sd_dot,sd_sel) = vals_train_ # unpack from training, R_arr_,sd_arr_
@@ -432,7 +432,7 @@ def full_loop(loop_params,theta_0): # main routine: R_arr, std_arr = full_loop(p
     R_tot_,sd_tot_,R_obj_,sd_obj_,R_env_,sd_env_,R_dot_,sd_dot_,R_sel_,sd_sel_=(jnp.empty([loop_params["TOT_EPOCHS"]]) for _ in range(10))
     vals_train_0 = (R_tot_,R_obj_,R_env_,R_dot_,R_sel_),(sd_tot_,sd_obj_,sd_env_,sd_dot_,sd_sel_)
     LTV_0 = (loop_params,theta_0,vals_train_0)
-    (loop_params_,theta_test,vals_train_tot) = jax.fori_loop(0,loop_params["LOOPS"],train_outer_loop,LTV_0)
+    (loop_params_,theta_test,vals_train_tot) = jax.lax.fori_loop(0,loop_params["LOOPS"],train_outer_loop,LTV_0)
     vals_test = test_loop(loop_params_,theta_test) #check inputs/outputs
     return (vals_train_tot,vals_test)
 
@@ -458,9 +458,9 @@ G = 80 # size of GRU
 INIT = jnp.float32(0.1) # 0.1
 
 # loop params
-TOT_EPOCHS = 20000
+TOT_EPOCHS = 5000
 EPOCHS = 1000
-LOOPS = jnp.int32(TOT_EPOCHS//EPOCHS) # TOT_EPOCHS//EPOCHS
+LOOPS = TOT_EPOCHS//EPOCHS # TOT_EPOCHS//EPOCHS
 IT = 30
 VMAPS = 500 # 500
 TESTS = 5
