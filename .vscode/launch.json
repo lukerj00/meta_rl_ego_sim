@@ -5,19 +5,25 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "CUDA C++: Launch",
-            "type": "cuda-gdb",
+            "name": "Python: Current File",
+            "type": "python",
             "request": "launch",
-            "program": ""
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true
         },
-
         {
             "name": "CUDA C++: Launch",
             "type": "cuda-gdb",
             "request": "launch",
             "program": ""
         },
-     
+        {
+            "name": "CUDA C++: Launch",
+            "type": "cuda-gdb",
+            "request": "launch",
+            "program": ""
+        },
         {
             "name": "CUDA C++ Debug",
             "type": "cuda-gdb",

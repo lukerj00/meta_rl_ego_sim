@@ -148,16 +148,39 @@ from datetime import datetime
 # print('*******',a/b*c)
 # print('-------',(a/b*c))
 
-@jit
-def abs_dist(e_t,pos):
-	# e_t_ = (e_t + jnp.pi)%(2*jnp.pi)-jnp.pi
-    pos_ = (pos + jnp.pi)%(2*jnp.pi)-jnp.pi
-    dis_rel = e_t-pos_
-    r = jnp.sqrt(jnp.square(dis_rel[:,0])+jnp.square(dis_rel[:,1]))
-    return (e_t,pos,pos_,dis_rel,r)
+# @jit
+# def abs_dist(e_t,pos):
+# 	# e_t_ = (e_t + jnp.pi)%(2*jnp.pi)-jnp.pi
+#     pos_ = (pos + jnp.pi)%(2*jnp.pi)-jnp.pi
+#     dis_rel = e_t-pos_
+#     r = jnp.sqrt(jnp.square(dis_rel[:,0])+jnp.square(dis_rel[:,1]))
+#     return (e_t,pos,pos_,dis_rel,r)
 
-e_t = 10*jnp.ones((3,2))
-pos = jnp.arange(8,10).reshape(2,)#10*
-(e,p,p_,d,r) = (abs_dist(e_t,pos))
+# e_t = 10*jnp.ones((3,2))
+# pos = jnp.arange(8,10).reshape(2,)#10*
+# (e,p,p_,d,r) = (abs_dist(e_t,pos))
 
-print(e,p,p_,d,r)
+# print(e,p,p_,d,r)
+
+# e = 10000
+# b = 1000
+# c = e/b
+# d = e//b
+# print(c,type(c),d,type(d))
+def true_fnc(dpa):
+    dot,pos_t,ALPHA = dpa
+    print('true')
+    return (jnp.linalg.norm((dot-pos_t),ord=2) + 5)
+
+def false_fnc(dpa):
+    dot,pos_t,ALPHA = dpa
+    print('false')
+    return jnp.linalg.norm((dot-pos_t),ord=2)
+
+dot = jnp.array([1.0,1.0])
+pos_t = jnp.array([1.1,1.1])
+ALPHA = 0.2
+# print(jnp.linalg.norm((dot-pos_t),ord=2))
+dpa = (dot,pos_t,ALPHA)
+ret = jax.lax.cond(jnp.linalg.norm((dot-pos_t))<=ALPHA,true_fnc,false_fnc,dpa)
+print(ret)
