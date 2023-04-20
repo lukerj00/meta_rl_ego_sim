@@ -493,7 +493,7 @@ LOOPS = TOT_EPOCHS//EPOCHS # TOT_EPOCHS//EPOCHS
 IT = 120 # same as theta_0
 VMAPS = 1000 # 500
 TESTS = 5
-UPDATE = jnp.float32(0.00001) #0.00002,0.0001,0.00005,,0.0001,0.00001,0.0005,0.0001,0.00001,0.00002,0.0001,0.00008
+UPDATE = jnp.float32(0.00002) #0.00002,0.0001,0.00005,,0.0001,0.00001,0.0005,0.0001,0.00001,0.00002,0.0001,0.00008
 WD = jnp.float32(0.00010) # 0.001,0.0001,0.00005,0.00001
 TAU = jnp.float32((1-1/jnp.e)*EPOCHS) # 0.01
 optimizer = optax.adamw(learning_rate=UPDATE,weight_decay=WD) #optax.adam(learning_rate=UPDATE)#
@@ -631,7 +631,7 @@ colors_ = np.float32([[255,0,0],[0,255,0],[0,0,255]])/255 #theta_0["ENV"]["COLOR
 colormap = cm.seismic(np.linspace(0,1,IT+1), alpha=1)
 
 plt.figure()
-title__ = f'v5 testing, tot epochs={TOT_EPOCHS}, it={IT}, vmaps={VMAPS}, init={INIT:.2f}, update={UPDATE:.5f}, SIGMA_N={SIGMA_N}, SIGMA_A={SIGMA_A:.1f}, SIGMA_R0={SIGMA_R0:.1f}, SIGMA_RINF={SIGMA_RINF:.1f}, \n SIGMA_N={SIGMA_N:.1f}, STEP={STEP:.3f} WD={WD:.5f}, LAMBDA_D={LAMBDA_D:.4f}, LAMBDA_E={LAMBDA_E:.4f}, LAMBDA_S={LAMBDA_S:.4f}'
+title__ = f'v6 testing, tot epochs={TOT_EPOCHS}, it={IT}, vmaps={VMAPS}, init={INIT:.2f}, update={UPDATE:.5f}, SIGMA_N={SIGMA_N}, SIGMA_A={SIGMA_A:.1f}, SIGMA_R0={SIGMA_R0:.1f}, SIGMA_RINF={SIGMA_RINF:.1f}, \n SIGMA_N={SIGMA_N:.1f}, STEP={STEP:.3f} WD={WD:.5f}, LAMBDA_D={LAMBDA_D:.4f}, LAMBDA_E={LAMBDA_E:.4f}, LAMBDA_S={LAMBDA_S:.4f}'
 fig,axis = plt.subplots(2*TESTS,4,figsize=(13,5*TESTS+2))#(4,5)
 plt.suptitle(title__,fontsize=14)
 for i in range(loop_params["TESTS"]):
