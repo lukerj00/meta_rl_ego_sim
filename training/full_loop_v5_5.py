@@ -452,8 +452,8 @@ def full_loop(loop_params,theta_0): # main routine: R_arr, std_arr = full_loop(p
 
 # ENV parameters
 SIGMA_A = jnp.float32(0.4) # 0.5,0.3,0.5,0.9
-SIGMA_R0 = jnp.float32(1.2) # 0.7,1,0.5,,0.8,0.5,0.8,0.5
-SIGMA_RINF = jnp.float32(0.1) # 0.3,0.6,1.8,0.1,,0.3
+SIGMA_R0 = jnp.float32(1) # 0.7,1,0.5,,0.8,0.5,0.8,0.5
+SIGMA_RINF = jnp.float32(0.3) # 0.3,0.6,1.8,0.1,,0.3
 SIGMA_N = jnp.float32(1) # 2,0.3, 1.8,1.6
 LAMBDA_N = jnp.float32(0.0001)
 LAMBDA_E = jnp.float32(0.03) ### 0.008,0.04,0.1,0.05,0.01,0.1
@@ -472,10 +472,10 @@ G = 80 # size of GRU
 INIT = jnp.float32(20) # 15-300..,0.3,0.5,0.1,0.2,0.3,,0.5,0.1
 
 # loop params
-TOT_EPOCHS = 20000
-EPOCHS = 1000
+TOT_EPOCHS = 10000
+EPOCHS = 500
 LOOPS = TOT_EPOCHS//EPOCHS # TOT_EPOCHS//EPOCHS
-IT = 60
+IT = 80
 VMAPS = 1000 # 500
 TESTS = 5
 UPDATE = jnp.float32(0.00001) #0.00002,0.0001,0.00005,,0.0001,0.00001,0.0005,0.0001,0.00001,0.00002,0.0001,0.00008
