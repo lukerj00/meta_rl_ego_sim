@@ -215,6 +215,18 @@ def new_theta(theta,x):
     theta_["ENV"]["SELECT"] = gen_select(ki[2],N_DOTS,EPOCHS,VMAPS)
     return theta_
 
+def new_theta2(theta,x,IT,VMAPS,EPOCHS):
+    ki = rnd.split(rnd.PRNGKey(x),num=10)
+    theta_ = theta
+    N_DOTS = theta_["ENV"]["N_DOTS"]
+    theta_["ENV"].pop("DOTS")
+    theta_["ENV"].pop("EPS")
+    theta_["ENV"].pop("SELECT")
+    theta_["ENV"].update({"DOTS":gen_dots(ki[0],N_DOTS,VMAPS,EPOCHS)})
+    theta_["ENV"].update({"EPS":gen_eps(ki[1],EPOCHS,IT,VMAPS)})
+    theta_["ENV"].update({"SELECT":gen_select(ki[2],N_DOTS,EPOCHS,VMAPS)})
+    return theta_
+
 # @jit
 def switch_dots(evrnve):###change to distance-based
     (e_t_1,v_t,dot,pos_t,ALPHA,epoch,R_temp) = evrnve
@@ -441,7 +453,7 @@ def train_outer_loop(loop_params,theta):
         sd_dot_ = sd_dot_.at[x*E:(x+1)*E].set(sd_dot)#
         R_sel_ = R_sel_.at[x*E:(x+1)*E].set(R_sel)
         sd_sel_ = sd_sel_.at[x*E:(x+1)*E].set(sd_sel)#
-        theta = new_theta(theta_,x)
+        theta = new_theta2(theta_,x,loop_params["IT"],loop_params["VMAPS"],loop_params["EPOCHS"])
     vals_train_tot = (R_tot_,R_obj_,R_env_,R_dot_,R_sel_),(sd_tot_,sd_obj_,sd_env_,sd_dot_,sd_sel_)
     return theta,vals_train_tot
 
@@ -452,7 +464,7 @@ def full_loop(loop_params,theta_0): # main routine: R_arr, std_arr = full_loop(p
 
 # ENV parameters
 SIGMA_A = jnp.float32(0.4) # 0.5,0.3,0.5,0.9
-SIGMA_R0 = jnp.float32(1) # 0.7,1,0.5,,0.8,0.5,0.8,0.5
+SIGMA_R0 = jnp.float32(0.3) # 0.7,1,0.5,,0.8,0.5,0.8,0.5
 SIGMA_RINF = jnp.float32(0.1) # 0.3,0.6,1.8,0.1,,0.3
 SIGMA_N = jnp.float32(1) # 2,0.3, 1.8,1.6
 LAMBDA_N = jnp.float32(0.0001)
@@ -475,7 +487,7 @@ INIT = jnp.float32(20) # 15-300..,0.3,0.5,0.1,0.2,0.3,,0.5,0.1
 TOT_EPOCHS = 10000
 EPOCHS = 1000
 LOOPS = TOT_EPOCHS//EPOCHS # TOT_EPOCHS//EPOCHS
-IT = 100
+IT = 120
 VMAPS = 1000 # 500
 TESTS = 5
 UPDATE = jnp.float32(0.00002) #0.00002,0.0001,0.00005,,0.0001,0.00001,0.0005,0.0001,0.00001,0.00002,0.0001,0.00008
@@ -566,6 +578,7 @@ theta_0 = { "GRU" : {
         	}
 
 theta_0 = load_('v5_theta_test_trained_20_04-1237.pkl')
+theta_0 = new_theta2(theta_0,50,loop_params["IT"],loop_params["VMAPS"],loop_params["EPOCHS"])
 theta_0["ENV"] = jax.lax.stop_gradient(theta_0["ENV"])
 
 ###
