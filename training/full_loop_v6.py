@@ -30,25 +30,18 @@ import sys
 
 # fnc definitions
 
-def load_(str_):
-    path_ = str(Path(__file__).resolve().parents[1]) + '/pkl/'
-    with open(path_+str_,'rb') as file_:
-        # param = pickle.load(file_)
-        param_ = jnp.load(file_,allow_pickle=True)
-    return param_
+# def save_params(param,str_):  # can't jit (can't pickle jax tracers)
+# 	path_ = '/homes/lrj34/projects/meta_rl_ego_sim/pkl/' # str(Path(__file__).resolve().parents[1]) + '/pkl/'
+# 	dt = datetime.now().strftime("%d_%m-%H%M")
+# 	# file_ = os.path.basename(__file__).split('.')[0]
+# 	with open(path_+str_+dt+'.pkl','wb') as file:
+# 		pickle.dump(param,file,pickle.HIGHEST_PROTOCOL)
 
-def save_pkl(param,str_):  # can't jit (can't pickle jax tracers)
-	path_ = str(Path(__file__).resolve().parents[1]) + '/pkl/'
-	dt = datetime.now().strftime("%d_%m-%H%M")
-	# file_ = os.path.basename(__file__).split('.')[0]
-	with open(path_+str_+'_'+dt+'.pkl','wb') as file:
-		pickle.dump(param,file,pickle.HIGHEST_PROTOCOL)
-
-def save_(param,str_):
+def save_npy(param,str_):
 	path_ = '/homes/lrj34/projects/meta_rl_ego_sim/pkl/' # str(Path(__file__).resolve().parents[1]) + '/pkl/'
 	dt = datetime.now().strftime("%d_%m-%H%M")
 	with open(path_+str_+'_'+dt+'.npy','wb') as file:
-		jnp.save(file,param,allow_pickle=False)
+		jnp.save(file,param,allow_pickle=True)
 
 def gen_neurons(NEURONS,APERTURE):
 	return jnp.linspace(-APERTURE,APERTURE,NEURONS,dtype=jnp.float32)
@@ -93,6 +86,7 @@ def loss_env(pos_hat,pos_t):
 
 @jit
 def loss_dot(dot_hat,dot):
+    # dot = jnp.dot(sel,e_t_1)
     theta_d_0 = jnp.arctan2(dot_hat[1],dot_hat[0]) #x=atan(sinx/cosx)
     theta_d_1 = jnp.arctan2(dot_hat[3],dot_hat[2]) #y=atan(siny/cosy)
     R_dot = jnp.exp((jnp.cos(theta_d_0 - dot[0]) + jnp.cos(theta_d_1 - dot[1]) - 2)) # sigma?
@@ -213,18 +207,6 @@ def new_theta(theta,x):
     theta_["ENV"]["DOTS"] = gen_dots(ki[0],N_DOTS,VMAPS,EPOCHS)
     theta_["ENV"]["EPS"] = gen_eps(ki[1],EPOCHS,IT,VMAPS)
     theta_["ENV"]["SELECT"] = gen_select(ki[2],N_DOTS,EPOCHS,VMAPS)
-    return theta_
-
-def new_theta2(theta,x,IT,VMAPS,EPOCHS):
-    ki = rnd.split(rnd.PRNGKey(x),num=10)
-    theta_ = theta
-    N_DOTS = theta_["ENV"]["N_DOTS"]
-    theta_["ENV"].pop("DOTS")
-    theta_["ENV"].pop("EPS")
-    theta_["ENV"].pop("SELECT")
-    theta_["ENV"].update({"DOTS":gen_dots(ki[0],N_DOTS,VMAPS,EPOCHS)})
-    theta_["ENV"].update({"EPS":gen_eps(ki[1],EPOCHS,IT,VMAPS)})
-    theta_["ENV"].update({"SELECT":gen_select(ki[2],N_DOTS,EPOCHS,VMAPS)})
     return theta_
 
 # @jit
@@ -453,7 +435,7 @@ def train_outer_loop(loop_params,theta):
         sd_dot_ = sd_dot_.at[x*E:(x+1)*E].set(sd_dot)#
         R_sel_ = R_sel_.at[x*E:(x+1)*E].set(R_sel)
         sd_sel_ = sd_sel_.at[x*E:(x+1)*E].set(sd_sel)#
-        theta = new_theta2(theta_,x,loop_params["IT"],loop_params["VMAPS"],loop_params["EPOCHS"])
+        theta = new_theta(theta_,x)
     vals_train_tot = (R_tot_,R_obj_,R_env_,R_dot_,R_sel_),(sd_tot_,sd_obj_,sd_env_,sd_dot_,sd_sel_)
     return theta,vals_train_tot
 
@@ -464,15 +446,15 @@ def full_loop(loop_params,theta_0): # main routine: R_arr, std_arr = full_loop(p
 
 # ENV parameters
 SIGMA_A = jnp.float32(0.4) # 0.5,0.3,0.5,0.9
-SIGMA_R0 = jnp.float32(0.3) # 0.7,1,0.5,,0.8,0.5,0.8,0.5
-SIGMA_RINF = jnp.float32(0.3) # 0.3,0.6,1.8,0.1,,0.3
+SIGMA_R0 = jnp.float32(0.1) # 0.7,1,0.5,,0.8,0.5,0.8,0.5
+SIGMA_RINF = jnp.float32(0.1) # 0.3,0.6,1.8,0.1,,0.3
 SIGMA_N = jnp.float32(1) # 2,0.3, 1.8,1.6
 LAMBDA_N = jnp.float32(0.0001)
 LAMBDA_E = jnp.float32(0.03) ### 0.008,0.04,0.1,0.05,0.01,0.1
 LAMBDA_D = jnp.float32(0.06) ### 0.08,0.06,0.07,0.03,0.04,0.01,0.001 
 LAMBDA_S = jnp.float32(0.015) ### 0.0024,0.0012,0.001,0.0001,0.00001
-ALPHA = jnp.float32(0.9) # 0.1,0.7,0.99
-STEP = jnp.float32(0.02) # ,0.1, play around with! 0.05,,0.002,0.005
+ALPHA = jnp.float32(0.85) # 0.1,0.7,0.99
+STEP = jnp.float32(0.03) # ,0.1, play around with! 0.05,,0.002,0.005
 APERTURE = jnp.pi/2 #pi/3
 COLORS = jnp.float32([[255,0,0],[0,255,0],[0,0,255]]) # ,[100,100,100],[200,200,200]]) # [[255,100,50],[50,255,100],[100,50,255],[200,0,50]]) # ,[50,0,200]]) # [[255,0,0],[0,200,200],[100,100,100]]
 N_DOTS = COLORS.shape[0]
@@ -484,13 +466,13 @@ G = 80 # size of GRU
 INIT = jnp.float32(20) # 15-300..,0.3,0.5,0.1,0.2,0.3,,0.5,0.1
 
 # loop params
-TOT_EPOCHS = 3000
-EPOCHS = 1000 # 1000
+TOT_EPOCHS = 10000
+EPOCHS = 1000
 LOOPS = TOT_EPOCHS//EPOCHS # TOT_EPOCHS//EPOCHS
-IT = 120 # same as theta_0
+IT = 100
 VMAPS = 1000 # 500
 TESTS = 5
-UPDATE = jnp.float32(0.0001) #0.00002,0.0001,0.00005,,0.0001,0.00001,0.0005,0.0001,0.00001,0.00002,0.0001,0.00008
+UPDATE = jnp.float32(0.00001) #0.00002,0.0001,0.00005,,0.0001,0.00001,0.0005,0.0001,0.00001,0.00002,0.0001,0.00008
 WD = jnp.float32(0.00010) # 0.001,0.0001,0.00005,0.00001
 TAU = jnp.float32((1-1/jnp.e)*EPOCHS) # 0.01
 optimizer = optax.adamw(learning_rate=UPDATE,weight_decay=WD) #optax.adam(learning_rate=UPDATE)#
@@ -576,9 +558,6 @@ theta_0 = { "GRU" : {
         "ALPHA"     : ALPHA
 	}
         	}
-
-theta_0 = load_('v5_theta_test_trained_20_04-1237.pkl')
-theta_0 = new_theta2(theta_0,50,loop_params["IT"],loop_params["VMAPS"],loop_params["EPOCHS"])
 theta_0["ENV"] = jax.lax.stop_gradient(theta_0["ENV"])
 
 ###
@@ -616,8 +595,7 @@ plt.xlabel(r'Iteration',fontsize=12)
 plt.tight_layout()
 # plt.show()
 
-# save_pkl(theta_test,'v5_theta_test_trained_x2')
-path_ = str(Path(__file__).resolve().parents[1]) + '/figs/task8/'
+path_ = str(Path(__file__).resolve().parents[1]) + '/figs/task9/'
 dt = datetime.now().strftime("%d_%m-%H%M")
 plt.savefig(path_ + 'train_' + dt + '.png')
 
@@ -628,7 +606,7 @@ colors_ = np.float32([[255,0,0],[0,255,0],[0,0,255]])/255 #theta_0["ENV"]["COLOR
 colormap = cm.seismic(np.linspace(0,1,IT+1), alpha=1)
 
 plt.figure()
-title__ = f'v5 testing, tot epochs={TOT_EPOCHS}, it={IT}, vmaps={VMAPS}, init={INIT:.2f}, update={UPDATE:.5f}, SIGMA_N={SIGMA_N}, SIGMA_A={SIGMA_A:.1f}, SIGMA_R0={SIGMA_R0:.1f}, SIGMA_RINF={SIGMA_RINF:.1f}, SIGMA_N={SIGMA_N:.1f}, STEP={STEP:.3f} \n WD={WD:.5f}, LAMBDA_D={LAMBDA_D:.4f}, LAMBDA_E={LAMBDA_E:.4f}, LAMBDA_S={LAMBDA_S:.4f}'
+title__ = f'v6 testing, tot epochs={TOT_EPOCHS}, it={IT}, vmaps={VMAPS}, init={INIT:.2f}, update={UPDATE:.5f}, SIGMA_N={SIGMA_N}, SIGMA_A={SIGMA_A:.1f}, SIGMA_R0={SIGMA_R0:.1f}, SIGMA_RINF={SIGMA_RINF:.1f}, SIGMA_N={SIGMA_N:.1f}, STEP={STEP:.3f} \n WD={WD:.5f}, LAMBDA_D={LAMBDA_D:.4f}, LAMBDA_E={LAMBDA_E:.4f}, LAMBDA_S={LAMBDA_S:.4f}'
 fig,axis = plt.subplots(2*TESTS,4,figsize=(13,5*TESTS+2))#(4,5)
 plt.suptitle(title__,fontsize=14)
 for i in range(loop_params["TESTS"]):
@@ -668,3 +646,4 @@ for i in range(loop_params["TESTS"]):
     plt.subplots_adjust(top=0.94) 
     
 plt.savefig(path_ + 'test_' + dt + '.png')
+save_npy(theta_test,'test_')

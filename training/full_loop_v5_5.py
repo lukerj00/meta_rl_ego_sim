@@ -489,7 +489,7 @@ EPOCHS = 1000
 LOOPS = TOT_EPOCHS//EPOCHS # TOT_EPOCHS//EPOCHS
 IT = 120
 VMAPS = 1000 # 500
-TESTS = 5
+TESTS = 8
 UPDATE = jnp.float32(0.00002) #0.00002,0.0001,0.00005,,0.0001,0.00001,0.0005,0.0001,0.00001,0.00002,0.0001,0.00008
 WD = jnp.float32(0.00010) # 0.001,0.0001,0.00005,0.00001
 TAU = jnp.float32((1-1/jnp.e)*EPOCHS) # 0.01
@@ -577,7 +577,7 @@ theta_0 = { "GRU" : {
 	}
         	}
 
-theta_0 = load_('v5_theta_test_trained_20_04-1237.pkl')
+theta_0 = load_('v5_theta_test_trained_20_04-2129.pkl')
 theta_0 = new_theta2(theta_0,50,loop_params["IT"],loop_params["VMAPS"],loop_params["EPOCHS"])
 theta_0["ENV"] = jax.lax.stop_gradient(theta_0["ENV"])
 
