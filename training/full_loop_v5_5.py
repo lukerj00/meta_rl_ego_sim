@@ -136,12 +136,14 @@ def geod_dist(dots,pos):### calculate geodesic
     # jax.debug.print('del_y: {}',del_y)
     # hav = (1-jnp.cos(del_y))/2 + jnp.cos(pos_[1])*jnp.cos(dot[1])*((1-jnp.cos(del_x))/2)#(jnp.sin(del_y/2))**2 + jnp.cos(pos_[1])*jnp.cos(dot[1])*(jnp.sin(del_x/2))**2
     # dist = 2*jnp.arcsin(jnp.sqrt(hav))
-    th1 = jnp.pi/2 - pos_[1]
-    th2 = jnp.pi/2 - dots[:,1]
-    ld1 = pos_[0]
-    ld2 = dots[:,0]
-    s = jnp.arccos(jnp.cos(th1)*jnp.cos(th2)+jnp.sin(th1)*jnp.multiply(jnp.sin(th2),jnp.cos(ld1-ld2)))
-    return s
+    ## th1 = jnp.pi/2 - pos_[1]
+    ## th2 = jnp.pi/2 - dots[:,1]
+    ## ld1 = pos_[0]
+    ## ld2 = dots[:,0]
+    ## s = jnp.arccos(jnp.cos(th1)*jnp.cos(th2)+jnp.sin(th1)*jnp.multiply(jnp.sin(th2),jnp.cos(ld1-ld2)))
+    th1 = jnp.minimum(jnp.abs(pos_[1]-dots[:,1]),2*jnp.pi-jnp.abs(pos_[1]-dots[:,1]))
+    th2 = jnp.minimum(jnp.abs(pos_[0]-dots[:,0]),2*jnp.pi-jnp.abs(pos_[0]-dots[:,0]))
+    return jnp.sqrt(th1**2+th2**2)
 
 # @jit
 def arc(dis_t):
@@ -617,7 +619,7 @@ plt.tight_layout()
 # plt.show()
 
 # save_pkl(theta_test,'v5_theta_test_trained')
-path_ = str(Path(__file__).resolve().parents[1]) + '/figs/task8/'
+path_ = str(Path(__file__).resolve().parents[1]) + '/figs/task9/'
 dt = datetime.now().strftime("%d_%m-%H%M")
 plt.savefig(path_ + 'train_' + dt + '.png')
 

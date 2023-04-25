@@ -141,12 +141,14 @@ def geod_dist(dots,pos):### calculate geodesic
     # jax.debug.print('del_y: {}',del_y)
     # hav = (1-jnp.cos(del_y))/2 + jnp.cos(pos_[1])*jnp.cos(dot[1])*((1-jnp.cos(del_x))/2)#(jnp.sin(del_y/2))**2 + jnp.cos(pos_[1])*jnp.cos(dot[1])*(jnp.sin(del_x/2))**2
     # dist = 2*jnp.arcsin(jnp.sqrt(hav))
-    th1 = jnp.pi/2 - pos_[1]
-    th2 = jnp.pi/2 - dots[:,1]
-    ld1 = pos_[0]
-    ld2 = dots[:,0]
-    s = jnp.arccos(jnp.cos(th1)*jnp.cos(th2)+jnp.sin(th1)*jnp.multiply(jnp.sin(th2),jnp.cos(ld1-ld2)))
-    return s
+    ## th1 = jnp.pi/2 - pos_[1]
+    ## th2 = jnp.pi/2 - dots[:,1]
+    ## ld1 = pos_[0]
+    ## ld2 = dots[:,0]
+    ## s = jnp.arccos(jnp.cos(th1)*jnp.cos(th2)+jnp.sin(th1)*jnp.multiply(jnp.sin(th2),jnp.cos(ld1-ld2)))
+    th1 = jnp.minimum(jnp.abs(pos_[1]-dots[:,1]),2*jnp.pi-jnp.abs(pos_[1]-dots[:,1]))
+    th2 = jnp.minimum(jnp.abs(pos_[0]-dots[:,0]),2*jnp.pi-jnp.abs(pos_[0]-dots[:,0]))
+    return jnp.sqrt(th1**2+th2**2)
 
 # @jit
 def arc(dis_t):
@@ -310,7 +312,7 @@ def single_step(EHT_t_1,eps):
     
     # new env    
     dot = jnp.dot(sel,e_t_1)
-    pos_t = jax.lax.cond((sample_==1)&(x>=9),switch_agent,keep_agent,pos_t) # (x>=1)|(jnp.linalg.norm((dot-pos_t),ord=2)<=ALPHA)
+    pos_t = jax.lax.cond((sample_==1)&(x>=50),switch_agent,keep_agent,pos_t) # (x>=1)|(jnp.linalg.norm((dot-pos_t),ord=2)<=ALPHA)
     # e_t,pos_t = new_env(e_t_1,v_t,dot,pos_t,ALPHA,epoch,R_temp) #check, e0,v_t,R_obj,ALPHA,N_DOTS,VMAPS,EPOCHS,epoch,dot,pos_t
 
     # v_t readout
@@ -443,8 +445,8 @@ def full_loop(loop_params,theta_0): # main routine: R_arr, std_arr = full_loop(p
     return (vals_train_tot,vals_test,theta_test)
 
 # ENV parameters
-SIGMA_A = jnp.float32(1.0) # 0.4,0.5,0.3,0.5,0.9
-SIGMA_R0 = jnp.float32(0.5) # 0.5,0.7,1,0.5,,0.8,0.5,0.8,0.5
+SIGMA_A = jnp.float32(0.5) # 0.4,0.5,0.3,0.5,0.9
+SIGMA_R0 = jnp.float32(0.5) # 1.0,0.5,0.7,1,0.5,,0.8,0.5,0.8,0.5
 SIGMA_RINF = jnp.float32(0.3) # 0.3,0.6,1.8,0.1,,0.3
 SIGMA_N = jnp.float32(1) # 2,0.3, 1.8,1.6
 LAMBDA_N = jnp.float32(0.0001)
@@ -452,11 +454,11 @@ LAMBDA_E = jnp.float32(0.03) ### 0.008,0.04,0.1,0.05,0.01,0.1
 LAMBDA_D = jnp.float32(0.06) ### 0.08,0.06,0.07,0.03,0.04,0.01,0.001 
 LAMBDA_S = jnp.float32(0.015) ### 0.0024,0.0012,0.001,0.0001,0.00001
 ALPHA = jnp.float32(0.8) # 0.1,0.7,0.99
-STEP = jnp.float32(0.03) # 0.02,0.1, play around with! 0.05,,0.002,0.005
+STEP = jnp.float32(0.03) # 0.02,0.1, play around with! 0.05,0.002,0.005
 APERTURE = jnp.pi #pi/3
 COLORS = jnp.float32([[255,0,0],[0,255,0],[0,0,255]]) # ,[100,100,100],[200,200,200]]) # [[255,100,50],[50,255,100],[100,50,255],[200,0,50]]) # ,[50,0,200]]) # [[255,0,0],[0,200,200],[100,100,100]]
 N_DOTS = COLORS.shape[0]
-NEURONS = 11
+NEURONS = 21 # 11
 
 # GRU parameters
 N = NEURONS**2
@@ -464,13 +466,13 @@ G = 80 # size of GRU
 INIT = jnp.float32(20) # 15-300..,0.3,0.5,0.1,0.2,0.3,,0.5,0.1
 
 # loop params
-TOT_EPOCHS = 10000
+TOT_EPOCHS = 25000
 EPOCHS = 1000
 LOOPS = TOT_EPOCHS//EPOCHS # TOT_EPOCHS//EPOCHS
 IT = 60
 VMAPS = 1000 # 500
 TESTS = 8
-UPDATE = jnp.float32(0.00002) #0.00001,0.00002,0.0001,0.00005,,0.0001,0.00001,0.0005,0.0001,0.00001,0.00002,0.0001,0.00008
+UPDATE = jnp.float32(0.00004) #0.00001,0.00002,0.0001,0.00005,,0.0001,0.00001,0.0005,0.0001,0.00001,0.00002,0.0001,0.00008
 WD = jnp.float32(0.00010) # 0.001,0.0001,0.00005,0.00001
 TAU = jnp.float32((1-1/jnp.e)*TOT_EPOCHS) # 0.01
 optimizer = optax.adamw(learning_rate=UPDATE,weight_decay=WD) #optax.adam(learning_rate=UPDATE)#
