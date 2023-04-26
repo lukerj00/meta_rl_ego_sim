@@ -356,7 +356,6 @@ def train_body(e,LTORS): # (body_fnc) returns theta etc after each trial
     sd_sel = sd_sel.at[e].set(jnp.std(R_sel_))#
     R_arr = (R_tot,R_obj,R_env,R_dot,R_sel)
     sd_arr = (sd_tot,sd_obj,sd_env,sd_dot,sd_sel)#
-
     # update
     opt_update,opt_state = optimizer.update(grads_,opt_state,theta["GRU"])
     theta["GRU"] = optax.apply_updates(theta["GRU"], opt_update)
@@ -383,8 +382,8 @@ def test_body(e,LTP):
     LTP = (loop_params,theta_test,pos_arr,dis_arr,R_test)#,pos_arr,dis_arr,R_arr,sd_arr)
     return LTP
 
-def train_loop(loop_params,theta_0):
-    R_tot,sd_tot,R_obj,sd_obj,R_env,sd_env,R_dot,sd_dot,R_sel,sd_sel=(jnp.empty(theta_0["ENV"]["EPOCHS"]) for _ in range(10))
+def train_loop(loop_params,theta_0,vals_train):
+    # R_tot,sd_tot,R_obj,sd_obj,R_env,sd_env,R_dot,sd_dot,R_sel,sd_sel=(jnp.empty(theta_0["ENV"]["EPOCHS"]) for _ in range(10))
     R_arr = (R_tot,R_obj,R_env,R_dot,R_sel)
     sd_arr = (sd_tot,sd_obj,sd_env,sd_dot,sd_sel)
     optimizer = optax.adamw(learning_rate=loop_params['UPDATE'],weight_decay=loop_params['WD'])
@@ -406,10 +405,8 @@ def test_loop(loop_params,theta_test):
     return vals_test
 
 def train_outer_loop(x,LTV):
-    (loop_params,theta,vals_train_tot) = LTV
-    test_arr = jnp.empty(loop_params["TESTS"])
+    (loop_params,theta,vals_train,vals_train_tot) = LTV
     theta_,vals_train_ = train_loop(loop_params,theta_0)
-    # R_arr_,sd_arr_ = vals_train_
     (R_tot,R_obj,R_env,R_dot,R_sel),(sd_tot,sd_obj,sd_env,sd_dot,sd_sel) = vals_train_ # unpack from training, R_arr_,sd_arr_
     (R_tot_,R_obj_,R_env_,R_dot_,R_sel_),(sd_tot_,sd_obj_,sd_env_,sd_dot_,sd_sel_) = vals_train_tot # unpack from outer loop
     E = loop_params["EPOCHS"]
@@ -425,14 +422,16 @@ def train_outer_loop(x,LTV):
     sd_sel_ = sd_sel_.at[x*E:(x+1)*E].set(sd_sel)#
     vals_train_tot = (R_tot_,R_obj_,R_env_,R_dot_,R_sel_),(sd_tot_,sd_obj_,sd_env_,sd_dot_,sd_sel_)
     theta = new_theta(theta_,x)
-    LTV = (loop_params,theta,vals_train_tot)
+    LTV = (loop_params,theta,vals_train,vals_train_tot)
     return LTV
 
 def full_loop(loop_params,theta_0): # main routine: R_arr, std_arr = full_loop(params)
     R_tot_,sd_tot_,R_obj_,sd_obj_,R_env_,sd_env_,R_dot_,sd_dot_,R_sel_,sd_sel_=(jnp.empty([loop_params["TOT_EPOCHS"]]) for _ in range(10))
-    vals_train_0 = (R_tot_,R_obj_,R_env_,R_dot_,R_sel_),(sd_tot_,sd_obj_,sd_env_,sd_dot_,sd_sel_)
-    LTV_0 = (loop_params,theta_0,vals_train_0)
-    (loop_params_,theta_test,vals_train_tot) = jax.lax.fori_loop(0,loop_params["LOOPS"],train_outer_loop,LTV_0)
+    vals_train_tot = (R_tot_,R_obj_,R_env_,R_dot_,R_sel_),(sd_tot_,sd_obj_,sd_env_,sd_dot_,sd_sel_)
+    R_tot,sd_tot,R_obj,sd_obj,R_env,sd_env,R_dot,sd_dot,R_sel,sd_sel=(jnp.empty(theta_0["ENV"]["EPOCHS"]) for _ in range(10))
+    vals_train_0 = (R_tot,R_obj,R_env,R_dot,R_sel),(sd_tot,sd_obj,sd_env,sd_dot,sd_sel)
+    LTV_0 = (loop_params,theta_0,vals_train_0,vals_train_tot)
+    (loop_params_,theta_test,vals_train_,vals_train_tot) = jax.lax.fori_loop(0,loop_params["LOOPS"],train_outer_loop,LTV_0)#compiled, be careful
     vals_test = test_loop(loop_params_,theta_test) #check inputs/outputs
     return (vals_train_tot,vals_test)
 
@@ -600,7 +599,7 @@ print(f'Completed in: {time_elapsed}, {time_elapsed/EPOCHS} s/epoch')
 (R_tot,R_obj,R_env,R_dot,R_sel),(sd_tot,sd_obj,sd_env,sd_dot,sd_sel) = vals_train
 plt.figure()
 title__ = f'v2 training, epochs={EPOCHS}, it={IT}, vmaps={VMAPS}, update={UPDATE:.5f}, SIGMA_A={SIGMA_A:.1f}, SIGMA_RINF={SIGMA_RINF:.1f}, STEP={STEP:.3f} \n WD={WD:.5f}, LAMBDA_D={LAMBDA_D:.4f}, LAMBDA_E={LAMBDA_E:.4f}, LAMBDA_S={LAMBDA_S:.4f}' # \n colors={jnp.array_str(COLORS[0][:]) + jnp.array_str(COLORS[1][:]) + jnp.array_str(COLORS[2][:])}' #  + jnp.array_str(COLORS[3][:]) + jnp.array_str(COLORS[4][:])}'
-fig,ax = plt.subplots(2,3,figsize=(15,9))
+fig,ax = plt.subplots(2,3,figsize=(16,9))
 plt.suptitle(title__,fontsize=14)
 plt.subplot(2,3,1)
 plt.errorbar(jnp.arange(len(R_tot)),R_tot,yerr=sd_tot/2,ecolor="black",elinewidth=0.5,capsize=1.5)
@@ -622,6 +621,7 @@ plt.subplot(2,3,5)
 plt.errorbar(jnp.arange(len(R_sel)),R_sel,yerr=sd_sel/2,ecolor="black",elinewidth=0.5,capsize=1.5)
 plt.ylabel(r'$R_{sel}$',fontsize=15)
 plt.xlabel(r'Iteration',fontsize=12)
+plt.tight_layout()
 # plt.show()
 
 path_ = str(Path(__file__).resolve().parents[1]) + '/figs/task8/'

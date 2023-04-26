@@ -394,9 +394,9 @@ def full_loop(loop_params,theta_0): # main routine: R_arr, std_arr = full_loop(p
 
 # ENV parameters
 SIGMA_A = jnp.float32(0.3) # 0.5,0.9
-SIGMA_R0 = jnp.float32(0.5) # 1,0.5
-SIGMA_RINF = jnp.float32(0.5) # 0.3
-SIGMA_N = jnp.float32(1.8) # 1.6
+SIGMA_R0 = jnp.float32(0.8) # 1,0.5
+SIGMA_RINF = jnp.float32(0.3) # 0.3
+SIGMA_N = jnp.float32(1) # 1.8,1.6
 LAMBDA_N = jnp.float32(0.0001)
 LAMBDA_E = jnp.float32(0.1) ### 0.05,0.01,0.1
 LAMBDA_D = jnp.float32(0.07) ### 0.03,0.04,0.01,0.001 
@@ -415,9 +415,9 @@ KEY_INIT = rnd.PRNGKey(0) # 0
 INIT = jnp.float32(0.1) # 0.1
 
 # loop params
-EPOCHS = 15000
+EPOCHS = 3000
 # EPOCHS_TEST = 5
-IT = 30
+IT = 80
 VMAPS = 500 # 500
 TESTS = 5
 UPDATE = jnp.float32(0.0001) # 0.00001,0.00002,0.0001,0.00008
