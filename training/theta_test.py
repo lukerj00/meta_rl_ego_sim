@@ -167,20 +167,25 @@ from datetime import datetime
 # c = e/b
 # d = e//b
 # print(c,type(c),d,type(d))
-def true_fnc(dpa):
-    dot,pos_t,ALPHA = dpa
-    print('true')
-    return (jnp.linalg.norm((dot-pos_t),ord=2) + 5)
+# def true_fnc(dpa):
+#     dot,pos_t,ALPHA = dpa
+#     print('true')
+#     return (jnp.linalg.norm((dot-pos_t),ord=2) + 5)
 
-def false_fnc(dpa):
-    dot,pos_t,ALPHA = dpa
-    print('false')
-    return jnp.linalg.norm((dot-pos_t),ord=2)
+# def false_fnc(dpa):
+#     dot,pos_t,ALPHA = dpa
+#     print('false')
+#     return jnp.linalg.norm((dot-pos_t),ord=2)
 
-dot = jnp.array([1.0,1.0])
-pos_t = jnp.array([1.1,1.1])
-ALPHA = 0.2
-# print(jnp.linalg.norm((dot-pos_t),ord=2))
-dpa = (dot,pos_t,ALPHA)
-ret = jax.lax.cond(jnp.linalg.norm((dot-pos_t))<=ALPHA,true_fnc,false_fnc,dpa)
-print(ret)
+# dot = jnp.array([1.0,1.0])
+# pos_t = jnp.array([1.1,1.1])
+# ALPHA = 0.2
+# # print(jnp.linalg.norm((dot-pos_t),ord=2))
+# dpa = (dot,pos_t,ALPHA)
+# ret = jax.lax.cond(jnp.linalg.norm((dot-pos_t))<=ALPHA,true_fnc,false_fnc,dpa)
+# print(ret)
+
+a = jnp.array([0,1,2,3])
+b = jnp.array([1,0.5,0,4])
+c = jnp.minimum(a,b)
+print('c=',c)
