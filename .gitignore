@@ -5,5 +5,5 @@ venv2
 stdout/dump68.txt
 stdout/dump67.txt
 stdout/dump65.txt
-pkl/v5_theta_test_trained_20_04-1237.pkl
-pkl/v5_theta_test_trained_20_04-2356.pkl
+# pkl/v5_theta_test_trained_20_04-1237.pkl
+# pkl/v5_theta_test_trained_20_04-2356.pkl
