@@ -38,6 +38,13 @@ def load_(str_):
         param_ = jnp.load(file_,allow_pickle=True)
     return param_
 
+def load_scratch(str_):
+    path_ = '/scratch/lrj34/'
+    with open(path_+str_,'rb') as file_:
+        # param = pickle.load(file_)
+        param_ = jnp.load(file_,allow_pickle=True)
+    return param_
+
 def save_pkl(param,str_):  # can't jit (can't pickle jax tracers)
 	path_ = str(Path(__file__).resolve().parents[1]) + '/pkl/'
 	dt = datetime.now().strftime("%d_%m-%H%M")
@@ -114,8 +121,8 @@ def loss_obj(e_t_1,sel,e,pos,SIGMA_R0,SIGMA_RINF,TAU,EPOCHS,x): # R_t
     e_rel = e_t_1-pos
     obj = -jnp.exp((jnp.cos(e_rel[:,0]) + jnp.cos(e_rel[:,1]) - 2)/sigma_e**2) ### standard loss (-) (1/(sigma_e*jnp.sqrt(2*jnp.pi)))*
     R_obj = jnp.dot(obj,sel)
-    p_ = (1/(-sigma_e*jnp.sqrt(2*jnp.pi)))*R_obj #- (1/8*sigma_e*jnp.sqrt(2*jnp.pi))*jnp.sqrt(-R_obj) #(check normalised correctly... bessel fncs?)
-    sample_ = rnd.bernoulli(rnd.PRNGKey(jnp.int32(jnp.floor(1000*sigma_e))),p=p_/7)
+    p_ = (1/(sigma_e*jnp.sqrt(2*jnp.pi)))*(-R_obj) - (1/(10*sigma_e*jnp.sqrt(2*jnp.pi)))*jnp.sqrt(-R_obj) #(check normalised correctly... bessel fncs?)
+    sample_ = rnd.bernoulli(rnd.PRNGKey(jnp.int32(jnp.floor(1000*sigma_e))),p=p_/6)
     return obj,sample_ #sigma_e
 
 # @jit
@@ -283,7 +290,8 @@ def single_step(EHT_t_1,eps):
     THETA_J = theta["ENV"]["THETA_J"]
     THETA_I = theta["ENV"]["THETA_I"]
     SIGMA_A = theta["ENV"]["SIGMA_A"]
-    SIGMA_N = theta["ENV"]["SIGMA_N"]
+    SIGMA_N0 = theta["ENV"]["SIGMA_N0"]
+    SIGMA_NINF = theta["ENV"]["SIGMA_NINF"]
     SIGMA_R0 = theta["ENV"]["SIGMA_R0"]
     SIGMA_RINF = theta["ENV"]["SIGMA_RINF"]
     TAU = theta["ENV"]["TAU"]
@@ -323,7 +331,8 @@ def single_step(EHT_t_1,eps):
     # e_t,pos_t = new_env(e_t_1,v_t,dot,pos_t,ALPHA,epoch,R_temp) #check, e0,v_t,R_obj,ALPHA,N_DOTS,VMAPS,EPOCHS,epoch,dot,pos_t
 
     # v_t readout
-    v_t = STEP*(jnp.matmul(C,h_t) + SIGMA_N*eps) # 'motor noise'
+    SIGMA_n = sigma_fnc(SIGMA_N0,SIGMA_NINF,TAU,EPOCHS,epoch,x)
+    v_t = STEP*(jnp.matmul(C,h_t) + SIGMA_n*eps) # 'motor noise'
     pos_t += v_t
 
     # accumulate rewards
@@ -423,11 +432,12 @@ def train_loop(loop_params,theta_0,opt_state,x):
 
 def test_loop(loop_params,theta_test):
     pos_arr = jnp.empty([loop_params["TESTS"],loop_params["VMAPS"],loop_params["IT"]+1,2])
-    switch_arr = jnp.empty([loop_params["TESTS"],loop_params["VMAPS"],loop_params["IT"]+1])
-    R_test = jnp.empty([loop_params["TESTS"],loop_params["VMAPS"],loop_params["IT"]+1])
-    R_r = jnp.empty([loop_params["TESTS"],loop_params["VMAPS"],loop_params["IT"]+1])
-    R_g = jnp.empty([loop_params["TESTS"],loop_params["VMAPS"],loop_params["IT"]+1])
-    R_b = jnp.empty([loop_params["TESTS"],loop_params["VMAPS"],loop_params["IT"]+1])
+    switch_arr,R_test,R_r,R_g,R_b = (jnp.empty([loop_params["TESTS"],loop_params["VMAPS"],loop_params["IT"]+1]) for _ in range(5))
+    # switch_arr = jnp.empty([loop_params["TESTS"],loop_params["VMAPS"],loop_params["IT"]+1])
+    # R_test = jnp.empty([loop_params["TESTS"],loop_params["VMAPS"],loop_params["IT"]+1])
+    # R_r = jnp.empty([loop_params["TESTS"],loop_params["VMAPS"],loop_params["IT"]+1])
+    # R_g = jnp.empty([loop_params["TESTS"],loop_params["VMAPS"],loop_params["IT"]+1])
+    # R_b = jnp.empty([loop_params["TESTS"],loop_params["VMAPS"],loop_params["IT"]+1])
     R_t = (R_test,R_r,R_g,R_b)
     pos_arr = pos_arr.at[:,:,0,:].set(jnp.float32([0,0]))
     LTP_0 = (loop_params,theta_test,pos_arr,switch_arr,R_t) #,dis_arr
@@ -466,10 +476,11 @@ def full_loop(loop_params,theta_0): # main routine: R_arr, std_arr = full_loop(p
 # ENV parameters
 SIGMA_A = jnp.float32(0.5) # 0.4,0.5,0.3,0.5,0.9
 SIGMA_R0 = jnp.float32(0.3) # 0.5,0.7,1,0.5,,0.8,0.5,0.8,0.5
-SIGMA_RINF = jnp.float32(0.3) # 0.15,0.3,0.6,1.8,0.1,,0.3
-SIGMA_N = jnp.float32(1.2) # 1,2,0.3, 1.8,1.6
+SIGMA_RINF = jnp.float32(0.15) # 0.15,0.3,0.6,1.8,0.1,,0.3
+SIGMA_N0 = jnp.float32(1.2) # 1,2,0.3, 1.8,1.6
+SIGMA_NINF = jnp.float32(0.3)
 LAMBDA_N = jnp.float32(0.0001)
-LAMBDA_E = jnp.float32(0.03) ### 0.008,0.04,0.1,0.05,0.01,0.1
+LAMBDA_E = jnp.float32(0.10) ### 0.008,0.04,0.1,0.05,0.01,0.1
 LAMBDA_D = jnp.float32(0.06) ### 0.08,0.06,0.07,0.03,0.04,0.01,0.001 
 LAMBDA_S = jnp.float32(0.015) ### 0.0024,0.0012,0.001,0.0001,0.00001
 ALPHA = jnp.float32(0.8) # 0.1,0.7,0.99
@@ -481,17 +492,17 @@ NEURONS = 21 # 11
 
 # GRU parameters
 N = NEURONS**2
-G = 80 # size of GRU
+G = 80 #100,80, (same as loaded weights)
 INIT = jnp.float32(20) # 15-300..,0.3,0.5,0.1,0.2,0.3,,0.5,0.1
 
 # loop params
-TOT_EPOCHS = 2000
-EPOCHS = 200
+TOT_EPOCHS = 3000
+EPOCHS = 150
 LOOPS = TOT_EPOCHS//EPOCHS # TOT_EPOCHS//EPOCHS
 IT = 160
 VMAPS = 1000 # 500
 TESTS = 8
-UPDATE = jnp.float32(0.00003) #0.00001,0.00002,0.0001,0.00005,,0.0001,0.00001,0.0005,0.0001,0.00001,0.00002,0.0001,0.00008
+UPDATE = jnp.float32(0.00005) #0.00003,0.00001,0.00002,0.0001,0.00005,,0.0001,0.00001,0.0005,0.0001,0.00001,0.00002,0.0001,0.00008
 WD = jnp.float32(0.0005) # 0.001,0.0001,0.00005,0.00001
 TAU = jnp.float32((1-1/jnp.e)*TOT_EPOCHS) # 0.01
 optimizer = optax.adamw(learning_rate=UPDATE,weight_decay=WD) #optax.adam(learning_rate=UPDATE)#
@@ -570,7 +581,8 @@ theta_0 = { "GRU" : {
     	"THETA_I"  	: THETA_I,
     	"THETA_J"  	: THETA_J,
     	"COLORS"   	: COLORS,
-    	"SIGMA_N"  	: SIGMA_N,
+    	"SIGMA_N0"  : SIGMA_N0,
+        "SIGMA_NINF": SIGMA_NINF,
     	"SIGMA_A"  	: SIGMA_A,
     	"SIGMA_R0"  : SIGMA_R0,
         "SIGMA_RINF": SIGMA_RINF,
@@ -591,8 +603,8 @@ theta_0 = { "GRU" : {
 	}
         	}
 
-theta_0_ = load_('v9_theta_test_trained_24_04-1433.pkl')
-theta_0["GRU"] = theta_0_["GRU"]
+theta_0_ = load_('v8_theta_test_trained_26_04-1810.pkl') #'v9_theta_test_trained_24_04-1433.pkl'
+theta_0["GRU"] = theta_0_ #["GRU"]
 theta_0["ENV"] = jax.lax.stop_gradient(theta_0["ENV"])
 
 ###
@@ -604,9 +616,9 @@ print(f'Completed in: {time_elapsed}, {time_elapsed/TOT_EPOCHS} s/epoch')
 # plot training
 (R_tot,R_obj,R_env,R_dot,R_sel),(sd_tot,sd_obj,sd_env,sd_dot,sd_sel) = vals_train
 plt.figure()
-title__ = f'v9 training, tot epochs={TOT_EPOCHS}, it={IT}, vmaps={VMAPS}, init={INIT:.2f}, update={UPDATE:.5f}, SIGMA_A={SIGMA_A:.1f}, SIGMA_R0={SIGMA_R0:.1f}, SIGMA_RINF={SIGMA_RINF:.1f}, \n SIGMA_N={SIGMA_N:.1f}, STEP={STEP:.3f} WD={WD:.5f}, LAMBDA_D={LAMBDA_D:.4f}, LAMBDA_E={LAMBDA_E:.4f}, LAMBDA_S={LAMBDA_S:.4f}, NEURONS={NEURONS}, p=R_norm/{7}' # \n colors={jnp.array_str(COLORS[0][:]) + jnp.array_str(COLORS[1][:]) + jnp.array_str(COLORS[2][:])}' #  + jnp.array_str(COLORS[3][:]) + jnp.array_str(COLORS[4][:])}'
+title__ = f'tot epochs={TOT_EPOCHS}, it={IT}, vmaps={VMAPS}, init={INIT:.2f}, update={UPDATE:.5f}, SIGMA_A={SIGMA_A:.1f}, SIGMA_R0={SIGMA_R0:.1f}, SIGMA_RINF={SIGMA_RINF:.1f}, \n SIGMA_N0={SIGMA_N0:.1f}, SIGMA_NINF={SIGMA_NINF:.1f}, STEP={STEP:.3f} WD={WD:.5f}, LAMBDA_D={LAMBDA_D:.4f}, LAMBDA_E={LAMBDA_E:.4f}, LAMBDA_S={LAMBDA_S:.4f}, NEURONS={NEURONS}'#, p=R_norm/{5}' # \n colors={jnp.array_str(COLORS[0][:]) + jnp.array_str(COLORS[1][:]) + jnp.array_str(COLORS[2][:])}' #  + jnp.array_str(COLORS[3][:]) + jnp.array_str(COLORS[4][:])}'
 fig,ax = plt.subplots(2,3,figsize=(16,9))
-plt.suptitle(title__,fontsize=14)
+plt.suptitle('v9 training ' + title__,fontsize=14)
 plt.subplot(2,3,1)
 plt.errorbar(jnp.arange(len(R_tot)),R_tot,yerr=sd_tot/2,ecolor="black",elinewidth=0.5,capsize=1.5)
 plt.ylabel(r'$R_{tot}$',fontsize=15)
@@ -643,9 +655,9 @@ colormap = cm.seismic(np.linspace(0,1,IT+1), alpha=1)
 
 # plot testing
 plt.figure()
-title__ = f'v9 testing, tot epochs={TOT_EPOCHS}, it={IT}, vmaps={VMAPS}, init={INIT:.2f}, update={UPDATE:.5f}, SIGMA_A={SIGMA_A:.1f}, SIGMA_R0={SIGMA_R0:.1f}, SIGMA_RINF={SIGMA_RINF:.1f}, \n SIGMA_N={SIGMA_N:.1f}, STEP={STEP:.3f} WD={WD:.5f}, LAMBDA_D={LAMBDA_D:.4f}, LAMBDA_E={LAMBDA_E:.4f}, LAMBDA_S={LAMBDA_S:.4f}, NEURONS={NEURONS}, p=R_norm/{7}'
+# title__ = f'v9 testing, tot epochs={TOT_EPOCHS}, it={IT}, vmaps={VMAPS}, init={INIT:.2f}, update={UPDATE:.5f}, SIGMA_A={SIGMA_A:.1f}, SIGMA_R0={SIGMA_R0:.1f}, SIGMA_RINF={SIGMA_RINF:.1f}, \n SIGMA_N={SIGMA_N:.1f}, STEP={STEP:.3f} WD={WD:.5f}, LAMBDA_D={LAMBDA_D:.4f}, LAMBDA_E={LAMBDA_E:.4f}, LAMBDA_S={LAMBDA_S:.4f}, NEURONS={NEURONS}, p=R_norm/{7}'
 fig,axis = plt.subplots(2*TESTS,4,figsize=(15,5*TESTS+2))#(4,5)
-plt.suptitle(title__,fontsize=14)
+plt.suptitle('v9 testing '+title__+f'p=R_norm/{6}',fontsize=14)
 for i in range(loop_params["TESTS"]):
     k = rnd.randint(ki[18+i],(),0,loop_params["VMAPS"]) # rnd.choice(ki[18+j],loop_params["VMAPS"],replace=False)
     ax0 = plt.subplot2grid((2*TESTS,4),(2*i,2),colspan=2)
@@ -684,5 +696,6 @@ for i in range(loop_params["TESTS"]):
     
 plt.savefig(path_ + 'test_' + dt + '.png')
 
+theta_test["ENV"].pop("EPS")
 save_pkl((vals_train,vals_test,theta_test),'v9_all')
 # save_pkl(theta_test,'v9_theta_test_trained')

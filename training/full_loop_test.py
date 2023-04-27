@@ -478,7 +478,7 @@ loop_params = {
 	}
 
 ## KEY_INIT = rnd.PRNGKey(0) # 0
-# ki = rnd.split(rnd.PRNGKey(0),num=30)
+ki = rnd.split(rnd.PRNGKey(0),num=30)
 # h0 = rnd.normal(ki[27],(G,),dtype=jnp.float32)
 # Wr_f0 = (INIT/(G*N))*rnd.normal(ki[1],(G,N),dtype=jnp.float32)
 # Wg_f0 = (INIT/(G*N))*rnd.normal(ki[1],(G,N),dtype=jnp.float32)
@@ -587,8 +587,8 @@ print(f'Completed in: {time_elapsed}, {time_elapsed/TOT_EPOCHS} s/epoch')
 # # plt.show()
 
 # save_pkl(theta_test,'v7_theta_test_trained')
-# path_ = str(Path(__file__).resolve().parents[1]) + '/figs/task8/'
-# dt = datetime.now().strftime("%d_%m-%H%M")
+path_ = str(Path(__file__).resolve().parents[1]) + '/figs/task8/'
+dt = datetime.now().strftime("%d_%m-%H%M")
 # plt.savefig(path_ + 'train_' + dt + '.png')
 
 #plot testing
