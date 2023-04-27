@@ -468,7 +468,7 @@ def full_loop(loop_params,theta_0): # main routine: R_arr, std_arr = full_loop(p
 # ENV parameters
 SIGMA_A = jnp.float32(0.5) # 0.4,0.5,0.3,0.5,0.9
 SIGMA_R0 = jnp.float32(0.8) # 0.5,0.7,1,0.5,,0.8,0.5,0.8,0.5
-SIGMA_RINF = jnp.float32(0.15) # 0.3,0.6,1.8,0.1,,0.3
+SIGMA_RINF = jnp.float32(0.20) # 0.15,0.3,0.6,1.8,0.1,,0.3
 SIGMA_N0 = jnp.float32(1.2) # 1,2,0.3, 1.8,1.6
 SIGMA_NINF = jnp.float32(0.6) # 0.3
 LAMBDA_N = jnp.float32(0.0001)
@@ -494,8 +494,8 @@ LOOPS = TOT_EPOCHS//EPOCHS # TOT_EPOCHS//EPOCHS
 IT = 60
 VMAPS = 1000 # 500
 TESTS = 10
-UPDATE = jnp.float32(0.00003) #0.00007,0.00001,0.00002,0.0001,0.00005,,0.0001,0.00001,0.0005,0.0001,0.00001,0.00002,0.0001,0.00008
-WD = jnp.float32(0.00012) # 0.001,0.0001,0.00005,0.00001
+UPDATE = jnp.float32(0.00005) #0.00007,0.00001,0.00002,0.0001,0.00005,,0.0001,0.00001,0.0005,0.0001,0.00001,0.00002,0.0001,0.00008
+WD = jnp.float32(0.00020) # 0.001,0.0001,0.00005,0.00001
 TAU = jnp.float32((1/jnp.e)*TOT_EPOCHS) # 0.01
 optimizer = optax.adamw(learning_rate=UPDATE,weight_decay=WD) #optax.adam(learning_rate=UPDATE)#
 
@@ -636,7 +636,7 @@ plt.tight_layout()
 
 path_ = str(Path(__file__).resolve().parents[1]) + '/figs/task9/'
 dt = datetime.now().strftime("%d_%m-%H%M")
-plt.savefig(path_ + 'train_' + dt + '.png')
+plt.savefig(path_ + 's_train_' + dt + '.png')
 
 #analyse testing...
 pos_arr,switch_arr,(R_test,R_r,R_g,R_b) = vals_test # dis_arr, R_obj_t,R_env_t,R_dot_t,R_sel_t,dis_t,pos_t = vals_test
@@ -686,7 +686,7 @@ for i in range(loop_params["TESTS"]):
     plt.tight_layout()
     plt.subplots_adjust(top=0.94) 
     
-plt.savefig(path_ + 'test_' + dt + '.png')
+plt.savefig(path_ + 's_test_' + dt + '.png')
 
 # save_pkl((vals_train,vals_test,theta_test["GRU"]),'v8_all')
-save_pkl(theta_test["GRU"],'v8_theta_test_trained')
+save_pkl(theta_test["GRU"],'v8_theta_trained')

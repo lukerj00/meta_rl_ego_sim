@@ -120,9 +120,11 @@ def loss_obj(e_t_1,sel,e,pos,SIGMA_R0,SIGMA_RINF,TAU,EPOCHS,x): # R_t
     # pos_ = (pos+jnp.pi)%(2*jnp.pi)-jnp.pi
     e_rel = e_t_1-pos
     obj = -jnp.exp((jnp.cos(e_rel[:,0]) + jnp.cos(e_rel[:,1]) - 2)/sigma_e**2) ### standard loss (-) (1/(sigma_e*jnp.sqrt(2*jnp.pi)))*
+    obj_2 = -jnp.exp((jnp.cos(e_rel[:,0]) + jnp.cos(e_rel[:,1]) - 2)/(2*sigma_e)**2) ### standard loss (-) (1/(10*sigma_e*jnp.sqrt(2*jnp.pi)))*
     R_obj = jnp.dot(obj,sel)
-    p_ = (1/(sigma_e*jnp.sqrt(2*jnp.pi)))*(-R_obj) - (1/(10*sigma_e*jnp.sqrt(2*jnp.pi)))*jnp.sqrt(-R_obj) #(check normalised correctly... bessel fncs?)
-    sample_ = rnd.bernoulli(rnd.PRNGKey(jnp.int32(jnp.floor(1000*sigma_e))),p=p_/6)
+    R_obj_2 = jnp.dot(obj_2,sel)
+    p_ = (1/(sigma_e*jnp.sqrt(2*jnp.pi)))*(-R_obj) - (1/(10*sigma_e*jnp.sqrt(2*jnp.pi)))*(-R_obj_2) #(check normalised correctly... bessel fncs?)
+    sample_ = rnd.bernoulli(rnd.PRNGKey(jnp.int32(jnp.floor(1000*sigma_e))),p=p_/5)
     return obj,sample_ #sigma_e
 
 # @jit
@@ -476,9 +478,9 @@ def full_loop(loop_params,theta_0): # main routine: R_arr, std_arr = full_loop(p
 # ENV parameters
 SIGMA_A = jnp.float32(0.5) # 0.4,0.5,0.3,0.5,0.9
 SIGMA_R0 = jnp.float32(0.3) # 0.5,0.7,1,0.5,,0.8,0.5,0.8,0.5
-SIGMA_RINF = jnp.float32(0.15) # 0.15,0.3,0.6,1.8,0.1,,0.3
+SIGMA_RINF = jnp.float32(0.3) # 0.15,0.3,0.6,1.8,0.1,,0.3
 SIGMA_N0 = jnp.float32(1.2) # 1,2,0.3, 1.8,1.6
-SIGMA_NINF = jnp.float32(0.3)
+SIGMA_NINF = jnp.float32(0.6) # 0.3
 LAMBDA_N = jnp.float32(0.0001)
 LAMBDA_E = jnp.float32(0.10) ### 0.008,0.04,0.1,0.05,0.01,0.1
 LAMBDA_D = jnp.float32(0.06) ### 0.08,0.06,0.07,0.03,0.04,0.01,0.001 
@@ -603,8 +605,8 @@ theta_0 = { "GRU" : {
 	}
         	}
 
-theta_0_ = load_('v8_theta_test_trained_26_04-1810.pkl') #'v9_theta_test_trained_24_04-1433.pkl'
-theta_0["GRU"] = theta_0_ #["GRU"]
+theta_0_ = load_('v9_theta_test_trained_24_04-1433.pkl') #'v8_theta_test_trained_26_04-1810.pkl','v9_theta_test_trained_24_04-1433.pkl'
+theta_0["GRU"] = theta_0_["GRU"] #theta_0_ for newer versions
 theta_0["ENV"] = jax.lax.stop_gradient(theta_0["ENV"])
 
 ###
@@ -644,7 +646,7 @@ plt.tight_layout()
 
 path_ = str(Path(__file__).resolve().parents[1]) + '/figs/task9/'
 dt = datetime.now().strftime("%d_%m-%H%M")
-plt.savefig(path_ + 'train_' + dt + '.png')
+plt.savefig(path_ + 'm_train_' + dt + '.png')
 
 #analyse testing...
 pos_arr,switch_arr,(R_test,R_r,R_g,R_b) = vals_test # dis_arr, R_obj_t,R_env_t,R_dot_t,R_sel_t,dis_t,pos_t = vals_test
@@ -657,7 +659,7 @@ colormap = cm.seismic(np.linspace(0,1,IT+1), alpha=1)
 plt.figure()
 # title__ = f'v9 testing, tot epochs={TOT_EPOCHS}, it={IT}, vmaps={VMAPS}, init={INIT:.2f}, update={UPDATE:.5f}, SIGMA_A={SIGMA_A:.1f}, SIGMA_R0={SIGMA_R0:.1f}, SIGMA_RINF={SIGMA_RINF:.1f}, \n SIGMA_N={SIGMA_N:.1f}, STEP={STEP:.3f} WD={WD:.5f}, LAMBDA_D={LAMBDA_D:.4f}, LAMBDA_E={LAMBDA_E:.4f}, LAMBDA_S={LAMBDA_S:.4f}, NEURONS={NEURONS}, p=R_norm/{7}'
 fig,axis = plt.subplots(2*TESTS,4,figsize=(15,5*TESTS+2))#(4,5)
-plt.suptitle('v9 testing '+title__+f'p=R_norm/{6}',fontsize=14)
+plt.suptitle('v9 testing '+title__+f'p=R_norm/{5}',fontsize=14)
 for i in range(loop_params["TESTS"]):
     k = rnd.randint(ki[18+i],(),0,loop_params["VMAPS"]) # rnd.choice(ki[18+j],loop_params["VMAPS"],replace=False)
     ax0 = plt.subplot2grid((2*TESTS,4),(2*i,2),colspan=2)
@@ -694,7 +696,7 @@ for i in range(loop_params["TESTS"]):
     plt.tight_layout()
     plt.subplots_adjust(top=0.94) 
     
-plt.savefig(path_ + 'test_' + dt + '.png')
+plt.savefig(path_ + 'm_test_' + dt + '.png')
 
 theta_test["ENV"].pop("EPS")
 save_pkl((vals_train,vals_test,theta_test),'v9_all')
