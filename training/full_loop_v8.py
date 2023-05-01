@@ -320,7 +320,7 @@ def single_step(EHT_t_1,eps):
     
     # new env    
     dot = jnp.dot(sel,e_t_1)
-    pos_t = jax.lax.cond((sample_==1)&(x>=50),switch_agent,keep_agent,pos_t) # (x>=1)|(jnp.linalg.norm((dot-pos_t),ord=2)<=ALPHA)
+    pos_t = jax.lax.cond((sample_==1)&(x>=200),switch_agent,keep_agent,pos_t) # (x>=1)|(jnp.linalg.norm((dot-pos_t),ord=2)<=ALPHA)
     # e_t,pos_t = new_env(e_t_1,v_t,dot,pos_t,ALPHA,epoch,R_temp) #check, e0,v_t,R_obj,ALPHA,N_DOTS,VMAPS,EPOCHS,epoch,dot,pos_t
 
     # v_t readout
@@ -467,9 +467,9 @@ def full_loop(loop_params,theta_0): # main routine: R_arr, std_arr = full_loop(p
 
 # ENV parameters
 SIGMA_A = jnp.float32(0.5) # 0.4,0.5,0.3,0.5,0.9
-SIGMA_R0 = jnp.float32(0.3) # 0.8,0.5,0.7,1,0.5,,0.8,0.5,0.8,0.5
-SIGMA_RINF = jnp.float32(0.15) # 0.1,0.15,0.3,0.6,1.8,0.1,,0.3
-SIGMA_N0 = jnp.float32(3) # 2,1.2,1,2,0.3, 1.8,1.6
+SIGMA_R0 = jnp.float32(0.2) # 0.8,0.5,0.7,1,0.5,,0.8,0.5,0.8,0.5
+SIGMA_RINF = jnp.float32(0.2) # 0.1,0.15,0.3,0.6,1.8,0.1,,0.3
+SIGMA_N0 = jnp.float32(5) # 2,1.2,1,2,0.3, 1.8,1.6
 SIGMA_NINF = jnp.float32(1) # 1,0.3
 LAMBDA_N = jnp.float32(0.0001)
 LAMBDA_E = jnp.float32(0.06) ### 0.12,0.08,0.06,0.03,0.008,0.04,0.1,0.05,0.01,0.1
@@ -488,15 +488,15 @@ G = 100 # size of GRU
 INIT = jnp.float32(20) # 15-300..,0.3,0.5,0.1,0.2,0.3,,0.5,0.1
 
 # loop params
-TOT_EPOCHS = 30000
+TOT_EPOCHS = 100000
 EPOCHS = 1000 # 1000
 LOOPS = TOT_EPOCHS//EPOCHS # TOT_EPOCHS//EPOCHS
 IT = 60
 VMAPS = 1000 # 500
 TESTS = 10
-UPDATE = jnp.float32(0.00003) #0.00008,0.00005,0.00007,0.00001,0.00002,0.0001,0.00005,,0.0001,0.00001,0.0005,0.0001,0.00001,0.00002,0.0001,0.00008
+UPDATE = jnp.float32(0.00002) #0.00008,0.00005,0.00007,0.00001,0.00002,0.0001,0.00005,,0.0001,0.00001,0.0005,0.0001,0.00001,0.00002,0.0001,0.00008
 WD = jnp.float32(0.0001) # 0.00025,0.0002,0.001,0.0001,0.00005,0.00001
-TAU = jnp.float32((1/(jnp.e))*TOT_EPOCHS) # 0.01
+TAU = jnp.float32((1/(2*jnp.e))*TOT_EPOCHS) # 0.01
 optimizer = optax.adamw(learning_rate=UPDATE,weight_decay=WD) #optax.adam(learning_rate=UPDATE)#
 
 # assemble loop_params pytree

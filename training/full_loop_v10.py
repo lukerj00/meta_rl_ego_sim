@@ -254,7 +254,7 @@ def keep_agent(pos_t):
 @jit
 def single_step(EHT_t_1,eps):
     # unpack values
-    e_t_1,h_t_1,theta,pos_t,sel,epoch,dot,R_obj,R_env,R_dot,R_sel,x = EHT_t_1#R_tot ,v_t_1
+    e_t_1,h_t_1,theta,pos_t,sel,epoch,dot,R_obj,R_env,R_dot,R_sel,x,v_t_1 = EHT_t_1#R_tot ,v_t_1
 
     # extract data from theta
     Wr_z = theta["GRU"]["Wr_z"]
@@ -312,14 +312,20 @@ def single_step(EHT_t_1,eps):
 
     # GRU
     z_t = jax.nn.sigmoid(jnp.matmul(Wr_z,act_r) + jnp.matmul(Wg_z,act_g) + jnp.matmul(Wb_z,act_b) + R_temp*W_r_z + jnp.matmul(U_z,h_t_1) + b_z) # + jnp.matmul(W_v_z,v_t_1)
-    f_t = jax.nn.sigmoid(jnp.matmul(Wr_r,act_r) + jnp.matmul(Wg_r,act_g) + jnp.matmul(Wb_r,act_b) + R_temp*W_r_f + jnp.matmul(U_r,h_t_1) + b_r) # + jnp.matmul(W_v_f,v_t_1) 
-    hhat_t = jnp.tanh(jnp.matmul(Wr_h,act_r)  + jnp.matmul(Wg_h,act_g) + jnp.matmul(Wb_h,act_b) + R_temp*W_r_hh + jnp.matmul(U_h,(jnp.multiply(f_t,h_t_1))) + b_h ) # + jnp.matmul(W_v_hh,v_t_1) 
+    f_t = jax.nn.sigmoid(jnp.matmul(Wr_r,act_r) + jnp.matmul(Wg_r,act_g) + jnp.matmul(Wb_r,act_b) + R_temp*W_r_f + jnp.matmul(U_r,h_t_1) + b_r) # + jnp.matmul(W_v_f,v_t_1)
+    hhat_t = jnp.tanh(jnp.matmul(Wr_h,act_r)  + jnp.matmul(Wg_h,act_g) + jnp.matmul(Wb_h,act_b) + R_temp*W_r_hh + jnp.matmul(U_h,(jnp.multiply(f_t,h_t_1))) + b_h ) # + jnp.matmul(W_v_hh,v_t_1)
     h_t = jnp.multiply(z_t,h_t_1) + jnp.multiply((1-z_t),hhat_t)
 
     # env, dot, sel readouts
-    pos_hat = jnp.matmul(E,h_t) # [4,1]
-    dot_hat = jnp.matmul(D,h_t) # [4,1]
-    sel_hat = jnp.matmul(S,h_t) # [DOTS,1]
+    pos_hat = jnp.matmul(E,jnp.append(h_t,v_t_1)) # [4,1]
+    dot_hat = jnp.matmul(D,jnp.append(h_t,v_t_1)) # [4,1]
+    sel_hat = jnp.matmul(S,jnp.append(h_t,v_t_1)) # [DOTS,1]
+
+    # accumulate rewards
+    R_obj += R_temp
+    R_env += LAMBDA_E*loss_env(pos_hat,pos_t) ###
+    R_dot += LAMBDA_D*loss_dot(dot_hat,dot) ###
+    R_sel += LAMBDA_S*loss_sel(sel_hat,sel) ###
     
     # new env    
     dot = jnp.dot(sel,e_t_1)
@@ -330,15 +336,9 @@ def single_step(EHT_t_1,eps):
     SIGMA_n = sigma_fnc(SIGMA_N0,SIGMA_NINF,TAU,EPOCHS,epoch,x)
     v_t = STEP*(jnp.matmul(C,h_t) + SIGMA_n*eps) # 'motor noise'
     pos_t += v_t
-
-    # accumulate rewards
-    R_obj += R_temp
-    R_env += LAMBDA_E*loss_env(pos_hat,pos_t) ###
-    R_dot += LAMBDA_D*loss_dot(dot_hat,dot) ###
-    R_sel += LAMBDA_S*loss_sel(sel_hat,sel) ###
     
     # assemble output
-    EHT_t = (e_t_1,h_t,theta,pos_t,sel,epoch,dot,R_obj,R_env,R_dot,R_sel,x)#R_tot ,v_t
+    EHT_t = (e_t_1,h_t,theta,pos_t,sel,epoch,dot,R_obj,R_env,R_dot,R_sel,x,v_t)#R_tot ,v_t
     pos_dis = (pos_t,sample_,R_temp,R_r,R_g,R_b) ### dis_t
 
     # jax.lax.cond(epoch%1000==0,true_debug2,false_debug2,x,act_r,act_g,act_b,h_t_1,f_t,hhat_t,h_t)
@@ -347,11 +347,12 @@ def single_step(EHT_t_1,eps):
 
 @jit
 def tot_reward(e0,h0,theta,sel,eps,epoch,x):
-    # v_t = jnp.array([0,0],dtype=jnp.float32)#jnp.float64
+    v_t = jnp.array([0,0],dtype=jnp.float32)#jnp.float64
+    v_t = jax.lax.stop_gradient(v_t)
     pos_t=jnp.array([0,0],dtype=jnp.float32)#jnp.float64
     dot=jnp.array([0,0],dtype=jnp.float32)#jnp.float64
     R_tot,R_obj,R_env,R_dot,R_sel = (jnp.float32(0) for _ in range(5))
-    EHT_0 = (e0,h0,theta,pos_t,sel,epoch,dot,R_obj,R_env,R_dot,R_sel,x)#R_tot ,v_t
+    EHT_0 = (e0,h0,theta,pos_t,sel,epoch,dot,R_obj,R_env,R_dot,R_sel,x,v_t)#R_tot ,v_t
     EHT_,pos_dis_ = jax.lax.scan(single_step,EHT_0,eps)
     *_,dot,R_obj_,R_env_,R_dot_,R_sel_,x_ = EHT_ #R_tot_
     R_tot_ = R_obj_ + R_sel_ + R_env_ + R_dot_
@@ -472,8 +473,8 @@ def full_loop(loop_params,theta_0): # main routine: R_arr, std_arr = full_loop(p
 
 # ENV parameters
 SIGMA_A = jnp.float32(0.5) # 0.4,0.5,0.3,0.5,0.9
-SIGMA_R0 = jnp.float32(0.4) # 0.8,0.5,0.7,1,0.5,,0.8,0.5,0.8,0.5
-SIGMA_RINF = jnp.float32(0.2) # 0.1,0.15,0.3,0.6,1.8,0.1,,0.3
+SIGMA_R0 = jnp.float32(0.5) # 0.8,0.5,0.7,1,0.5,,0.8,0.5,0.8,0.5
+SIGMA_RINF = jnp.float32(0.5) # 0.1,0.15,0.3,0.6,1.8,0.1,,0.3
 SIGMA_N0 = jnp.float32(3) # 2,1.2,1,2,0.3, 1.8,1.6
 SIGMA_NINF = jnp.float32(1) # 1,0.3
 LAMBDA_N = jnp.float32(0.0001)
@@ -536,13 +537,13 @@ b_h0 = (INIT/G)*rnd.normal(ki[9],(G,),dtype=jnp.float32)
 W_r_z0 = (INIT/G)*rnd.normal(ki[10],(G,),dtype=jnp.float32)
 W_r_f0 = (INIT/G)*rnd.normal(ki[11],(G,),dtype=jnp.float32)
 W_r_hh0 = (INIT/G)*rnd.normal(ki[12],(G,),dtype=jnp.float32)
-W_v_z0 = (INIT/(100*2*G))*rnd.normal(ki[19],(G,2),dtype=jnp.float32)
-W_v_f0 = (INIT/(100*2*G))*rnd.normal(ki[20],(G,2),dtype=jnp.float32)
-W_v_hh0 = (INIT/(100*2*G))*rnd.normal(ki[21],(G,2),dtype=jnp.float32)
+W_v_z0 = (INIT/(10*2*G))*rnd.normal(ki[19],(G,2),dtype=jnp.float32)
+W_v_f0 = (INIT/(10*2*G))*rnd.normal(ki[20],(G,2),dtype=jnp.float32)
+W_v_hh0 = (INIT/(10*2*G))*rnd.normal(ki[21],(G,2),dtype=jnp.float32)
 C0 = (INIT/(2*G))*rnd.normal(ki[13],(2,G),dtype=jnp.float32)
-E0 = (INIT/(4*G))*rnd.normal(ki[14],(4,G),dtype=jnp.float32)
-D0 = (INIT/(4*G))*rnd.normal(ki[15],(4,G),dtype=jnp.float32)
-S0 = (INIT/(N_DOTS*G))*rnd.normal(ki[16],(N_DOTS,G),dtype=jnp.float32) # (check produce logits)
+E0 = (INIT/(4*G))*rnd.normal(ki[14],(4,G+2),dtype=jnp.float32)
+D0 = (INIT/(4*G))*rnd.normal(ki[15],(4,G+2),dtype=jnp.float32)
+S0 = (INIT/(N_DOTS*G))*rnd.normal(ki[16],(N_DOTS,G+2),dtype=jnp.float32) # (check produce logits)
 DOTS = gen_dots(ki[17],N_DOTS,VMAPS,EPOCHS) # [EPOCHS,N_DOTS,2,VMAPS]
 EPS = gen_eps(ki[18],EPOCHS,IT,VMAPS)
 SELECT = gen_select(ki[19],N_DOTS,EPOCHS,VMAPS) #jnp.eye(N_DOTS)[rnd.choice(ki[17],N_DOTS,(EPOCHS,VMAPS))]
