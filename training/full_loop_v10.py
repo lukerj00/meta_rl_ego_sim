@@ -313,7 +313,7 @@ def single_step(EHT_t_1,eps):
     # GRU
     z_t = jax.nn.sigmoid(jnp.matmul(Wr_z,act_r) + jnp.matmul(Wg_z,act_g) + jnp.matmul(Wb_z,act_b) + R_temp*W_r_z + jnp.matmul(U_z,h_t_1) + b_z) # + jnp.matmul(W_v_z,v_t_1)
     f_t = jax.nn.sigmoid(jnp.matmul(Wr_r,act_r) + jnp.matmul(Wg_r,act_g) + jnp.matmul(Wb_r,act_b) + R_temp*W_r_f + jnp.matmul(U_r,h_t_1) + b_r) # + jnp.matmul(W_v_f,v_t_1)
-    hhat_t = jnp.tanh(jnp.matmul(Wr_h,act_r)  + jnp.matmul(Wg_h,act_g) + jnp.matmul(Wb_h,act_b) + R_temp*W_r_hh + jnp.matmul(U_h,(jnp.multiply(f_t,h_t_1))) + b_h ) # + jnp.matmul(W_v_hh,v_t_1)
+    hhat_t = jnp.tanh(jnp.matmul(Wr_h,act_r) + jnp.matmul(Wg_h,act_g) + jnp.matmul(Wb_h,act_b) + R_temp*W_r_hh + jnp.matmul(U_h,(jnp.multiply(f_t,h_t_1))) + b_h ) # + jnp.matmul(W_v_hh,v_t_1)
     h_t = jnp.multiply(z_t,h_t_1) + jnp.multiply((1-z_t),hhat_t)
 
     # env, dot, sel readouts
