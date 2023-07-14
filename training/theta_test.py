@@ -7,7 +7,7 @@ import jax.random as rnd
 import optax
 import matplotlib
 import matplotlib.pyplot as plt
-matplotlib.use('Agg')
+# matplotlib.use('sAgg')
 from drawnow import drawnow
 import numpy as np
 import csv
@@ -185,7 +185,211 @@ from datetime import datetime
 # ret = jax.lax.cond(jnp.linalg.norm((dot-pos_t))<=ALPHA,true_fnc,false_fnc,dpa)
 # print(ret)
 
-a = jnp.array([0,1,2,3])
-b = jnp.array([1,0.5,0,4])
-c = jnp.minimum(a,b)
-print('c=',c)
+# def gen_vectors(MODULES,APERTURE):
+#     m = MODULES
+#     M = m**2
+#     A = APERTURE
+#     x = jnp.linspace(-A,A,m) # x = jnp.linspace(-(A-A/m),(A-A/m),m) # CHECK
+#     x_ = jnp.tile(x,(m,1))
+#     x__ = x_.reshape((M,)) # .transpose((1,0))
+#     y = jnp.linspace(-A,A,m) # y = jnp.linspace(-(A-A/m),(A-A/m),m) # CHECK
+#     y_ = jnp.tile(jnp.flip(y).reshape(m,1),(1,m))
+#     y__ = y_.reshape((M,))
+#     v = jnp.vstack([x__,y__])
+#     return x_,y_,v
+
+# A = jnp.pi
+# M = 2
+# E=3
+# V=4
+
+# POS_0 = rnd.choice(rnd.PRNGKey(0),jnp.linspace(-A,A,M),(E,V,2))
+
+# a = jnp.array([0,1,2,3])
+# b = jnp.array([1,0.5,0,4])
+# c = jnp.minimum(a,b)
+# print('c=',c)
+
+# x,y,v = gen_vectors(4,jnp.pi)
+# print(x,x.shape,y,y.shape,v,v.shape)
+# print(POS_0,POS_0.shape)
+
+# arr = jnp.array([1,2,3,4,5,6,7,8,9,10]).reshape(2,5)
+# for i in (arr.T):
+#     print('i=',i)
+
+
+# NEURONS = 10
+# APERTURE = jnp.pi
+
+# neuron_locs = gen_vectors(NEURONS,APERTURE)
+
+# for ind,n in enumerate(neuron_locs.T):
+#     print('n=',n,'ind=',ind)
+
+# arr = jnp.array([1,2,3,4,5,6,7,8,9,10]).reshape(-1,5)
+
+##
+# def neuron_act(params,dots,pos): #e_t_1,th_j,th_i,SIGMA_A,COLORS
+#     COLORS = params["COLORS"]
+#     th_x = params["THETA_X"]
+#     th_y = params["THETA_Y"]
+#     SIGMA_A = params["SIGMA_A"]
+#     D_ = COLORS.shape[0]
+#     N_ = th_x.size
+#     th_x = jnp.tile(th_x,(N_,1)).reshape((N_**2,))
+#     th_y = jnp.tile(jnp.flip(th_y).reshape(N_,1),(1,N_)).reshape((N_**2,))
+#     G_0 = jnp.vstack([th_x,th_y])
+#     # print('G_0=',G_0)
+#     # G_0 = jnp.vstack((jnp.tile(th_x,N_),jnp.tile(th_y,N_)))
+#     G1 = jnp.tile(G_0.reshape(2,N_**2,1),(1,1,D_))
+#     G2 = jnp.moveaxis(G1,(0,1,2),(2,0,1)) #jnp.tile(G_0.reshape(N_**2,1,2),(1,D_,1)) # 
+#     print("G1={}",G1[:,:,0],G1.shape)
+#     print("G2={}",G2[:,0,:],G2.shape)
+#     # jax.debug.print("dots={}",dots)
+#     E1 = G1.transpose((1,0,2)) - ((dots-pos)).T #.reshape((2,1))
+#     E2 = G2 - (dots-pos) #
+#     print("E1={}",E1.shape,E1[:,:,0])
+#     print("E2={}",E2.shape,E2[:,0,:])
+#     print("E1[:,0,:]=",E1[:,0,:],E1[:,0,:].shape)
+#     print("E1[:,1,:]=",E1[:,1,:],E1[:,1,:].shape)
+#     print("EXP_E_TOT1=",jnp.exp(jnp.cos(E1[:,0,:])+jnp.cos(E1[:,1,:])-2))
+#     # print("E_TOT2=",E2[:,:,0] + E2[:,:,1])
+#     act1 = jnp.exp((jnp.cos(E1[:,0,:]) + jnp.cos(E1[:,1,:]) - 2)/SIGMA_A**2).T
+#     act1R = jnp.exp((jnp.cos(E1[:,0,:]) + jnp.cos(E1[:,1,:]) - 2)/SIGMA_A**2).reshape((D_,N_**2))
+#     act2 = jnp.exp((jnp.cos(E2[:,:,0]) + jnp.cos(E2[:,:,1]) - 2)/SIGMA_A**2).T
+#     print("act1={}",act1,act1.shape)
+#     print("act1(RESHAPED)={}",act1R,act1R.shape)
+#     print("act2={}",act2,act2.shape)
+#     C = (COLORS/255).transpose((1,0))
+#     act_r,act_g,act_b = jnp.matmul(C,act2) #.reshape((3*N_**2,))
+#     act_rgb = jnp.concatenate((act_r,act_g,act_b))
+#     return act_rgb
+
+# def gen_vectors(MODULES,APERTURE):
+#     m = MODULES
+#     M = m**2
+#     A = APERTURE
+#     x = jnp.linspace(-A,A,m) # x = jnp.linspace(-(A-A/m),(A-A/m),m) # CHECK
+#     x_ = jnp.tile(x,(m,1))
+#     x_ = x_.reshape((M,)) # .transpose((1,0))
+#     y = jnp.linspace(-A,A,m) # y = jnp.linspace(-(A-A/m),(A-A/m),m) # CHECK
+#     y_ = jnp.tile(jnp.flip(y).reshape(m,1),(1,m))
+#     y_ = y_.reshape((M,))
+#     v = jnp.vstack([x_,y_]) # [2,M]
+#     return v
+
+# def gen_neurons(NEURONS,APERTURE):
+# 	return jnp.linspace(-APERTURE,APERTURE,NEURONS,dtype=jnp.float32)
+
+# def mod_(val):
+#     return (val+jnp.pi)%(2*jnp.pi)-jnp.pi
+
+# NEURONS = 10
+# COLORS = jnp.array([[255,0,0],[0,255,0],[0,0,255]])
+# APERTURE = jnp.pi
+# th_j = gen_neurons(NEURONS,APERTURE)
+# th_i = gen_neurons(NEURONS,APERTURE)
+
+# params = {
+#     "THETA_X": th_j,
+#     "THETA_Y": th_i,
+#     "SIGMA_A": 0.3,
+#     "COLORS": COLORS
+# }
+
+# pos = jnp.array([3,3])
+# dots = jnp.array([[-1,-1],[0,0],[2,2]])
+# N_DOTS = dots.shape[0]
+# act = neuron_act(params,dots,pos)
+# act = act.reshape((3,NEURONS**2))
+# print('act=',act.shape,act)
+
+# neuron_locs = gen_vectors(NEURONS,APERTURE)
+
+# plt.figure()
+# for ind,n in enumerate(neuron_locs.T):
+#     # print('n=',n,'ind=',ind)
+#     plt.scatter(n[0],n[1],c=np.float32(act[:,ind]),s=np.sum(act[:,ind])*100)
+# for j in range(N_DOTS):
+#     plt.scatter(mod_(dots[j,0]-pos[0]),mod_(dots[j,1]-pos[1]),c=COLORS[j,:]/255,s=200,marker='x')
+#     # plt.scatter(dots,dots,c='r',s=100,marker='x')
+# plt.axis('equal')
+# plt.show()
+##
+# APERTURE = jnp.pi
+# MODULES=3
+N_DOTS=3
+EPOCHS=5
+VMAPS=2
+# POS_0 = rnd.choice(rnd.PRNGKey(0),jnp.linspace(-APERTURE,APERTURE,MODULES),(EPOCHS,VMAPS,2)) #rnd.uniform(ke[3],shape=(EPOCHS,VMAPS,2),minval=-APERTURE,maxval=APERTURE) ### FILL IN; rand array [E,V,2]
+# print(POS_0,POS_0.shape)
+
+# def gen_dots(key,EPOCHS,VMAPS,N_DOTS,APERTURE):
+#     keys = rnd.split(key,N_DOTS)
+#     dots_0 = rnd.uniform(keys[0],shape=(EPOCHS,VMAPS,1,2),minval=jnp.array([0,0]),maxval=jnp.array([APERTURE,APERTURE]))
+#     dots_1 = rnd.uniform(keys[1],shape=(EPOCHS,VMAPS,1,2),minval=jnp.array([0,-APERTURE]),maxval=jnp.array([APERTURE,0]))
+#     dots_2 = rnd.uniform(keys[2],shape=(EPOCHS,VMAPS,1,2),minval=jnp.array([-APERTURE,-APERTURE]),maxval=jnp.array([0,APERTURE]))
+#     dots_tot = jnp.concatenate((dots_0,dots_1,dots_2),axis=2)
+#     # DOTS = rnd.uniform(key,shape=(EPOCHS,VMAPS,N_DOTS,2),minval=-APERTURE,maxval=APERTURE)
+#     return dots_tot
+
+# dots_tot = gen_dots(rnd.PRNGKey(0),10,5,3,jnp.pi)
+# print(dots_tot,dots_tot.shape)
+
+def adder(x,y):
+    return x+y
+
+z=0
+for i in range(5):
+    z = adder(i,z)
+    print(z)
+
+# x = 200
+# y = 100
+
+# print(x//y,range(x//y),range(x//x))
+# for i in range(x//y):
+#     print(i)
+# for j in range(x//x):
+#     print(j)
+
+# print(jnp.linspace(-(2-2/5),(2-2/5),5))
+
+# a = jnp.arange(9).reshape((3,3))
+# b = a[0]
+# c=a[0,:]
+
+# print(a,b,c)
+
+# SELECT = jnp.eye(N_DOTS)[rnd.choice(rnd.PRNGKey(0),N_DOTS,(EPOCHS,VMAPS))]
+# print(SELECT,SELECT.shape)
+
+def function_a(x):
+    return x + 5
+
+def function_b(x):
+    return x ** 2
+
+def dynamic_while_loop(condition_fn):
+    def loop_body(carry):
+        i, x = carry
+        x = x + 3  # Code block that runs every iteration
+
+        # fn = lambda x: function_a(x)
+        fn = jax.lax.cond(x % 3 == 0, function_a, function_b, operand=x)
+
+        new_x = fn(x)
+        return (i + 1, new_x)  # Return the updated carry as a tuple
+
+    initial_carry = (0, 1)  # ((i, x),)
+    _, final_value = jax.lax.while_loop(condition_fn, loop_body, initial_carry)
+    return final_value
+
+def condition_fn(carry):
+    i,x = carry
+    return i > 15  # Example condition for terminating the loop
+
+final_value = dynamic_while_loop(condition_fn)
+print(final_value)
+print('bjhvkjhv')
