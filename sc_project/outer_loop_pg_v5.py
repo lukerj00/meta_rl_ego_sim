@@ -398,7 +398,7 @@ def full_loop(SC,weights,params):
     return losses,stds,other,weights #r_arr,pos_arr,sample_arr,dots_arr
 
 # hyperparams ### CHANGE BELOW (no train_length, now care abt init_steps etc)
-TOT_EPOCHS = 1000 ## 1000
+TOT_EPOCHS = 2000 ## 1000
 # EPOCHS = 1
 PLOTS = 5
 # LOOPS = TOT_EPOCHS//EPOCHS
