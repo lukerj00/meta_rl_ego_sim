@@ -61,16 +61,13 @@ def gen_vectors(MODULES,APERTURE):
 
 @jit
 def neuron_act(COLORS,THETA,SIGMA_A,dots,pos): #e_t_1,th_j,th_i,SIGMA_A,COLORS # COLORS,THETA,SIGMA_A
-    # COLORS = params["COLORS"]
-    # THETA = params["THETA"]
-    # SIGMA_A = params["SIGMA_A"]
-    D_ = COLORS.shape[0]
+    D_ = 1 #COLORS.shape[0]
     N_ = THETA.size
     th_x = jnp.tile(THETA,(N_,1)).reshape((N_**2,))
     th_y = jnp.tile(jnp.flip(THETA).reshape(N_,1),(1,N_)).reshape((N_**2,))
     G_0 = jnp.vstack([th_x,th_y])
     G = jnp.tile(G_0.reshape(2,N_**2,1),(1,1,D_))
-    C = (COLORS/255).transpose((1,0))
+    C = (COLORS/255).T # transpose((1,0))
     E = G.transpose((1,0,2)) - ((dots-pos).T) #.reshape((2,1))
     act = jnp.exp((jnp.cos(E[:,0,:]) + jnp.cos(E[:,1,:]) - 2)/SIGMA_A**2).T #.reshape((D_,N_**2))
     act_r,act_g,act_b = jnp.matmul(C,act) #.reshape((3*N_**2,))
@@ -88,29 +85,16 @@ def loss_obj(dot,sel,pos,SIGMA_R): # R_t
     return R_obj #sigma_e
 
 # @jit
-def sample_action(r,ind,params):
+def sample_action(r,ind,params): # change to key ?
     key = rnd.PRNGKey(ind) ##
     p_ = 1/(1+jnp.exp(-(r-params["SIGMOID_MEAN"])/params["SIGMA_S"])) # (shifted sigmoid)
     return jnp.int32(rnd.bernoulli(key,p=p_)) # 1=action, 0=plan
 
-@jit
-def sample_vec_rand(SC,ind):
-    ID_ARR,VEC_ARR,H1VEC_ARR = SC
-    h1vec_t = H1VEC_ARR[:,ind] # rnd.choice(key,params["M"])]
-    vec_t = VEC_ARR[:,ind] # rnd.choice(key,params["M"])]
-    return h1vec_t,vec_t
-
 # @partial(jax.jit,static_argnums=(1,2,3))
 def gen_dots(key,VMAPS,N_DOTS,APERTURE):
-    keys = rnd.split(key,N_DOTS)
-    dots_0 = rnd.uniform(keys[0],shape=(VMAPS,1,2),minval=-jnp.pi,maxval=jnp.pi)#minval=jnp.array([APERTURE/4,APERTURE/4]),maxval=jnp.array([3*APERTURE/4,3*APERTURE/4]))
-    dots_1 = rnd.uniform(keys[1],shape=(VMAPS,1,2),minval=-jnp.pi,maxval=jnp.pi)#minval=jnp.array([APERTURE/4,-APERTURE/4]),maxval=jnp.array([3*APERTURE/4,-3*APERTURE/4]))
-    dots_2 = rnd.uniform(keys[2],shape=(VMAPS,1,2),minval=-jnp.pi,maxval=jnp.pi)#minval=jnp.array([-3*APERTURE/4,-APERTURE]),maxval=jnp.array([-APERTURE/4,APERTURE]))
-    dots_tot = jnp.concatenate((dots_0,dots_1,dots_2),axis=1)
-    # DOTS = rnd.uniform(key,shape=(EPOCHS,VMAPS,N_DOTS,2),minval=-APERTURE,maxval=APERTURE)
-    return dots_tot[:,:N_DOTS,:]
+    return rnd.uniform(key,shape=(VMAPS,1,2),minval=-jnp.pi,maxval=jnp.pi) #minval=jnp.array([APERTURE/4,APERTURE/4]),maxval=jnp.array([3*APERTURE/4,3*APERTURE/4]))
 
-def new_params(params, e): # Modify in place
+def new_params(params,e): # Modify in place
     VMAPS = params["VMAPS"]
     H_S = params["H_S"]
     H_R = params["H_R"]
@@ -121,14 +105,15 @@ def new_params(params, e): # Modify in place
     M = params["M"]
     T = params["TRIAL_LENGTH"]
     N_DOTS = params["N_DOTS"]
-    ki = rnd.split(rnd.PRNGKey(e), num=10)
+    ki = rnd.split(rnd.PRNGKey(e),num=10)
     params["HS_0"] = jnp.sqrt(INIT_S/(H_S))*rnd.normal(ki[0],(VMAPS,H_S))
     params["HR_0"] = jnp.zeros((VMAPS,H_R))
     params["HP_0"] = jnp.sqrt(INIT_P/(H_P))*rnd.normal(ki[1],(VMAPS,H_P))
     params["POS_0"] = rnd.choice(ke[2],jnp.arange(-APERTURE,APERTURE,0.01),(VMAPS,2))
-    params["DOTS"] = gen_dots(ki[3],VMAPS,N_DOTS,APERTURE)
-    params["SELECT"] = jnp.eye(N_DOTS)[rnd.choice(ki[4],N_DOTS,(VMAPS,))]
-    params["IND"] = rnd.randint(ki[5],(VMAPS,T),minval=0,maxval=M,dtype=jnp.int32)
+    params["DOT"] = gen_dots(ki[3],VMAPS,N_DOTS,APERTURE)
+    params["DOT_VEC"] = gen_dots(ki[4],VMAPS,N_DOTS,APERTURE)
+    params["SELECT"] = jnp.eye(N_DOTS)[rnd.choice(ki[5],N_DOTS,(VMAPS,))]
+    params["IND"] = rnd.randint(ki[6],(VMAPS,T),minval=0,maxval=M,dtype=jnp.int32)
 
 # @partial(jax.jit,static_argnums=(1,))
 def kl_loss(policy,consts):
@@ -307,14 +292,14 @@ def dynamic_scan(carry_0):
     scan_body._clear_cache()
     return t,args_final,arrs_stack
 
-def body_fnc(SC,hs_t_1,pos_t_1,dots,sel,ind,weights_s,params): # PLAN_ITS
-    rp_t_1 = 0
-    rm_t_1 = 1
-    r_tot_1 = 0
+def body_fnc(SC,hs_0,pos_0,dot_0,dot_vec_0,key_0,sel,ind,weights_s,params): # PLAN_ITS
+    rp_0 = 0
+    rm_0 = 1
+    r_tot_0 = 0
     consts = params["ALPHA"],params["BETA"],params["DOT_SPEED"],params["TEST_LENGTH"],params["NONE_PLAN"],params["SIGMA_R"],params["COLORS"],params["THETA"],params["SIGMA_A"],params["PRIOR_STAT"],params["PRIOR_PLAN"],params["C_MOVE"],params["C_PLAN"]
-    v_t = neuron_act(params["COLORS"],params["THETA"],params["SIGMA_A"],dots,pos_t_1)
-    r_t = loss_obj(dots,sel,pos_t_1,params["SIGMA_R"])###
-    args_0 = (hs_t_1,pos_t_1,dots,sel,ind,rp_t_1,rm_t_1,v_t,r_t,r_tot_1)
+    v_0 = neuron_act(params["COLORS"],params["THETA"],params["SIGMA_A"],dot_0,pos_0)
+    r_0 = loss_obj(dot_0,sel,pos_0,params["SIGMA_R"])###
+    args_0 = (hs_0,pos_0,dot_0,dot_vec_0,sel,ind,rp_0,rm_0,v_0,r_0,r_tot_0,key_0)
     theta = (SC,weights_s,consts)
     t,args_final,arrs_stack = dynamic_scan((0,args_0,theta)) # (hs_t_1,hr_t_1,hv_t_1,pos_t_1,dots,sel,ind,rp_t_1,rm_t_1,v_t_1,r_t_1,r_tot_1)
     lp_arr,r_arr,rt_arr,val_arr,sample_arr,vec_kl_arr,act_kl_arr = (arrs_stack[:,i] for i in range(7)) #,t_arr
@@ -322,9 +307,9 @@ def body_fnc(SC,hs_t_1,pos_t_1,dots,sel,ind,weights_s,params): # PLAN_ITS
     dot_arr = arrs_stack[:,9:] 
     return lp_arr,r_arr,rt_arr,val_arr,sample_arr,vec_kl_arr,act_kl_arr,pos_arr,dot_arr #,t_arr #
 
-def pg_obj(SC,hs_0,pos_0,dot_0,sel,ind,weights_s,params):
-    body_fnc_vmap = jax.vmap(body_fnc,in_axes=(None,0,0,0,0,0,0,0,None,None,None),out_axes=(1,1,1,1,1,1,1,1,1,1))
-    lp_arr,r_arr,rt_arr,val_arr,sample_arr,vec_kl_arr,act_kl_arr,pos_arr,dot_arr = body_fnc_vmap(SC,hs_0,pos_0,dot_0,sel,ind,weights_s,params) # ,params["PLAN_ITS"] [TEST_LENGTH,VMAPS] arrs_(lp,r),aux
+def pg_obj(SC,hs_0,pos_0,dot_0,dot_vec_0,key_0,sel,ind,weights_s,params):
+    body_fnc_vmap = jax.vmap(body_fnc,in_axes=(None,0,0,0,0,None,0,0,None,None),out_axes=(1,1,1,1,1,1,1,1,1))
+    lp_arr,r_arr,rt_arr,val_arr,sample_arr,vec_kl_arr,act_kl_arr,pos_arr,dot_arr = body_fnc_vmap(SC,hs_0,pos_0,dot_0,dot_vec_0,key_0,sel,ind,weights_s,params) # ,params["PLAN_ITS"] [TEST_LENGTH,VMAPS] arrs_(lp,r),aux
     r_to_go = jnp.cumsum(r_arr.T[:,::-1],axis=1)[:,::-1] # reward_to_go(r_arr.T)
     adv_arr = r_to_go - val_arr.T
     adv_norm = (adv_arr-jnp.mean(adv_arr,axis=None))/jnp.std(adv_arr,axis=None) ###
@@ -363,11 +348,13 @@ def train_loop(SC,weights,params):
         new_params(params,e)
         hs_0 = params["HS_0"]
         pos_0 = params["POS_0"]
-        dot_0 = params["DOTS"]
+        dot_0 = params["DOT"]
+        dot_vec_0 = params["DOT_VEC"]
         sel = params["SELECT"]
         ind = params["IND"]
-        loss_grad = jax.value_and_grad(pg_obj,argnums=9,has_aux=True)
-        (loss,(losses,stds,other)),grads = loss_grad(SC,hs_0,pos_0,dot_0,sel,ind,weights_s,params) # (loss,aux),grads
+        key_0 = rnd.PRNGKey(e)
+        loss_grad = jax.value_and_grad(pg_obj,argnums=6,has_aux=True)
+        (loss,(losses,stds,other)),grads = loss_grad(SC,hs_0,pos_0,dot_0,dot_vec_0,key_0,sel,ind,weights_s,params) # (loss,aux),grads
         leaves,_ = jax.tree_util.tree_flatten(grads)
         # jax.debug.print("all_grads={}",grads)
         # jax.debug.print("max_grad={}",jnp.max(jnp.concatenate(jnp.array(leaves)),axis=None))
@@ -412,10 +399,12 @@ def test_loop(SC,weights_s,params):
         new_params(params,e)
         hs_0 = params["HS_0"]
         pos_0 = params["POS_0"]
-        dot_0 = params["DOTS"]
+        dot_0 = params["DOT"]
+        dot_vec_0 = params["DOT_VEC"]
         sel = params["SELECT"]
         ind = params["IND"]
-        loss,(losses,stds,other) = pg_obj(SC,hs_0,pos_0,dot_0,sel,ind,weights_s,params)
+        key_0 = rnd.PRNGKey(e)
+        loss,(losses,stds,other) = pg_obj(SC,hs_0,pos_0,dot_0,dot_vec_0,key_0,sel,ind,weights_s,params)
         (actor_loss,critic_loss,vec_kl_loss,act_kl_loss,r_tot,r_true,plan_rate) = losses
         (sem_loss,std_actor,std_critic,std_act_kl,std_vec_kl,std_r,std_plan_rate) = stds
         (r_arr,rt_arr,sample_arr,pos_arr,dot_arr) = other
@@ -473,13 +462,14 @@ LAMBDA_ACT_KL = 0.5
 SIGMOID_MEAN = 0.5
 APERTURE = jnp.pi/2 #
 THETA = jnp.linspace(-(APERTURE-APERTURE/NEURONS),(APERTURE-APERTURE/NEURONS),NEURONS)
-COLORS = jnp.array([[255,255,255]]) ### ,[255,0,0],[0,255,0],[0,0,255],[100,100,100]])
+COLORS = jnp.array([[255,255,255]]).reshape((1,3)) ### ,[255,0,0],[0,255,0],[0,0,255],[100,100,100]])
 N_DOTS = 1 #COLORS.shape[0]
 HS_0 = None
 HP_0 = None #jnp.sqrt(INIT/(H_S))*rnd.normal(ke[4],(EPOCHS,VMAPS,H_S)) # [E,V,H_S]
 HR_0 = None #jnp.sqrt(INIT/(H_S))*rnd.normal(ke[4],(EPOCHS,VMAPS,H_S)) # [E,V,H_S]
 POS_0 = None #rnd.choice(ke[3],jnp.arange(-APERTURE,APERTURE,0.01),(EPOCHS,VMAPS,2)) #jnp.array([-0.5,0.5]) #rnd.uniform(ke[3],shape=(EPOCHS,VMAPS,2),minval=-APERTURE,maxval=APERTURE) ### FILL IN; rand array [E,V,2]
-DOTS = None #gen_dots(ke[0],EPOCHS,VMAPS,N_DOTS,APERTURE) #rnd.uniform(ke[6],shape=(EPOCHS,VMAPS,N_DOTS,2),minval=-APERTURE,maxval=APERTURE) # jnp.array([[-2,-2],[0,0],[2,2]]) #rnd.uniform(ke[6],shape=(EPOCHS,VMAPS,N_DOTS,2),minval=-APERTURE,maxval=APERTURE) #gen_dots(ke[0],EPOCHS,VMAPS,N_DOTS,APERTURE) jnp.tile(jnp.array([1,2]).reshape(1,1,1,2),(EPOCHS,VMAPS,1,2)) #rnd.uniform(ke[6],shape=(EPOCHS,VMAPS,N_DOTS,2),minval=-APERTURE,maxval=APERTURE) #gen_dots(ke[0],EPOCHS,VMAPS,N_DOTS,APERTURE)
+DOT = None #gen_dots(ke[0],EPOCHS,VMAPS,N_DOTS,APERTURE) #rnd.uniform(ke[6],shape=(EPOCHS,VMAPS,N_DOTS,2),minval=-APERTURE,maxval=APERTURE) # jnp.array([[-2,-2],[0,0],[2,2]]) #rnd.uniform(ke[6],shape=(EPOCHS,VMAPS,N_DOTS,2),minval=-APERTURE,maxval=APERTURE) #gen_dots(ke[0],EPOCHS,VMAPS,N_DOTS,APERTURE) jnp.tile(jnp.array([1,2]).reshape(1,1,1,2),(EPOCHS,VMAPS,1,2)) #rnd.uniform(ke[6],shape=(EPOCHS,VMAPS,N_DOTS,2),minval=-APERTURE,maxval=APERTURE) #gen_dots(ke[0],EPOCHS,VMAPS,N_DOTS,APERTURE)
+DOT_VEC = None
 SELECT = None #jnp.eye(N_DOTS)[rnd.choice(ke[1],N_DOTS,(EPOCHS,VMAPS))]
 IND = None
 ID_ARR = rnd.permutation(ke[5],jnp.arange(0,M),independent=True)
@@ -532,7 +522,8 @@ params = {
     "VMAPS" : VMAPS,
     "PLOTS" : PLOTS,
     "N_DOTS" : N_DOTS,
-    "DOTS" : DOTS,
+    "DOT" : DOT,
+    "DOT_VEC" : DOT_VEC,
     "THETA" : THETA,
     "COLORS" : COLORS,
     # "SAMPLES" : SAMPLES,
