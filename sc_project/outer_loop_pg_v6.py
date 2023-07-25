@@ -570,8 +570,8 @@ weights = {
 }
 
 ###
-*_,p_weights = load_('/sc_project/pkl/forward_v9_225_17_06-2358.pkl') # /pkl/forward_v8M_08_06-1857.pkl
-*_,r_weights = load_('/sc_project/pkl/value_v5_225_13_06-1849.pkl') # sc_project/pkl/value_v5_225_10_06-0722.pkl /homes/lrj34/projects/meta_rl_ego_sim/sc_project/pkl/value_v5_225_09_06-1830.pkl
+*_,p_weights = load_('/sc_project/pkl_sc/forward_v9_225_17_06-2358.pkl') # /pkl/forward_v8M_08_06-1857.pkl
+*_,r_weights = load_('/sc_project/pkl_sc/value_v5_225_13_06-1849.pkl') # sc_project/pkl/value_v5_225_10_06-0722.pkl /homes/lrj34/projects/meta_rl_ego_sim/sc_project/pkl/value_v5_225_09_06-1830.pkl
 weights['p'] = p_weights
 weights['r'] = r_weights
 ###
