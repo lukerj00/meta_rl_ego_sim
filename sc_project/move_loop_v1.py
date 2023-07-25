@@ -434,10 +434,10 @@ def full_loop(SC,weights,params):
     return losses,stds,weights_s,test_data
 
 # hyperparams ###
-TOT_EPOCHS = 10 # 2000 ## 1000
+TOT_EPOCHS = 1000 # 2000 ## 1000
 TESTS = 1
 PLOTS = 5
-VMAPS = 1000 ## 2000,500,1100,1000,800,500
+VMAPS = 1500 ## 2000,500,1100,1000,800,500
 LAMBDA_CRITIC = 1 # 0.01
 LAMBDA_VEC_KL = 1 #0.1 #0.5
 LAMBDA_ACT_KL = 0.5
@@ -617,7 +617,7 @@ legend_handles = [
 ]
 
 fig,axes = plt.subplots(2,3,figsize=(14,9))
-title__ = f'EPOCHS={TOT_EPOCHS}, VMAPS={VMAPS}, TEST_LENGTH={TEST_LENGTH}, INIT_LENGTH={INIT_LENGTH}, update={LR:.6f}, WD={WD:.5f} \n C_MOVE={C_MOVE:.2f}, C_PLAN={"N/A"}, L_CRITIC={LAMBDA_CRITIC}, L_VEC_KL={LAMBDA_VEC_KL}, L_ACT_KL={LAMBDA_ACT_KL}, PRIOR_PLAN={PRIOR_PLAN}, PRIOR_STAT={PRIOR_STAT}, ALPHA={ALPHA}, BETA={BETA}'
+title__ = f'EPOCHS={TOT_EPOCHS}, VMAPS={VMAPS}, TEST_LENGTH={TEST_LENGTH}, INIT_LENGTH={INIT_LENGTH}, update={LR:.6f}, WD={WD:.5f}, GRAD_CLIP{GRAD_CLIP} \n C_MOVE={C_MOVE:.2f}, C_PLAN={"N/A"}, L_CRITIC={LAMBDA_CRITIC}, L_VEC_KL={LAMBDA_VEC_KL}, L_ACT_KL={LAMBDA_ACT_KL}, PRIOR_PLAN={PRIOR_PLAN}, ALPHA={ALPHA}, BETA={BETA}'
 plt.suptitle('move_loop_training_v1, '+title__,fontsize=10)
 line_r_tot,*_ = axes[0,0].errorbar(np.arange(TOT_EPOCHS),r_tot_arr,yerr=std_r_arr/2,color='black',ecolor='lightgray',elinewidth=2,capsize=0,linewidth=0.8)
 axes[0,0].set_xlabel('iteration')
@@ -656,8 +656,8 @@ path_ = str(Path(__file__).resolve().parents[1]) + '/sc_project/figs_move/'
 dt = datetime.now().strftime("%d_%m-%H%M%S")
 plt.savefig(path_+'move_loop_training_v1_'+dt+'.png')
 
-save_pkl((weights_s),'move_loop_v1_')
-save_data((test_data),'move_loop_v1_')
+save_pkl((weights_s),'move_loop_v1')
+save_data((test_data),'move_loop_v1')
 
 # PLOT TESTING DATA
 # r_init_arr = r_init_arr[-PLOTS:,:] # [PLOTS,TEST_LENGTH]
