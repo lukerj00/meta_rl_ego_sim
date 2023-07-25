@@ -40,7 +40,13 @@ def load_(str_):
     return param_
 
 def save_pkl(param,str_):  # can't jit (can't pickle jax tracers)
-	path_ = str(Path(__file__).resolve().parents[1]) + '/sc_project/pkl/' # '/scratch/lrj34/'
+	path_ = str(Path(__file__).resolve().parents[1]) + '/sc_project/pkl_sc/' # '/scratch/lrj34/'
+	dt = datetime.now().strftime("%d_%m-%H%M%S")
+	with open(path_+str_+'_'+dt+'.pkl','wb') as file:
+		pickle.dump(param,file,pickle.HIGHEST_PROTOCOL)
+
+def save_data(param,str_):  # can't jit (can't pickle jax tracers)
+	path_ = str(Path(__file__).resolve().parents[1]) + '/sc_project/test_data/' # '/scratch/lrj34/'
 	dt = datetime.now().strftime("%d_%m-%H%M%S")
 	with open(path_+str_+'_'+dt+'.pkl','wb') as file:
 		pickle.dump(param,file,pickle.HIGHEST_PROTOCOL)
@@ -428,12 +434,12 @@ def full_loop(SC,weights,params):
     return losses,stds,weights_s,test_data
 
 # hyperparams ###
-TOT_EPOCHS = 2000 # 2000 ## 1000
+TOT_EPOCHS = 10 # 2000 ## 1000
 TESTS = 1
 PLOTS = 5
 VMAPS = 1000 ## 2000,500,1100,1000,800,500
 LAMBDA_CRITIC = 1 # 0.01
-LAMBDA_VEC_KL = 0.1 #0.5
+LAMBDA_VEC_KL = 1 #0.1 #0.5
 LAMBDA_ACT_KL = 0.5
 LR = 0.0001 # 0.001,0.0008,0.0005,0.001,0.000001,0.0001
 WD = 0.0001 # 0.0001
@@ -618,6 +624,7 @@ axes[0,0].set_xlabel('iteration')
 axes[0,0].set_ylabel('reward')
 ax00_2 = axes[0,0].twinx()
 line_r_true, = ax00_2.plot(np.arange(TOT_EPOCHS),r_true_arr,color='blue')
+ax00_2.set_ylim(axes[0,0].get_ylim())
 ax00_2.legend([line_r_tot,line_r_true],['r_tot','r_true'])
 axes[0,1].errorbar(np.arange(TOT_EPOCHS),plan_rate_arr,yerr=std_plan_rate_arr/2,color='black',ecolor='lightgray',elinewidth=2,capsize=0,linewidth=0.8)
 axes[0,1].set_xlabel('iteration')
@@ -649,7 +656,8 @@ path_ = str(Path(__file__).resolve().parents[1]) + '/sc_project/figs_move/'
 dt = datetime.now().strftime("%d_%m-%H%M%S")
 plt.savefig(path_+'move_loop_training_v1_'+dt+'.png')
 
-save_pkl((test_data,weights_s),'move_loop_v1_')
+save_pkl((weights_s),'move_loop_v1_')
+save_data((test_data),'move_loop_v1_')
 
 # PLOT TESTING DATA
 # r_init_arr = r_init_arr[-PLOTS:,:] # [PLOTS,TEST_LENGTH]
