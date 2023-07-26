@@ -336,7 +336,7 @@ def pg_obj(SC,hs_0,pos_0,dot_0,dot_vec_0,key_0,sel,ind,weights_s,params):
     std_vec_kl = jnp.std(vec_kl_arr,axis=None)
     act_kl_loss = jnp.mean(act_kl_arr,axis=None)
     std_act_kl = jnp.std(act_kl_arr,axis=None)
-    tot_loss = actor_loss + params["LAMBDA_CRITIC"]*critic_loss #+ params["LAMBDA_VEC_KL"]*vec_kl_loss #+ params["LAMBDA_ACT_KL"]*act_kl_loss
+    tot_loss = actor_loss + params["LAMBDA_CRITIC"]*critic_loss + params["LAMBDA_VEC_KL"]*vec_kl_loss #+ params["LAMBDA_ACT_KL"]*act_kl_loss
     std_loss = (std_actor**2+(params["LAMBDA_CRITIC"]**2)*std_critic**2+(params["LAMBDA_VEC_KL"]**2)*(std_vec_kl**2+std_act_kl**2))**0.5
     sem_loss = std_loss/(params["VMAPS"]**0.5)
     r_tot = jnp.mean(r_to_go[:,0])
@@ -425,7 +425,7 @@ def test_loop(SC,weights_s,params):
     # losses = (loss_arr,actor_loss_arr,critic_loss_arr,vec_kl_arr,act_kl_arr,r_tot_arr,plan_rate_arr)
     # stds = (sem_loss_arr,std_actor_arr,std_critic_arr,std_act_kl_arr,std_vec_kl_arr,std_r_arr,std_plan_rate_arr)
     # other = (r_arr,rt_arr,sample_arr,pos_arr,dot_arr,sel)
-    test_data = (r_arr,rt_arr,sample_arr,pos_arr,dot_arr,sel)
+    test_data = (r_arr,rt_arr,sample_arr,pos_arr,dot_arr)
     return test_data
 
 def full_loop(SC,weights,params):
@@ -434,7 +434,7 @@ def full_loop(SC,weights,params):
     return losses,stds,weights_s,test_data
 
 # hyperparams ###
-TOT_EPOCHS = 1000 # 2000 ## 1000
+TOT_EPOCHS = 10000 # 2000 ## 1000
 TESTS = 1
 PLOTS = 5
 VMAPS = 1500 ## 2000,500,1100,1000,800,500
@@ -472,7 +472,7 @@ SIGMA_A = 0.5 # 0.5
 SIGMA_S = 0.1
 ALPHA = 0.7
 BETA = 0.3
-DOT_SPEED = 0.2
+DOT_SPEED = 0.2 # 1 0.5 0.2
 SIGMOID_MEAN = 0.5
 APERTURE = jnp.pi/2 #
 THETA = jnp.linspace(-(APERTURE-APERTURE/NEURONS),(APERTURE-APERTURE/NEURONS),NEURONS)
@@ -606,7 +606,7 @@ losses,stds,weights_s,test_data = full_loop(SC,weights,params) # (loss_arr,actor
 print("Sim time: ",datetime.now()-startTime,"s/epoch=",((datetime.now()-startTime)/TOT_EPOCHS).total_seconds())
 (loss_arr,actor_loss_arr,critic_loss_arr,vec_kl_arr,act_kl_arr,r_tot_arr,r_true_arr,plan_rate_arr) = losses
 (sem_loss_arr,std_actor_arr,std_critic_arr,std_act_kl_arr,std_vec_kl_arr,std_r_arr,std_plan_rate_arr) = stds
-(r_arr,rt_arr,sample_arr,pos_arr,dot_arr,sel) = test_data
+(r_arr,rt_arr,sample_arr,pos_arr,dot_arr) = test_data
 print('pos_arr=',pos_arr.shape,pos_arr,'dot_arr=',dot_arr.shape,dot_arr)
 
 # plot loss_arr:
@@ -617,7 +617,7 @@ legend_handles = [
 ]
 
 fig,axes = plt.subplots(2,3,figsize=(14,9))
-title__ = f'EPOCHS={TOT_EPOCHS}, VMAPS={VMAPS}, TEST_LENGTH={TEST_LENGTH}, INIT_LENGTH={INIT_LENGTH}, update={LR:.6f}, WD={WD:.5f}, GRAD_CLIP{GRAD_CLIP} \n C_MOVE={C_MOVE:.2f}, C_PLAN={"N/A"}, L_CRITIC={LAMBDA_CRITIC}, L_VEC_KL={LAMBDA_VEC_KL}, L_ACT_KL={LAMBDA_ACT_KL}, PRIOR_PLAN={PRIOR_PLAN}, ALPHA={ALPHA}, BETA={BETA}'
+title__ = f'EPOCHS={TOT_EPOCHS}, VMAPS={VMAPS}, TEST_LENGTH={TEST_LENGTH}, INIT_LENGTH={INIT_LENGTH}, update={LR:.6f}, WD={WD:.5f}, GRAD_CLIP={GRAD_CLIP} \n C_MOVE={C_MOVE:.2f}, C_PLAN={"N/A"}, L_CRITIC={LAMBDA_CRITIC}, L_VEC_KL={LAMBDA_VEC_KL}, L_ACT_KL={LAMBDA_ACT_KL}, PRIOR_PLAN={PRIOR_PLAN}, ALPHA={ALPHA}, BETA={BETA}, DOT_SPEED={DOT_SPEED}, SIGMA_R={SIGMA_R}'
 plt.suptitle('move_loop_training_v1, '+title__,fontsize=10)
 line_r_tot,*_ = axes[0,0].errorbar(np.arange(TOT_EPOCHS),r_tot_arr,yerr=std_r_arr/2,color='black',ecolor='lightgray',elinewidth=2,capsize=0,linewidth=0.8)
 axes[0,0].set_xlabel('iteration')
@@ -656,8 +656,8 @@ path_ = str(Path(__file__).resolve().parents[1]) + '/sc_project/figs_move/'
 dt = datetime.now().strftime("%d_%m-%H%M%S")
 plt.savefig(path_+'move_loop_training_v1_'+dt+'.png')
 
-save_pkl((weights_s),'move_loop_v1')
-save_data((test_data),'move_loop_v1')
+save_pkl((weights_s),'move_loop_v1_weights')
+save_data((test_data),'move_loop_v1_data')
 
 # PLOT TESTING DATA
 # r_init_arr = r_init_arr[-PLOTS:,:] # [PLOTS,TEST_LENGTH]
