@@ -33,7 +33,7 @@ import scipy
 import gc
 
 def load_(str_):
-    path_ = str(Path(__file__).resolve().parents[1]) # .../meta_rl_ego_sim/
+    path_ = str(Path(__file__).resolve().parents[1]) + '/sc_project/pkl_sc/' # .../meta_rl_ego_sim/
     with open(path_+str_,'rb') as file_:
         # param = pickle.load(file_)
         param_ = jnp.load(file_,allow_pickle=True)
@@ -149,7 +149,7 @@ def new_dot(dot_t,dot_vec,r_t,ALPHA,BETA,DOT_SPEED,key_t_1):
         return dot_t,dot_vec,key_t_1
     p_ = ALPHA*(r_t - BETA*(r_t)**2)
     sample_ = rnd.bernoulli(key_t_1,p=p_)
-    dot_t,dot_vec,key_t_1 = jax.lax.cond(sample_ == 2,gen_dot,step_dot,(dot_t,dot_vec,DOT_SPEED,key_t_1))###
+    dot_t,dot_vec,key_t_1 = jax.lax.cond(sample_ == 1,gen_dot,step_dot,(dot_t,dot_vec,DOT_SPEED,key_t_1))###
     return dot_t,dot_vec,key_t_1
 
 @jit
@@ -470,8 +470,8 @@ N = 3*(NEURONS**2)
 SIGMA_R = 0.8 # 1.2,1.5,1
 SIGMA_A = 0.5 # 0.5
 SIGMA_S = 0.1
-ALPHA = 0.7
-BETA = 0.3
+ALPHA = 0.5 # 0.7
+BETA = 0.2 # 0.3
 DOT_SPEED = 0.2 # 1 0.5 0.2
 SIGMOID_MEAN = 0.5
 APERTURE = jnp.pi/2 #
@@ -600,6 +600,12 @@ weights = {
     # }
 }
 
+weights_file = ''
+weights_s = load_(weights_file)
+weights = {
+    "s" : weights_s
+    }
+
 ###
 startTime = datetime.now()
 losses,stds,weights_s,test_data = full_loop(SC,weights,params) # (loss_arr,actor_loss_arr,critic_loss_arr,kl_loss_arr,vec_kl_arr,act_kl_arr,r_std_arr,l_sem_arr,plan_rate_arr,avg_tot_r_arr,avg_pol_kl_arr,r_init_arr,r_arr,rt_arr,sample_arr,pos_init_arr,pos_arr,dots,sel)
@@ -617,7 +623,7 @@ legend_handles = [
 ]
 
 fig,axes = plt.subplots(2,3,figsize=(14,9))
-title__ = f'EPOCHS={TOT_EPOCHS}, VMAPS={VMAPS}, TEST_LENGTH={TEST_LENGTH}, INIT_LENGTH={INIT_LENGTH}, update={LR:.6f}, WD={WD:.5f}, GRAD_CLIP={GRAD_CLIP} \n C_MOVE={C_MOVE:.2f}, C_PLAN={"N/A"}, L_CRITIC={LAMBDA_CRITIC}, L_VEC_KL={LAMBDA_VEC_KL}, L_ACT_KL={LAMBDA_ACT_KL}, PRIOR_PLAN={PRIOR_PLAN}, ALPHA={ALPHA}, BETA={BETA}, DOT_SPEED={DOT_SPEED}, SIGMA_R={SIGMA_R}'
+title__ = f'EPOCHS={TOT_EPOCHS}, VMAPS={VMAPS}, TEST_LENGTH={TEST_LENGTH}, INIT_LENGTH={INIT_LENGTH}, update={LR:.6f}, WD={WD:.5f}, GRAD_CLIP={GRAD_CLIP} TP={"true"} \n C_MOVE={C_MOVE:.2f}, C_PLAN={"N/A"}, L_CRITIC={LAMBDA_CRITIC}, L_VEC_KL={LAMBDA_VEC_KL}, L_ACT_KL={LAMBDA_ACT_KL}, PRIOR_PLAN={PRIOR_PLAN}, ALPHA={ALPHA}, BETA={BETA}, DOT_SPEED={DOT_SPEED}, SIGMA_R={SIGMA_R}'
 plt.suptitle('move_loop_training_v1, '+title__,fontsize=10)
 line_r_tot,*_ = axes[0,0].errorbar(np.arange(TOT_EPOCHS),r_tot_arr,yerr=std_r_arr/2,color='black',ecolor='lightgray',elinewidth=2,capsize=0,linewidth=0.8)
 axes[0,0].set_xlabel('iteration')
