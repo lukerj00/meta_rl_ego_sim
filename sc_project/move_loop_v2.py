@@ -1,7 +1,5 @@
-# same as v1 but with load + pos_plan/switch_arr output
+# load, plan/switch
 
-# -*- coding: utf-8 -*-
-# simple test using constant policy
 """
 Created on Wed May 10 2023
 
@@ -273,7 +271,7 @@ def dynamic_scan(carry_0):
         lp_t = lp_vec + lp_rpm # lp_arr = lp_arr.at[t].set(lp_vec+lp_rpm) # lp_arr[t] = lp_vec+lp_rpm # lp_arr = lp_arr.at[t].set(lp_vec+lp_rpm) # jnp.append(arrs[0],lp_vec+lp_rpm)
         args_t = (hs_t,pos_t_1,dot_t_1,dot_vec,sel,ind,rp_t,rm_t,v_t_1,r_t_1,r_tot_1,key_t_1) # update rp/rm
         carry_args = (h1vec_t,vec_t,t,args_t,lp_t,theta,vec_kl,act_kl,val_t) # (lp_arr,r_arr,sample_arr) assemble carry with sampled vecs and updated args
-        t,args_t,arrs_t = jax.lax.cond(rp_t == 1,plan_fnc,move_fnc,(carry_args))###DEBUG;CHANGE
+        t,args_t,arrs_t = jax.lax.cond(rp_t == 2,plan_fnc,move_fnc,(carry_args))###DEBUG;CHANGE
         return (t,args_t,theta),arrs_t
     def plan_fnc(carry_args):
         (h1vec_t,vec_t,t,args_t,lp_t,theta,vec_kl,act_kl,val_t) = carry_args
@@ -334,7 +332,7 @@ def pg_obj(SC,hs_0,pos_0,dot_0,dot_vec_0,key_0,sel,ind,weights_s,params):
     std_vec_kl = jnp.std(vec_kl_arr,axis=None)
     act_kl_loss = jnp.mean(act_kl_arr,axis=None)
     std_act_kl = jnp.std(act_kl_arr,axis=None)
-    tot_loss = actor_loss + params["LAMBDA_CRITIC"]*critic_loss + params["LAMBDA_VEC_KL"]*vec_kl_loss + params["LAMBDA_ACT_KL"]*act_kl_loss
+    tot_loss = actor_loss + params["LAMBDA_CRITIC"]*critic_loss + params["LAMBDA_VEC_KL"]*vec_kl_loss # + params["LAMBDA_ACT_KL"]*act_kl_loss
     std_loss = (std_actor**2+(params["LAMBDA_CRITIC"]**2)*std_critic**2+(params["LAMBDA_VEC_KL"]**2)*(std_vec_kl**2+std_act_kl**2))**0.5
     sem_loss = std_loss/(params["VMAPS"]**0.5)
     r_tot = jnp.mean(r_to_go[:,0])
@@ -393,7 +391,7 @@ def train_loop(SC,weights,params):
         print("e=",e,"r_tot=",r_tot,"r_true=",r_true,"std_r=",std_r,"loss=",loss,"sem_loss=",sem_loss)
         print("actor_loss=",actor_loss,"std_actor=",std_actor,"critic_loss=",critic_loss,"std_critic=",std_critic)
         print("vec_kl=",vec_kl_loss,"std_vec=",std_vec_kl,"act_kl=",act_kl_loss,"std_act=",std_act_kl,"plan=",plan_rate,'\n')
-        print("switch=",jnp.mean(switch_arr))
+        print("switch=",jnp.mean(switch_arr)) ### format...
         if e == E-1:
             pass
         ### loss.block_until_ready()
@@ -433,17 +431,17 @@ def full_loop(SC,weights,params):
     return losses,stds,weights_s,test_data
 
 # hyperparams ###
-### REMEMBER TO LABEL SIM
-TOT_EPOCHS = 1000 # 2000 ## 1000
+### REMEMBER TO LABEL SIM; eg plan=false -> self,==,twinx,fig,obj
+TOT_EPOCHS = 3000 # 2000 ## 1000
 TESTS = 1
 PLOTS = 5
-VMAPS = 1500 ## 2000,500,1100,1000,800,500
+VMAPS = 3000 ## 2000,500,1100,1000,800,500
 LAMBDA_CRITIC = 1 # 0.01
 LAMBDA_VEC_KL = 1 #0.1 #0.5
 LAMBDA_ACT_KL = 2 # 1 0.5
-LR = 0.0001 # 0.001,0.0008,0.0005,0.001,0.000001,0.0001
+LR = 0.00002 # 0.0001,0.001,0.0008,0.0005,0.001,0.000001,0.0001
 WD = 0.0001 # 0.0001
-GRAD_CLIP = 0.3 #0.5 1.0
+GRAD_CLIP = 0.3 #0.3 0.5 1.0
 INIT_S = 2
 INIT_P = 2 # 0.5
 INIT_R = 3 # 5,2
@@ -452,12 +450,12 @@ H_P = 500 # 500,300
 H_R = 100
 PLAN_ITS = 10
 NONE_PLAN = jnp.zeros((PLAN_ITS,)) #[None] * PLAN_ITS
-TRIAL_LENGTH = 30 ## 90 120 100
+TRIAL_LENGTH = 90 ## 30 90 120 100
 INIT_LENGTH = 0 ###
 TEST_LENGTH = TRIAL_LENGTH - INIT_LENGTH
 
 # ENV/sc params
-### REMEMBER TO LABEL SIM
+### REMEMBER TO LABEL SIM; eg plan=false -> self,==,twinx,fig,obj
 ke = rnd.split(rnd.PRNGKey(0),10)
 C_MOVE = 0.0 #0.28 0.30
 C_PLAN = 0.0 # 0.05 # 0.0
@@ -471,8 +469,8 @@ N = 3*(NEURONS**2)
 SIGMA_R = 0.8 # 1.2,1.5,1
 SIGMA_A = 0.5 # 0.5
 SIGMA_S = 0.1
-ALPHA = 1.1 # 1.4 1, 0.7
-BETA = 0.45 # 0.5 0.4, 0.3
+ALPHA = 0.7 #1.1 1.4 1, 0.7
+BETA = 0.3 #0.45 0.5 0.4, 0.3
 DOT_SPEED = 0.2 # 1 0.5 0.2
 SIGMOID_MEAN = 0.5
 APERTURE = jnp.pi/2 #
@@ -601,7 +599,7 @@ weights = {
     # }
 }
 
-weights_file = 'move_loop_v1_26_07-093804.pkl'
+weights_file = 'move_loop_v1_weights_27_07-225629.pkl' # 'move_loop_v1_26_07-093804.pkl'
 weights_s = load_(weights_file)
 weights = {
     "s" : weights_s
@@ -624,7 +622,7 @@ legend_handles = [
 ]
 
 fig,axes = plt.subplots(2,3,figsize=(14,9))
-title__ = f'EPOCHS={TOT_EPOCHS}, VMAPS={VMAPS}, TEST_LENGTH={TEST_LENGTH}, INIT_LENGTH={INIT_LENGTH}, update={LR:.6f}, WD={WD:.5f}, GRAD_CLIP={GRAD_CLIP}, TP={"true"}, plan={"true"} \n C_MOVE={C_MOVE:.2f}, C_PLAN={"N/A"}, L_CRITIC={LAMBDA_CRITIC}, L_VEC_KL={LAMBDA_VEC_KL}, L_ACT_KL={LAMBDA_ACT_KL}, PRIOR_PLAN={PRIOR_PLAN}, ALPHA={ALPHA}, BETA={BETA}, DOT_SPEED={DOT_SPEED}, SIGMA_R={SIGMA_R}'
+title__ = f'EPOCHS={TOT_EPOCHS}, VMAPS={VMAPS}, TEST_LENGTH={TEST_LENGTH}, INIT_LENGTH={INIT_LENGTH}, update={LR:.6f}, WD={WD:.5f}, GRAD_CLIP={GRAD_CLIP}, TP={"true"}, plan={"false"} \n SIGMA_R={SIGMA_R:.2f}, C_MOVE={C_MOVE:.2f}, C_PLAN={"N/A"}, L_CRITIC={LAMBDA_CRITIC}, L_VEC_KL={LAMBDA_VEC_KL}, L_ACT_KL={LAMBDA_ACT_KL}, PRIOR_PLAN={PRIOR_PLAN}, ALPHA={ALPHA}, BETA={BETA}, DOT_SPEED={DOT_SPEED}, SIGMA_R={SIGMA_R}'
 plt.suptitle('move_loop_training_v2, '+title__,fontsize=10)
 line_r_tot,*_ = axes[0,0].errorbar(np.arange(TOT_EPOCHS),r_tot_arr,yerr=std_r_arr/2,color='black',ecolor='lightgray',elinewidth=2,capsize=0,linewidth=0.8)
 axes[0,0].set_xlabel('iteration')
@@ -645,13 +643,15 @@ axes[1,0].set_ylabel('actor loss')
 axes[1,1].errorbar(np.arange(TOT_EPOCHS),critic_loss_arr,yerr=std_critic_arr/2,color='black',ecolor='lightgray',elinewidth=2,capsize=0)
 axes[1,1].set_xlabel('iteration')
 axes[1,1].set_ylabel('critic loss')
-line1,*_ = axes[1,2].errorbar(np.arange(TOT_EPOCHS),vec_kl_arr,yerr=std_vec_kl_arr/2,color='blue',ecolor='lightgray',elinewidth=2,capsize=0)
+line1,*_ = axes[1,2].plot(np.arange(TOT_EPOCHS),vec_kl_arr,color='blue')
+# line1,*_ = axes[1,2].errorbar(np.arange(TOT_EPOCHS),vec_kl_arr,yerr=std_vec_kl_arr/2,color='blue',ecolor='lightgray',elinewidth=2,capsize=0)
 axes[1,2].set_xlabel('iteration')
 axes[1,2].set_ylabel('vector kl')
-# ax12_2 = axes[1,2].twinx()
+ax12_2 = axes[1,2].twinx()
+line2,*_ = ax12_2.plot(np.arange(TOT_EPOCHS),act_kl_arr,color='red')
 # line2,*_ = ax12_2.errorbar(np.arange(TOT_EPOCHS),act_kl_arr,yerr=std_act_kl_arr/2,color='red',ecolor='lightgray',elinewidth=2,capsize=0)
-# ax12_2.set_ylabel('action kl')
-# plt.legend([line1,line2],['vector kl','action kl'])
+ax12_2.set_ylabel('action kl')
+plt.legend([line1,line2],['vector kl','action kl'])
 
 for ax in axes.flatten():
     ax.ticklabel_format(style='plain', useOffset=False)
