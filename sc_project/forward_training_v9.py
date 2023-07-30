@@ -115,9 +115,9 @@ def new_params(params,e):
 #     return hv_t,r_t
 
 # @partial(jax.jit,static_argnums=())
-def value(SC,h_t_1,v_t,r_t_1,r_weights): # self,hv_t_1,v_t,r_t_1,weights,params
-    h_t,r_t = RNN_value(h_t_1,v_t,r_t_1,r_weights)
-    return h_t,r_t
+# def value(SC,h_t_1,v_t,r_t_1,r_weights): # self,hv_t_1,v_t,r_t_1,weights,params
+#     h_t,r_t = RNN_value(h_t_1,v_t,r_t_1,r_weights)
+#     return h_t,r_t
 
 @jit
 def RNN_forward(h1vec,v_0,h_t_1,p_weights): # THINK... GRU computation of hp_t_1,v_t_1->hp_t,v_t

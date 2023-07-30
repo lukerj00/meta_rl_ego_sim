@@ -476,45 +476,52 @@ import matplotlib.pyplot as plt
 #         integral += fnc(xi,yi,1)
 
 # mean_val = integral/(len(x_)*len(y_))
-# print(mean_val)
-PLOTS = 3
-INIT_LENGTH = 0
-TEST_LENGTH = 5
-N_DOTS = 3
-# r_init_arr = np.random.uniform(0,1,size=(PLOTS,INIT_LENGTH))
-# r_test_arr = np.random.uniform(0,1,size=(PLOTS,TEST_LENGTH))
-# vecs_arr_0 = np.linspace(0,2*np.pi,10 )# np.random.uniform(0,1,size=(PLOTS,INIT_LENGTH,2))
-# vecs_arr_1 = np.linspace(0,2*np.pi,10 )# np.random.uniform(0,1,size=(PLOTS,INIT_LENGTH,2))
-vecs_arr = np.array([[[0,0],[0,1],[1,0],[1,1],[0.5,0.5]],[[0,0],[0,1],[1,0],[1,1],[0.5,0.5]],[[0,0],[0,1],[1,0],[1,1],[0.5,0.5]]]) #.reshape(PLOTS,N_DOTS,2)
-dots = np.array([[[0,0],[0,1],[1,0]], [[0,0],[0,1],[1,0]], [[0,0],[0,1],[1,0]]])
-# sel = np.random.randint(0,INIT_LENGTH,size=(PLOTS,N_DOTS))
+# # print(mean_val)
+# PLOTS = 3
+# INIT_LENGTH = 0
+# TEST_LENGTH = 5
+# N_DOTS = 3
+# # r_init_arr = np.random.uniform(0,1,size=(PLOTS,INIT_LENGTH))
+# # r_test_arr = np.random.uniform(0,1,size=(PLOTS,TEST_LENGTH))
+# # vecs_arr_0 = np.linspace(0,2*np.pi,10 )# np.random.uniform(0,1,size=(PLOTS,INIT_LENGTH,2))
+# # vecs_arr_1 = np.linspace(0,2*np.pi,10 )# np.random.uniform(0,1,size=(PLOTS,INIT_LENGTH,2))
+# vecs_arr = np.array([[[0,0],[0,1],[1,0],[1,1],[0.5,0.5]],[[0,0],[0,1],[1,0],[1,1],[0.5,0.5]],[[0,0],[0,1],[1,0],[1,1],[0.5,0.5]]]) #.reshape(PLOTS,N_DOTS,2)
+# dots = np.array([[[0,0],[0,1],[1,0]], [[0,0],[0,1],[1,0]], [[0,0],[0,1],[1,0]]])
+# # sel = np.random.randint(0,INIT_LENGTH,size=(PLOTS,N_DOTS))
 
-colors_ = np.float32([[255,0,0],[0,255,0],[0,0,255]])/255 # ,[255,0,0],[0,255,0],[0,0,255],[100,100,100]])/255
+# colors_ = np.float32([[255,0,0],[0,255,0],[0,0,255]])/255 # ,[255,0,0],[0,255,0],[0,0,255],[100,100,100]])/255
 
-# plot timeseries of true/planned reward
-fig,axis = plt.subplots(2*PLOTS,4,figsize=(15,6*PLOTS)) #9,4x plt.figure(figsize=(12,6))
-# title__ = f'EPOCHS={TOT_EPOCHS}, VMAPS={VMAPS}, PLAN_ITS={PLAN_ITS}, INIT_STEPS={INIT_STEPS}, TRIAL_LENGTH={TRIAL_LENGTH} \n SIGMA_R={SIGMA_R:.1f}, NEURONS={NEURONS**2}, MODULES={M}, H_P={H_P}, H_R={H_R}'
-plt.suptitle('outer_loop_pg_v4_test_, ',fontsize=10)
-for i in range(PLOTS):
-    ax1 = plt.subplot2grid((2*PLOTS,4),(2*i,2),colspan=2,rowspan=2)
-    for t in range(TEST_LENGTH):
-        # if sample_arr[i,t] == 1:
-        #     ax1.scatter(x=vecs_arr[i,t,0],y=vecs_arr[i,t,1],color='red',alpha=0.4,s=60,marker='o')
-        # else:
-        ax1.scatter(x=vecs_arr[i,t,0],y=vecs_arr[i,t,1],color='black',alpha=0.2,s=60,marker='o')
-    for d in range(N_DOTS):
-        ax1.scatter(x=dots[i,d,0],y=dots[i,d,1],color=colors_[d,:],s=120,marker='x')
-    ax1.set_xlim(-jnp.pi,jnp.pi)
-    ax1.set_ylim(-jnp.pi,jnp.pi)
-    ax1.set_xticks([-jnp.pi,-jnp.pi/2,0,jnp.pi/2,jnp.pi])
-    ax1.set_xticklabels(['$-\pi$','$-\pi/2$','0','$\pi/2$','$\pi$'],fontsize=14)
-    ax1.set_yticks([-jnp.pi,-jnp.pi/2,0,jnp.pi/2,jnp.pi])
-    ax1.set_yticklabels(['$-\pi$','$-\pi/2$','0','$\pi/2$','$\pi$'],fontsize=14)
-    ax1.set_aspect('equal')
-    # ax1.set_title(f'vector heatmap, sel={sel[i,:]}',fontsize=14)
+# # plot timeseries of true/planned reward
+# fig,axis = plt.subplots(2*PLOTS,4,figsize=(15,6*PLOTS)) #9,4x plt.figure(figsize=(12,6))
+# # title__ = f'EPOCHS={TOT_EPOCHS}, VMAPS={VMAPS}, PLAN_ITS={PLAN_ITS}, INIT_STEPS={INIT_STEPS}, TRIAL_LENGTH={TRIAL_LENGTH} \n SIGMA_R={SIGMA_R:.1f}, NEURONS={NEURONS**2}, MODULES={M}, H_P={H_P}, H_R={H_R}'
+# plt.suptitle('outer_loop_pg_v4_test_, ',fontsize=10)
+# for i in range(PLOTS):
+#     ax1 = plt.subplot2grid((2*PLOTS,4),(2*i,2),colspan=2,rowspan=2)
+#     for t in range(TEST_LENGTH):
+#         # if sample_arr[i,t] == 1:
+#         #     ax1.scatter(x=vecs_arr[i,t,0],y=vecs_arr[i,t,1],color='red',alpha=0.4,s=60,marker='o')
+#         # else:
+#         ax1.scatter(x=vecs_arr[i,t,0],y=vecs_arr[i,t,1],color='black',alpha=0.2,s=60,marker='o')
+#     for d in range(N_DOTS):
+#         ax1.scatter(x=dots[i,d,0],y=dots[i,d,1],color=colors_[d,:],s=120,marker='x')
+#     ax1.set_xlim(-jnp.pi,jnp.pi)
+#     ax1.set_ylim(-jnp.pi,jnp.pi)
+#     ax1.set_xticks([-jnp.pi,-jnp.pi/2,0,jnp.pi/2,jnp.pi])
+#     ax1.set_xticklabels(['$-\pi$','$-\pi/2$','0','$\pi/2$','$\pi$'],fontsize=14)
+#     ax1.set_yticks([-jnp.pi,-jnp.pi/2,0,jnp.pi/2,jnp.pi])
+#     ax1.set_yticklabels(['$-\pi$','$-\pi/2$','0','$\pi/2$','$\pi$'],fontsize=14)
+#     ax1.set_aspect('equal')
+#     # ax1.set_title(f'vector heatmap, sel={sel[i,:]}',fontsize=14)
 
-    ax2 = plt.subplot2grid((2*PLOTS,4),(2*i+1,0),colspan=2,rowspan=1)
-    ax2.axis('off')
-plt.tight_layout()
-plt.subplots_adjust(top=0.94)
-plt.show()
+#     ax2 = plt.subplot2grid((2*PLOTS,4),(2*i+1,0),colspan=2,rowspan=1)
+#     ax2.axis('off')
+# plt.tight_layout()
+# plt.subplots_adjust(top=0.94)
+# plt.show()
+
+a = jnp.array([2,3,4])
+b = jnp.array([[1,2,3,4],[1,2,3,4],[1,2,3,4]])
+print('a=',a,a.shape)
+print('b=',b,b.shape)
+c = a.reshape((3,1)) + b
+print('c=',c,c.shape)

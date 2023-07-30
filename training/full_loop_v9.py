@@ -115,13 +115,13 @@ def sigma_fnc(SIGMA_R0,SIGMA_RINF,T,EPOCHS,e,x):
 @jit 
 def loss_env(pos_hat,pos_t): 
     theta_e_0 = jnp.arctan2(pos_hat[1],pos_hat[0]) #x=atan(sinx/cosx)
-    R_env = jnp.exp((jnp.cos(theta_e_0 - pos_t) - 1)) # sigma?
+    R_env = -jnp.exp((jnp.cos(theta_e_0 - pos_t) - 1)) # sigma?
     return R_env
 
 @jit
 def loss_dot(dot_hat,dot):
     theta_d_0 = jnp.arctan2(dot_hat[1],dot_hat[0]) #x=atan(sinx/cosx)
-    R_dot = jnp.exp((jnp.cos(theta_d_0 - dot) - 1)) # sigma?
+    R_dot = -jnp.exp((jnp.cos(theta_d_0 - dot) - 1)) # sigma?
     return R_dot
 
 @jit
