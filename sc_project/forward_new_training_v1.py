@@ -389,15 +389,15 @@ dt = datetime.now().strftime("%d_%m-%H%M%S")
 plt.savefig(path_ + 'forward_new_training_v1_' + dt + '.png')
 
 # plot before and after heatmaps using v_pred_arr and v_t_arr:
-# print("v_pred_arr=",v_pred_arr.shape) # (v,s,n)
-# print("v_t_arr=",v_t_arr.shape) # (v,s,n)
-# print("pos_arr=",pos_arr) # (v,s,2)
-# print("dot_arr=",dot_arr,dot_arr.shape) # (v,s,3,2)
+# print("v_pred_arr=",v_pred_arr.shape) # (v,n)
+# print("v_t_arr=",v_t_arr.shape) # (v,n)
+# print("pos_arr=",pos_arr) # (v,2)
+# print("dot_arr=",dot_arr,dot_arr.shape) # (v,3,2)
 # print('dot_arr_0',dot_arr[0,0,:,:])
 # print('dot_arr_1',dot_arr[-1,0,:,:])
 # colors_ = np.float32([[255,0,0],[0,255,0],[0,0,255]])/255 # ,[255,0,0],[0,255,0],[0,0,255],[100,100,100]])/255
 # separate each v in to r/g/b channels
-# v_pred_rgb = np.clip(jnp.abs(v_pred_arr[-PLOTS:,:,:].reshape((PLOTS,STEPS,3,NEURONS**2))),0,1) # ((-1 if e))
+# v_pred_rgb = np.clip(jnp.abs(v_pred_arr[-PLOTS:,:].reshape((PLOTS,STEPS,3,NEURONS**2))),0,1) # ((-1 if e))
 # v_t_rgb = v_t_arr[-PLOTS:,:].reshape((PLOTS,3,NEURONS**2))
 # pos_arr = pos_arr[-PLOTS:,:] #0
 # dot_arr = dot_arr[-PLOTS:,:,:] #0
