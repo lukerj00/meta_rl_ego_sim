@@ -34,7 +34,7 @@ def load_(str_):
     return param_
 
 def save_pkl(param,str_):  # can't jit (can't pickle jax tracers)
-	path_ = str(Path(__file__).resolve().parents[0]) + '/pkl_sc/' # '/scratch/lrj34/'
+	path_ = str(Path(__file__).resolve().parents[0]) + '/test_data/' # '/scratch/lrj34/'
 	dt = datetime.now().strftime("%d_%m-%H%M")
 	with open(path_+str_+'_'+dt+'.pkl','wb') as file:
 		pickle.dump(param,file,pickle.HIGHEST_PROTOCOL)
