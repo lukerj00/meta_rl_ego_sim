@@ -60,7 +60,7 @@ def gen_vectors(MODULES,APERTURE):
     v = jnp.vstack([x_,y_]) # [2,M]
     return v
 
-@jit
+@partial(jax.jit,static_argnums=(0,1,2)) # @jit
 def neuron_act(COLORS,THETA,SIGMA_A,dot,pos): #e_t_1,th_j,th_i,SIGMA_A,COLORS # COLORS,THETA,SIGMA_A
     D_ = COLORS.shape[0]
     N_ = THETA.size
