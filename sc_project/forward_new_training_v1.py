@@ -262,7 +262,7 @@ def forward_model_loop(SC,weights,params):
             print("rel_vec_hat_arr.shape=",rel_vec_hat_arr.shape)
             print("loss_v_arr.shape=",loss_v_arr.shape)
             print("loss_d_arr.shape=",loss_d_arr.shape)
-    return loss_arr,loss_sem,v_pred_arr,v_t_arr,pos_arr,dot_arr,rel_vec_hat_arr,loss_v_arr,loss_d_arr,opt_state,p_weights
+    return loss_arr,loss_sem,v_pred_arr,v_t_arr,pos_arr,dot_arr,rel_vec_hat_arr,loss_v_arr,loss_d_arr,opt_state,p_weights # [VMAPS,STEPS,N]x2,[VMAPS,STEPS,2]x3,[VMAPS,STEPS]x2,..
 
 # hyperparams
 TOT_EPOCHS = 10000 #250000
@@ -441,4 +441,4 @@ plt.savefig(path_ + 'forward_new_training_v1_' + dt + '.png')
 # dt = datetime.now().strftime("%d_%m-%H%M%S")
 # plt.savefig(path_ + 'figs_forward_new_training_v1_' + dt + '.png')
 
-save_pkl((loss_arr,loss_sem,v_pred_arr,v_t_arr,pos_arr,dot_arr,opt_state,p_weights),'forward_new_v1_'+str(M))
+save_pkl((loss_arr,loss_sem,v_pred_arr,v_t_arr,pos_arr,dot_arr,opt_state,p_weights),'forward_new_v1_'+str(M)) # (no rel_vec / loss_v / loss_d)
