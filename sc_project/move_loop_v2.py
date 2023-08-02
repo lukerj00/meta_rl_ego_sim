@@ -146,7 +146,7 @@ def new_dot(dot_t,dot_vec,r_t,ALPHA,BETA,DOT_SPEED,key_t_1):
         return dot_t,dot_vec,switch_t,key_t_1
     p_ = ALPHA*(r_t - BETA*(r_t)**2)
     sample_ = rnd.bernoulli(key_t_1,p=p_)
-    dot_t,dot_vec,switch_t,key_t_1 = jax.lax.cond(sample_ == 1,switch_dot,step_dot,(dot_t,dot_vec,DOT_SPEED,key_t_1))###
+    dot_t,dot_vec,switch_t,key_t_1 = jax.lax.cond(sample_ == 2,switch_dot,step_dot,(dot_t,dot_vec,DOT_SPEED,key_t_1))###
     return dot_t,dot_vec,switch_t,key_t_1
 
 @jit
@@ -622,7 +622,7 @@ legend_handles = [
 ]
 
 fig,axes = plt.subplots(2,3,figsize=(14,9))
-title__ = f'EPOCHS={TOT_EPOCHS}, VMAPS={VMAPS}, TEST_LENGTH={TEST_LENGTH}, INIT_LENGTH={INIT_LENGTH}, update={LR:.6f}, WD={WD:.5f}, GRAD_CLIP={GRAD_CLIP}, TP={"true"}, plan={"false"} \n SIGMA_R={SIGMA_R:.2f}, C_MOVE={C_MOVE:.2f}, C_PLAN={"N/A"}, L_CRITIC={LAMBDA_CRITIC}, L_VEC_KL={LAMBDA_VEC_KL}, L_ACT_KL={LAMBDA_ACT_KL}, PRIOR_PLAN={PRIOR_PLAN}, ALPHA={ALPHA}, BETA={BETA}, DOT_SPEED={DOT_SPEED}, SIGMA_R={SIGMA_R}'
+title__ = f'EPOCHS={TOT_EPOCHS}, VMAPS={VMAPS}, TEST_LENGTH={TEST_LENGTH}, INIT_LENGTH={INIT_LENGTH}, update={LR:.6f}, WD={WD:.5f}, GRAD_CLIP={GRAD_CLIP}, TP={"false"}, plan={"false"} \n SIGMA_R={SIGMA_R:.2f}, C_MOVE={C_MOVE:.2f}, C_PLAN={"N/A"}, L_CRITIC={LAMBDA_CRITIC}, L_VEC_KL={LAMBDA_VEC_KL}, L_ACT_KL={LAMBDA_ACT_KL}, PRIOR_PLAN={PRIOR_PLAN}, ALPHA={ALPHA}, BETA={BETA}, DOT_SPEED={DOT_SPEED}, SIGMA_R={SIGMA_R}'
 plt.suptitle('move_loop_training_v2, '+title__,fontsize=10)
 line_r_tot,*_ = axes[0,0].errorbar(np.arange(TOT_EPOCHS),r_tot_arr,yerr=std_r_arr/2,color='black',ecolor='lightgray',elinewidth=2,capsize=0,linewidth=0.8)
 axes[0,0].set_xlabel('iteration')
