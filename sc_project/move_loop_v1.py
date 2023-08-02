@@ -430,7 +430,7 @@ def full_loop(SC,weights,params):
 
 # hyperparams ###
 ### REMEMBER TO LABEL SIM
-TOT_EPOCHS = 10000 # 2000 ## 1000
+TOT_EPOCHS = 50000 # 2000 ## 1000
 TESTS = 1
 PLOTS = 5
 VMAPS = 1500 ## 2000,500,1100,1000,800,500
@@ -597,11 +597,11 @@ weights = {
     # }
 }
 
-weights_file = 'move_loop_v1_weights_27_07-225629.pkl'
-weights_s = load_(weights_file)
-weights = {
-    "s" : weights_s
-    }
+# weights_file = 'move_loop_v1_weights_27_07-225629.pkl'
+# weights_s = load_(weights_file)
+# weights = {
+#     "s" : weights_s
+#     }
 
 ###
 startTime = datetime.now()
