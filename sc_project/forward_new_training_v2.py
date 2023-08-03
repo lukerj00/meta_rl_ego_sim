@@ -39,21 +39,21 @@ def save_pkl(param,str_):  # can't jit (can't pickle jax tracers)
 	with open(path_+str_+'_'+dt+'.pkl','wb') as file:
 		pickle.dump(param,file,pickle.HIGHEST_PROTOCOL)
 
-@jit # @partial(jax.jit,static_argnums=(0,1,2))
-def neuron_act(COLORS,THETA,SIGMA_A,dot,pos): #e_t_1,th_j,th_i,SIGMA_A,COLORS # COLORS,THETA,SIGMA_A
-    D_ = COLORS.shape[0]
-    N_ = THETA.size
-    dot = dot.reshape((1,2))
-    th_x = jnp.tile(THETA,(N_,1)).reshape((N_**2,))
-    th_y = jnp.tile(jnp.flip(THETA).reshape(N_,1),(1,N_)).reshape((N_**2,))
-    G_0 = jnp.vstack([th_x,th_y])
-    G = jnp.tile(G_0.reshape(2,N_**2,1),(1,1,D_))
-    C = (COLORS/255).T # transpose((1,0))
-    E = G.transpose((1,0,2)) - ((dot-pos).T) #.reshape((2,1))
-    act = jnp.exp((jnp.cos(E[:,0,:]) + jnp.cos(E[:,1,:]) - 2)/SIGMA_A**2).T #.reshape((D_,N_**2))
-    act_r,act_g,act_b = jnp.matmul(C,act) #.reshape((3*N_**2,))
-    act_rgb = jnp.concatenate((act_r,act_g,act_b))
-    return act_rgb
+# @jit # @partial(jax.jit,static_argnums=(0,1,2))
+# def neuron_act(COLORS,THETA,SIGMA_A,dot,pos): #e_t_1,th_j,th_i,SIGMA_A,COLORS # COLORS,THETA,SIGMA_A
+#     D_ = COLORS.shape[0]
+#     N_ = THETA.size
+#     dot = dot.reshape((1,2))
+#     th_x = jnp.tile(THETA,(N_,1)).reshape((N_**2,))
+#     th_y = jnp.tile(jnp.flip(THETA).reshape(N_,1),(1,N_)).reshape((N_**2,))
+#     G_0 = jnp.vstack([th_x,th_y])
+#     G = jnp.tile(G_0.reshape(2,N_**2,1),(1,1,D_))
+#     C = (COLORS/255).T # transpose((1,0))
+#     E = G.transpose((1,0,2)) - ((dot-pos).T) #.reshape((2,1))
+#     act = jnp.exp((jnp.cos(E[:,0,:]) + jnp.cos(E[:,1,:]) - 2)/SIGMA_A**2).T #.reshape((D_,N_**2))
+#     act_r,act_g,act_b = jnp.matmul(C,act) #.reshape((3*N_**2,))
+#     act_rgb = jnp.concatenate((act_r,act_g,act_b))
+#     return act_rgb
 
 @jit
 def neuron_act_scalar(COLOR, THETA, SIGMA_A, dot, pos):
@@ -65,6 +65,14 @@ def neuron_act_scalar(COLOR, THETA, SIGMA_A, dot, pos):
     E = G_0.T - (dot - pos)
     act = jnp.exp((jnp.cos(E[:, 0]) + jnp.cos(E[:, 1]) - 2) / SIGMA_A**2)
     return act
+
+def loss_dot(dot_hat,dot_t,pos_t):
+    rel_vec = dot_t - pos_t
+    rel_x_hat = jnp.arctan2(dot_hat[1],dot_hat[0])
+    rel_y_hat = jnp.arctan2(dot_hat[3],dot_hat[2])
+    rel_vec_hat = jnp.array([rel_x_hat,rel_y_hat])
+    loss_d = -jnp.sum(jnp.exp(jnp.cos(rel_vec_hat[0] - rel_vec[0]) + jnp.cos(rel_vec_hat[1] - rel_vec[1]) - 2)/params["SIGMA_D"]**2)
+    return loss_d,rel_vec_hat
 
 def mod_(x):
     return (x+jnp.pi)%(2*jnp.pi)-jnp.pi
@@ -108,9 +116,18 @@ def new_params(params,e):
     POS_0 = rnd.uniform(ki[0],shape=(VMAPS,2),minval=-jnp.pi,maxval=jnp.pi)
     params["POS_0"] = POS_0
     params["DOT_0"] = POS_0 + rnd.uniform(ki[1],shape=(VMAPS,2),minval=-APERTURE,maxval=APERTURE) #gen_dot(ki[0],VMAPS,N_DOTS,APERTURE) #key_,rnd.uniform(ki[0],shape=(EPOCHS,VMAPS,N_dot,2),minval=-APERTURE,maxval=APERTURE) #jnp.tile(jnp.array([[2,3]]).reshape(1,1,1,2),(EPOCHS,VMAPS,1,1)) #
-    params["DOT_VEC"] = rnd.uniform(ki[2],shape=(VMAPS,2),minval=-(DOT_SPEED*APERTURE),maxval=(DOT_SPEED*APERTURE)) #gen_dot(ki[0],VMAPS,N_DOTS,APERTURE) #key_,rnd.uniform(ki[0],shape=(EPOCHS,VMAPS,N_dot,2),minval=-APERTURE,maxval=APERTURE) #jnp.tile(jnp.array([[2,3]]).reshape(1,1,1,2),(EPOCHS,VMAPS,1,1)) #
+    params["DOT_VEC"] = gen_dot_vecs(VMAPS,APERTURE) 
     params["SAMPLES"] = rnd.choice(ki[3],M,shape=(VMAPS,TOT_STEPS))
     params["HP_0"] = jnp.sqrt(INIT/(H))*rnd.normal(ki[4],(VMAPS,H))
+
+def gen_dot_vecs(VMAPS,APERTURE):
+    dot_vecs = np.random.uniform(-APERTURE,APERTURE,(VMAPS, 2))
+    mask = np.all((-APERTURE/2 <= dot_vecs) & (dot_vecs <= APERTURE/2), axis=1)
+    while mask.any():
+        new_vecs = np.random.uniform(-APERTURE,APERTURE,(np.sum(mask), 2))
+        dot_vecs[mask] = new_vecs
+        mask = np.all((-APERTURE/2 <= dot_vecs)&(dot_vecs <= APERTURE/2), axis=1)
+    return dot_vecs
 
 # @jit
 # def RNN_value(hv_t_1,v_t,r_t_1,r_weights): # WRITE (GRU computation of hv_t_1,v_t,r_t_1->hv_t,r_t)
@@ -194,14 +211,6 @@ def plan(h1vec,v_0,h_0,p_weights,params): # self,hp_t_1,pos_t_1,v_t_1,r_t_1,weig
     dot_hat_t = jnp.matmul(W_dot,h_t)
     return v_pred,dot_hat_t,h_t
 
-def loss_dot(dot_hat,dot_t,pos_t):
-    rel_vec = dot_t - pos_t
-    rel_x_hat = jnp.arctan2(dot_hat[1],dot_hat[0])
-    rel_y_hat = jnp.arctan2(dot_hat[3],dot_hat[2])
-    rel_vec_hat = jnp.array([rel_x_hat,rel_y_hat])
-    loss_d = -jnp.sum(jnp.exp(jnp.cos(rel_vec_hat - rel_vec)-1))
-    return loss_d,rel_vec_hat
-
 # @partial(jax.jit,static_argnums=())
 def body_fnc(SC,p_weights,params,pos_0,dot_0,dot_vec,h_0,samples):
     # ID_ARR,VEC_ARR,H1VEC_ARR = SC
@@ -281,20 +290,20 @@ def forward_model_loop(SC,weights,params):
     return arrs,aux # [VMAPS,STEPS,N]x2,[VMAPS,STEPS,2]x3,[VMAPS,STEPS]x2,..
 
 # hyperparams
-TOT_EPOCHS = 2000 #250000
+TOT_EPOCHS = 1000 #250000
 EPOCHS = 1
 PLOTS = 3
 # LOOPS = TOT_EPOCHS//EPOCHS
 VMAPS = 500 # 800,500
 PLAN_ITS = 10 # 8,5
 INIT_STEPS = 3 
-PRED_STEPS = 12 # 1
+PRED_STEPS = 17 # 12
 TOT_STEPS = INIT_STEPS + PRED_STEPS
 LR = 0.00005 # 0.003,,0.0001
 WD = 0.0001 # 0.0001
 H = 300 # 500,300
 INIT = 2 # 0.5,0.1
-LAMBDA_D = 1 # 0.1
+LAMBDA_D = 1 # 1,0.1
 
 # ENV/sc params
 ke = rnd.split(rnd.PRNGKey(0),10)
@@ -303,10 +312,11 @@ M = MODULES**2
 NEURONS = 10
 N = (NEURONS**2)
 SIGMA_A = 0.5 # 0.5,1,0.3,1,0.5,1,0.1
+SIGMA_D = 0.5
 APERTURE = jnp.pi/2 ###
-ACTION_FRAC = 2/5
+ACTION_FRAC = 1/2
 ACTION_SPACE = ACTION_FRAC*APERTURE # 'AGENT_SPEED'
-DOT_SPEED = 0.5
+DOT_SPEED = 2/3
 THETA = jnp.linspace(-(APERTURE-APERTURE/NEURONS),(APERTURE-APERTURE/NEURONS),NEURONS)
 COLORS = jnp.array([[255]]) # ,[255,0,0],[0,255,0],[0,0,255],[100,100,100]])
 N_DOTS = 1 #COLORS.shape[0]
@@ -355,6 +365,7 @@ params = {
     "DOT_VEC" : DOT_VEC,
     "THETA" : THETA,
     "SIGMA_A" : SIGMA_A,
+    "SIGMA_D" : SIGMA_D,
     "COLORS" : COLORS,
     "SAMPLES" : SAMPLES,
     "STEP_ARRAY" : STEP_ARRAY,
@@ -395,7 +406,7 @@ arrs,aux = forward_model_loop(SC,weights,params)
 print("Training time: ",datetime.now()-startTime,"s/epoch=",((datetime.now()-startTime)/TOT_EPOCHS).total_seconds())
 print("Time finished:",datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
 plt.figure(figsize=(12,6))
-title__ = f'EPOCHS={TOT_EPOCHS}, VMAPS={VMAPS}, PLAN_ITS={PLAN_ITS}, init={INIT:.2f}, update={LR:.6f}, WD={WD:.5f}, \n SIGMA_A={SIGMA_A:.1f}, NEURONS={NEURONS**2}, MODULES={M}, H={H}'
+title__ = f'EPOCHS={TOT_EPOCHS}, VMAPS={VMAPS}, PLAN_ITS={PLAN_ITS}, init={INIT:.2f}, update={LR:.6f}, WD={WD:.5f}, TOT_STEPS={TOT_STEPS}, PRED_STEPS={PRED_STEPS} \n APERTURE={APERTURE}, ACTION_SPACE={ACTION_SPACE}, SIGMA_A={SIGMA_A:.1f}, SIGMA_D={SIGMA_D:.1f}, NEURONS={NEURONS**2}, MODULES={M}, H={H}'
 fig,ax = plt.subplots(1,3,figsize=(12,6))
 plt.suptitle('forward_new_training_v2, '+title__,fontsize=14)
 plt.subplot(1,3,1)
