@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# multiple steps
+# scalar activations
 """
 Created on Wed May 10 2023
 
@@ -281,14 +281,14 @@ def forward_model_loop(SC,weights,params):
     return arrs,aux # [VMAPS,STEPS,N]x2,[VMAPS,STEPS,2]x3,[VMAPS,STEPS]x2,..
 
 # hyperparams
-TOT_EPOCHS = 10000 #250000
+TOT_EPOCHS = 2000 #250000
 EPOCHS = 1
 PLOTS = 3
 # LOOPS = TOT_EPOCHS//EPOCHS
-VMAPS = 1000 # 800,500
+VMAPS = 500 # 800,500
 PLAN_ITS = 10 # 8,5
 INIT_STEPS = 3 
-PRED_STEPS = 3 # 1
+PRED_STEPS = 12 # 1
 TOT_STEPS = INIT_STEPS + PRED_STEPS
 LR = 0.00005 # 0.003,,0.0001
 WD = 0.0001 # 0.0001
@@ -393,6 +393,7 @@ arrs,aux = forward_model_loop(SC,weights,params)
 
 # plot training loss
 print("Training time: ",datetime.now()-startTime,"s/epoch=",((datetime.now()-startTime)/TOT_EPOCHS).total_seconds())
+print("Time finished:",datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
 plt.figure(figsize=(12,6))
 title__ = f'EPOCHS={TOT_EPOCHS}, VMAPS={VMAPS}, PLAN_ITS={PLAN_ITS}, init={INIT:.2f}, update={LR:.6f}, WD={WD:.5f}, \n SIGMA_A={SIGMA_A:.1f}, NEURONS={NEURONS**2}, MODULES={M}, H={H}'
 fig,ax = plt.subplots(1,3,figsize=(12,6))
@@ -400,20 +401,20 @@ plt.suptitle('forward_new_training_v2, '+title__,fontsize=14)
 plt.subplot(1,3,1)
 plt.errorbar(jnp.arange(TOT_EPOCHS),loss_arr,yerr=loss_sem,color='black',ecolor='lightgray',elinewidth=2,capsize=0)
 # plt.xscale('log')
-plt.yscale('log')
+# plt.yscale('log')
 plt.ylabel(r'Total loss',fontsize=15)
 plt.xlabel(r'Iteration',fontsize=15)
 plt.subplot(1,3,2)
 plt.errorbar(jnp.arange(TOT_EPOCHS),jnp.mean(loss_v_arr,axis=1),yerr=jnp.mean(v_std_arr,axis=1),color='black',ecolor='lightgray',elinewidth=2,capsize=0)
 # plt.xscale('log')
 plt.yscale('log')
-plt.ylabel(r'Loss_v',fontsize=15)
+plt.ylabel(r'Visual model loss',fontsize=15)
 plt.xlabel(r'Iteration',fontsize=15)
 plt.subplot(1,3,3)
 plt.errorbar(jnp.arange(TOT_EPOCHS),jnp.mean(loss_r_arr,axis=1),yerr=jnp.mean(r_std_arr,axis=1),color='black',ecolor='lightgray',elinewidth=2,capsize=0)
 # plt.xscale('log')
 # plt.yscale('log')
-plt.ylabel(r'Loss_r',fontsize=15)
+plt.ylabel(r'Dot prediction loss',fontsize=15)
 plt.xlabel(r'Iteration',fontsize=15)
 plt.tight_layout()
 plt.show()
