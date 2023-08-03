@@ -97,9 +97,18 @@ def new_params(params,e):
     POS_0 = rnd.uniform(ki[0],shape=(VMAPS,2),minval=-jnp.pi,maxval=jnp.pi)
     params["POS_0"] = POS_0
     params["DOT_0"] = POS_0 + rnd.uniform(ki[1],shape=(VMAPS,2),minval=-APERTURE,maxval=APERTURE) #gen_dot(ki[0],VMAPS,N_DOTS,APERTURE) #key_,rnd.uniform(ki[0],shape=(EPOCHS,VMAPS,N_dot,2),minval=-APERTURE,maxval=APERTURE) #jnp.tile(jnp.array([[2,3]]).reshape(1,1,1,2),(EPOCHS,VMAPS,1,1)) #
-    params["DOT_VEC"] = rnd.uniform(ki[2],shape=(VMAPS,2),minval=-(DOT_SPEED*APERTURE),maxval=(DOT_SPEED*APERTURE)) #gen_dot(ki[0],VMAPS,N_DOTS,APERTURE) #key_,rnd.uniform(ki[0],shape=(EPOCHS,VMAPS,N_dot,2),minval=-APERTURE,maxval=APERTURE) #jnp.tile(jnp.array([[2,3]]).reshape(1,1,1,2),(EPOCHS,VMAPS,1,1)) #
+    params["DOT_VEC"] = gen_dot_vecs(VMAPS,APERTURE) 
     params["SAMPLES"] = rnd.choice(ki[3],M,shape=(VMAPS,TOT_STEPS))
     params["HP_0"] = jnp.sqrt(INIT/(H))*rnd.normal(ki[4],(VMAPS,H))
+
+def gen_dot_vecs(VMAPS,APERTURE):
+    dot_vecs = np.random.uniform(-APERTURE,APERTURE,(VMAPS, 2))
+    mask = np.all((-APERTURE/2 <= dot_vecs) & (dot_vecs <= APERTURE/2), axis=1)
+    while mask.any():
+        new_vecs = np.random.uniform(-APERTURE,APERTURE,(np.sum(mask), 2))
+        dot_vecs[mask] = new_vecs
+        mask = np.all((-APERTURE/2 <= dot_vecs)&(dot_vecs <= APERTURE/2), axis=1)
+    return dot_vecs
 
 # @jit
 # def RNN_value(hv_t_1,v_t,r_t_1,r_weights): # WRITE (GRU computation of hv_t_1,v_t,r_t_1->hv_t,r_t)
