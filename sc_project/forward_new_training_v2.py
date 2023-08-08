@@ -406,7 +406,7 @@ arrs,aux = forward_model_loop(SC,weights,params)
 print("Training time: ",datetime.now()-startTime,"s/epoch=",((datetime.now()-startTime)/TOT_EPOCHS).total_seconds())
 print("Time finished:",datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
 plt.figure(figsize=(12,6))
-title__ = f'EPOCHS={TOT_EPOCHS}, VMAPS={VMAPS}, PLAN_ITS={PLAN_ITS}, init={INIT:.2f}, update={LR:.6f}, WD={WD:.5f}, TOT_STEPS={TOT_STEPS}, PRED_STEPS={PRED_STEPS} \n APERTURE={APERTURE}, ACTION_SPACE={ACTION_SPACE}, SIGMA_A={SIGMA_A:.1f}, SIGMA_D={SIGMA_D:.1f}, NEURONS={NEURONS**2}, MODULES={M}, H={H}'
+title__ = f'EPOCHS={TOT_EPOCHS}, VMAPS={VMAPS}, PLAN_ITS={PLAN_ITS}, init={INIT:.2f}, update={LR:.6f}, WD={WD:.5f}, TOT_STEPS={TOT_STEPS}, PRED_STEPS={PRED_STEPS} \n APERTURE={APERTURE:.2f}, ACTION_SPACE={ACTION_SPACE:.2f}, SIGMA_A={SIGMA_A:.1f}, SIGMA_D={SIGMA_D:.1f}, NEURONS={NEURONS**2}, MODULES={M}, H={H}'
 fig,ax = plt.subplots(1,3,figsize=(12,6))
 plt.suptitle('forward_new_training_v2, '+title__,fontsize=14)
 plt.subplot(1,3,1)
