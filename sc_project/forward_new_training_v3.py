@@ -184,8 +184,8 @@ def body_fnc(SC,p_weights,params,pos_0,dot_0,dot_vec,h_0,samples):
     for t in range(1,params["TOT_STEPS"]):
         v_pred,h_t = plan(h1vec_arr[:,t-1],v_t_1,h_t_1,p_weights,params["PLAN_ITS"]) # ,dot_hat_t
         # loss_d,rel_vec_hat = loss_dot(dot_hat_t,dot_arr[:,t],pos_arr[:,t])
-        v_t_ap = neuron_act_noise(samples[0],params["THETA_AP"],params["SIGMA_A"],params["SIGMA_N"],dot_arr[:,t],pos_arr[:,t])
-        v_t_full = neuron_act_noise(samples[0],params["THETA_FULL"],params["SIGMA_A"],params["SIGMA_N"],dot_arr[:,t],pos_arr[:,t])
+        v_t_ap = neuron_act_noise(samples[t],params["THETA_AP"],params["SIGMA_A"],params["SIGMA_N"],dot_arr[:,t],pos_arr[:,t])
+        v_t_full = neuron_act_noise(samples[t],params["THETA_FULL"],params["SIGMA_A"],params["SIGMA_N"],dot_arr[:,t],pos_arr[:,t])
         loss_v = jnp.sum((v_pred-v_t_full)**2)
         v_pred_arr = v_pred_arr.at[t,:].set(v_pred)
         # rel_vec_hat_arr = rel_vec_hat_arr.at[t,:].set(rel_vec_hat)
