@@ -168,8 +168,8 @@ def plan(h1vec,v_0,h_0,p_weights,PLAN_ITS): # self,hp_t_1,pos_t_1,v_t_1,r_t_1,we
     carry_0 = (p_weights,h1vec,v_0,h_0)
     (*_,h_t),_ = jax.lax.scan(loop_body,carry_0,jnp.zeros(PLAN_ITS))
     v_pred = jnp.matmul(W_r,h_t)
-    dot_hat_t = jnp.matmul(W_dot,h_t)
-    return v_pred,dot_hat_t,h_t
+    # dot_hat_t = jnp.matmul(W_dot,h_t)
+    return v_pred,h_t # dot_hat_t,
 
 def body_fnc(SC,p_weights,params,pos_0,dot_0,dot_vec,h_0,samples):
     loss_v_arr,loss_d_arr = (jnp.zeros(params["TOT_STEPS"]) for _ in range(2))
