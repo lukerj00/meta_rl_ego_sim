@@ -66,15 +66,15 @@ def neuron_act_noise(val,THETA,SIGMA_A,SIGMA_N,dot,pos):
 def mod_(x):
     return (x+jnp.pi)%(2*jnp.pi)-jnp.pi
 
-def gen_sc(keys,MODULES,ACTION_SPACE):
-    M = (MODULES-1)//(1/ACTION_SPACE)
+def gen_sc(keys,MODULES,ACTION_FRAC):
+    M = (MODULES-1)//(1/ACTION_FRAC)
     vec_range = jnp.arange(MODULES**2)
     x = jnp.arange(-M,M+1)
     y = jnp.arange(-M,M+1)[::-1]
     xv,yv = jnp.meshgrid(x,y)
     A_full = jnp.vstack([xv.flatten(),yv.flatten()])
 
-    inner_mask = (jnp.abs(xv) <= M) & (jnp.abs(yv) <= M)
+    inner_mask = (jnp.abs(xv) <= M//2) & (jnp.abs(yv) <= M//2)
     A_inner_ind = vec_range[inner_mask.flatten()]
     A_outer_ind = vec_range[~inner_mask.flatten()]
     A_inner_perm = rnd.permutation(keys[0],A_inner_ind)
@@ -249,16 +249,16 @@ def forward_model_loop(SC,weights,params):
     return arrs,aux # [VMAPS,STEPS,N]x2,[VMAPS,STEPS,2]x3,[VMAPS,STEPS]x2,..
 
 # hyperparams
-TOT_EPOCHS = 5000 # 1000 #250000
+TOT_EPOCHS = 10000 # 1000 #250000
 EPOCHS = 1
 PLOTS = 3
 # LOOPS = TOT_EPOCHS//EPOCHS
-VMAPS = 600 # 800,500
+VMAPS = 650 # 800,500
 PLAN_ITS = 10 # 8,5
 INIT_STEPS = 3 
 PRED_STEPS = 17 # 12
 TOT_STEPS = INIT_STEPS + PRED_STEPS
-LR = 0.00005 # 0.003,,0.0001
+LR = 0.00003 # 0.003,,0.0001
 WD = 0.0001 # 0.0001
 H = 300 # 500,300
 INIT = 2 # 0.5,0.1
@@ -266,12 +266,13 @@ LAMBDA_D = 1 # 1,0.1
 
 # ENV/sc params
 ke = rnd.split(rnd.PRNGKey(0),10)
-MODULES = 17 # (4*N+1)
+MODULES = 9 # 17 # (4*N+1)
+M = MODULES**2
 APERTURE = jnp.pi/2 ###
 ACTION_FRAC = 1/2
 ACTION_SPACE = ACTION_FRAC*APERTURE # 'AGENT_SPEED'
 DOT_SPEED = 2/3
-NEURONS_AP = 10
+NEURONS_AP = 8 # 10
 N_A = (NEURONS_AP**2)
 NEURONS_FULL = jnp.int32(NEURONS_AP*(jnp.pi//APERTURE))
 N_F = (NEURONS_FULL**2)
