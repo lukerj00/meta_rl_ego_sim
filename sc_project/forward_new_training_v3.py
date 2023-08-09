@@ -168,8 +168,8 @@ def plan(h1vec,v_0,h_0,p_weights,PLAN_ITS): # self,hp_t_1,pos_t_1,v_t_1,r_t_1,we
     carry_0 = (p_weights,h1vec,v_0,h_0)
     (*_,h_t),_ = jax.lax.scan(loop_body,carry_0,jnp.zeros(PLAN_ITS))
     v_pred = jnp.matmul(W_r,h_t)
-    # dot_hat_t = jnp.matmul(W_dot,h_t)
-    return v_pred,h_t # ,dot_hat_t
+    dot_hat_t = jnp.matmul(W_dot,h_t)
+    return v_pred,dot_hat_t,h_t
 
 def body_fnc(SC,p_weights,params,pos_0,dot_0,dot_vec,h_0,samples):
     loss_v_arr,loss_d_arr = (jnp.zeros(params["TOT_STEPS"]) for _ in range(2))
@@ -268,6 +268,10 @@ LAMBDA_D = 1 # 1,0.1
 ke = rnd.split(rnd.PRNGKey(0),10)
 MODULES = 17 # (4*N+1)
 M = MODULES**2
+NEURONS = 10
+N = (NEURONS**2)
+SIGMA_A = 0.5 # 0.5,1,0.3,1,0.5,1,0.1
+SIGMA_D = 0.5
 APERTURE = jnp.pi/2 ###
 ACTION_FRAC = 1/2
 ACTION_SPACE = ACTION_FRAC*APERTURE # 'AGENT_SPEED'
@@ -294,10 +298,18 @@ HP_0 = None # jnp.sqrt(INIT/(H))*rnd.normal(ke[4],(EPOCHS,VMAPS,H)) # [E,V,H]
 # H1VEC_ARR = jnp.diag(jnp.ones(M))[:,ID_ARR]
 # SC = (ID_ARR,VEC_ARR,H1VEC_ARR)
 SC = gen_sc(ke,MODULES,ACTION_FRAC)
+# ID_ARR = rnd.permutation(ke[5],jnp.arange(0,M),independent=True) # CHANGE TO PERMUATION
+# VEC_ARR = gen_vectors(MODULES,ACTION_SPACE)
+# H1VEC_ARR = jnp.diag(jnp.ones(M))[:,ID_ARR]
+# SC = (ID_ARR,VEC_ARR,H1VEC_ARR)
+SC = gen_sc(ke,MODULES,ACTION_FRAC)
 
 # INITIALIZATION ### FIX
 ki = rnd.split(rnd.PRNGKey(1),num=50)
 W_h10 = jnp.sqrt(INIT/(H+M))*rnd.normal(ki[0],(H,M))
+W_v0 = jnp.sqrt(INIT/(H+N_A))*rnd.normal(ki[1],(H,N_A))
+W_r0 = jnp.sqrt(INIT/(N_F+H))*rnd.normal(ki[2],(N_F,H))
+# W_dot0 = jnp.sqrt(INIT/(H+4))*rnd.normal(ki[3],(4,H))
 W_v0 = jnp.sqrt(INIT/(H+N_A))*rnd.normal(ki[1],(H,N_A))
 W_r0 = jnp.sqrt(INIT/(N_F+H))*rnd.normal(ki[2],(N_F,H))
 # W_dot0 = jnp.sqrt(INIT/(H+4))*rnd.normal(ki[3],(4,H))
@@ -320,6 +332,8 @@ params = {
     "H" : H,
     "N_A" : N_A,
     "N_F" : N_F,
+    "N_A" : N_A,
+    "N_F" : N_F,
     "M" : M,
     "INIT" : INIT,
     "VMAPS" : VMAPS,
@@ -328,6 +342,8 @@ params = {
     "N_DOTS" : N_DOTS,
     "DOT_0" : DOT_0,
     "DOT_VEC" : DOT_VEC,
+    "THETA_AP" : THETA_AP,
+    "THETA_FULL": THETA_FULL,
     "THETA_AP" : THETA_AP,
     "THETA_FULL": THETA_FULL,
     "SIGMA_A" : SIGMA_A,
