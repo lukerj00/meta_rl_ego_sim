@@ -51,7 +51,7 @@ def neuron_act_noise(val,THETA,SIGMA_A,SIGMA_N,dot,pos):
     G_0 = jnp.vstack([xv.flatten(),yv.flatten()])
     E = G_0.T - (dot - pos)
     act = jnp.exp((jnp.cos(E[:, 0]) + jnp.cos(E[:, 1]) - 2) / SIGMA_A**2)
-    noise = SIGMA_N*rnd.normal(key,shape=(N_**2,))
+    noise = (SIGMA_N*act)*rnd.normal(key,shape=(N_**2,))
     return act + noise
 
 # @jit
@@ -280,7 +280,7 @@ THETA_AP = jnp.linspace(-(APERTURE-APERTURE/NEURONS_AP),(APERTURE-APERTURE/NEURO
 THETA_FULL = jnp.linspace(-(jnp.pi-jnp.pi/NEURONS_FULL),(jnp.pi-jnp.pi/NEURONS_FULL),NEURONS_FULL)
 SIGMA_A = 0.5 # 0.5,1,0.3,1,0.5,1,0.1
 SIGMA_D = 0.5
-SIGMA_N = 0.05
+SIGMA_N = 0.05 # 0.05
 COLORS = jnp.array([[255]]) # ,[255,0,0],[0,255,0],[0,0,255],[100,100,100]])
 N_DOTS = 1 #COLORS.shape[0]
 STEP_ARRAY = jnp.arange(1,TOT_STEPS)
