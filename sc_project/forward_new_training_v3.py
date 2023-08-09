@@ -267,11 +267,6 @@ LAMBDA_D = 1 # 1,0.1
 # ENV/sc params
 ke = rnd.split(rnd.PRNGKey(0),10)
 MODULES = 17 # (4*N+1)
-M = MODULES**2
-NEURONS = 10
-N = (NEURONS**2)
-SIGMA_A = 0.5 # 0.5,1,0.3,1,0.5,1,0.1
-SIGMA_D = 0.5
 APERTURE = jnp.pi/2 ###
 ACTION_FRAC = 1/2
 ACTION_SPACE = ACTION_FRAC*APERTURE # 'AGENT_SPEED'
@@ -287,17 +282,12 @@ SIGMA_D = 0.5
 SIGMA_N = 0.05
 COLORS = jnp.array([[255]]) # ,[255,0,0],[0,255,0],[0,0,255],[100,100,100]])
 N_DOTS = 1 #COLORS.shape[0]
-STEP_ARRAY = jnp.arange(1,TOT_STEPS+1)
+STEP_ARRAY = jnp.arange(1,TOT_STEPS)
 DOT_0 = None # gen_dot(ke[0],EPOCHS,VMAPS,N_dot,APERTURE) #rnd.uniform(ke[6],shape=(EPOCHS,VMAPS,N_dot,2),minval=-APERTURE,maxval=APERTURE) # jnp.array([[-2,-2],[0,0],[2,2]]) #rnd.uniform(ke[6],shape=(EPOCHS,VMAPS,N_dot,2),minval=-APERTURE,maxval=APERTURE) #gen_dot(ke[0],EPOCHS,VMAPS,N_dot,APERTURE) jnp.tile(jnp.array([1,2]).reshape(1,1,1,2),(EPOCHS,VMAPS,1,2)) #rnd.uniform(ke[6],shape=(EPOCHS,VMAPS,N_dot,2),minval=-APERTURE,maxval=APERTURE) #gen_dot(ke[0],EPOCHS,VMAPS,N_dot,APERTURE)
 DOT_VEC = None
 SAMPLES = None # rnd.choice(ke[2],M,(EPOCHS,VMAPS,STEPS)) # [E,V] rnd.randint(rnd.PRNGKey(0),0,EPOCHS*STEPS,(EPOCHS,STEPS))
 POS_0 = None # rnd.choice(ke[3],jnp.arange(-APERTURE,APERTURE,0.01),(EPOCHS,VMAPS,2)) #jnp.array([-0.5,0.5]) #rnd.uniform(ke[3],shape=(EPOCHS,VMAPS,2),minval=-APERTURE,maxval=APERTURE) ### FILL IN; rand array [E,V,2]
 HP_0 = None # jnp.sqrt(INIT/(H))*rnd.normal(ke[4],(EPOCHS,VMAPS,H)) # [E,V,H]
-# ID_ARR = rnd.permutation(ke[5],jnp.arange(0,M),independent=True) # CHANGE TO PERMUATION
-# VEC_ARR = gen_vectors(MODULES,ACTION_SPACE)
-# H1VEC_ARR = jnp.diag(jnp.ones(M))[:,ID_ARR]
-# SC = (ID_ARR,VEC_ARR,H1VEC_ARR)
-SC = gen_sc(ke,MODULES,ACTION_FRAC)
 # ID_ARR = rnd.permutation(ke[5],jnp.arange(0,M),independent=True) # CHANGE TO PERMUATION
 # VEC_ARR = gen_vectors(MODULES,ACTION_SPACE)
 # H1VEC_ARR = jnp.diag(jnp.ones(M))[:,ID_ARR]
