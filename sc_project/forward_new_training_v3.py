@@ -43,9 +43,11 @@ def save_pkl(param,str_):  # can't jit (can't pickle jax tracers)
 def neuron_act(THETA, SIGMA_A, dot, pos):
     N_ = THETA.size
     dot = dot.reshape((1, 2))
-    th_x = jnp.tile(THETA, (N_, 1)).reshape((N_**2,))
-    th_y = jnp.tile(jnp.flip(THETA).reshape(N_, 1), (1, N_)).reshape((N_**2,))
-    G_0 = jnp.vstack([th_x, th_y])
+    # th_x = jnp.tile(THETA, (N_, 1)).reshape((N_**2,))
+    # th_y = jnp.tile(jnp.flip(THETA).reshape(N_, 1), (1, N_)).reshape((N_**2,))
+    # G_0 = jnp.vstack([th_x, th_y])
+    xv,yv = jnp.meshgrid(THETA,THETA[::-1])
+    G_0 = jnp.vstack([xv.flatten(),yv.flatten()])
     E = G_0.T - (dot - pos)
     act = jnp.exp((jnp.cos(E[:, 0]) + jnp.cos(E[:, 1]) - 2) / SIGMA_A**2)
     return act
@@ -60,6 +62,26 @@ def loss_dot(dot_hat,dot_t,pos_t):
 
 def mod_(x):
     return (x+jnp.pi)%(2*jnp.pi)-jnp.pi
+
+def gen_sc(keys,MODULES,ACTION_SPACE):
+    M = (MODULES-1)//(1/ACTION_SPACE)
+    vec_range = jnp.arange(MODULES**2)
+    x = jnp.arange(-M,M+1)
+    y = jnp.arange(-M,M+1)[::-1]
+    xv,yv = jnp.meshgrid(x,y)
+    A_full = jnp.vstack([xv.flatten(),yv.flatten()])
+
+    inner_mask = (jnp.abs(xv) <= M) & (jnp.abs(yv) <= M)
+    A_inner_ind = vec_range[inner_mask.flatten()]
+    A_outer_ind = vec_range[~inner_mask.flatten()]
+    A_inner_perm = rnd.permutation(keys[0],A_inner_ind)
+    A_outer_perm = rnd.permutation(keys[1],A_outer_ind)
+    ID_ARR = jnp.concatenate((A_inner_perm,A_outer_perm),axis=0)
+
+    VEC_ARR = A_full[ID_ARR,:]
+    H1VEC_ARR = jnp.eye(MODULES**2) # [:,ID_ARR]
+    SC = (ID_ARR,VEC_ARR,H1VEC_ARR)
+    return SC
 
 # @partial(jax.jit,static_argnums=(1,2,3))
 def gen_dot(key,VMAPS,N_dot,APERTURE):
@@ -142,8 +164,8 @@ def plan(h1vec,v_0,h_0,p_weights,PLAN_ITS): # self,hp_t_1,pos_t_1,v_t_1,r_t_1,we
     carry_0 = (p_weights,h1vec,v_0,h_0)
     (*_,h_t),_ = jax.lax.scan(loop_body,carry_0,PLAN_ITS)
     v_pred = jnp.matmul(W_r,h_t)
-    dot_hat_t = jnp.matmul(W_dot,h_t)
-    return v_pred,dot_hat_t,h_t
+    # dot_hat_t = jnp.matmul(W_dot,h_t)
+    return v_pred,h_t # ,dot_hat_t
 
 def body_fnc(SC,p_weights,params,pos_0,dot_0,dot_vec,h_0,samples):
     loss_v_arr,loss_d_arr = (jnp.zeros(params["TOT_STEPS"]) for _ in range(2))
@@ -155,22 +177,22 @@ def body_fnc(SC,p_weights,params,pos_0,dot_0,dot_vec,h_0,samples):
     v_t_1 = neuron_act(params["THETA"],params["SIGMA_A"],dot_arr[:,0],pos_arr[:,0])
     v_t_arr = v_t_arr.at[0,:].set(v_t_1)
     for t in range(1,params["TOT_STEPS"]):
-        v_pred,dot_hat_t,h_t = plan(h1vec_arr[:,t-1],v_t_1,h_t_1,p_weights,params["PLAN_ITS"])
-        loss_d,rel_vec_hat = loss_dot(dot_hat_t,dot_arr[:,t],pos_arr[:,t])
-        v_t = neuron_act(params["THETA"],params["SIGMA_A"],dot_arr[:,t],pos_arr[:,t])
+        v_pred,h_t = plan(h1vec_arr[:,t-1],v_t_1,h_t_1,p_weights,params["PLAN_ITS"]) # ,dot_hat_t
+        # loss_d,rel_vec_hat = loss_dot(dot_hat_t,dot_arr[:,t],pos_arr[:,t])
+        v_t = neuron_act(params["THETA_FULL"],params["SIGMA_A"],dot_arr[:,t],pos_arr[:,t])
         loss_v = jnp.sum((v_pred-v_t)**2)
         v_pred_arr = v_pred_arr.at[t,:].set(v_pred)
-        rel_vec_hat_arr = rel_vec_hat_arr.at[t,:].set(rel_vec_hat)
+        # rel_vec_hat_arr = rel_vec_hat_arr.at[t,:].set(rel_vec_hat)
         v_t_arr = v_t_arr.at[t,:].set(v_t)
         loss_v_arr = loss_v_arr.at[t].set(loss_v)
-        loss_d_arr = loss_d_arr.at[t].set(loss_d)
+        # loss_d_arr = loss_d_arr.at[t].set(loss_d)
         h_t_1,v_t_1 = h_t,v_t
         if t >= params["INIT_STEPS"]:
             tot_loss_v += loss_v
-            tot_loss_d += loss_d
-    loss_tot = tot_loss_v + params["LAMBDA_D"]*tot_loss_d
+            # tot_loss_d += loss_d
+    loss_tot = tot_loss_v # + params["LAMBDA_D"]*tot_loss_d
     avg_loss = loss_tot/(params["PRED_STEPS"])
-    return avg_loss,(v_pred_arr,v_t_arr,pos_arr,dot_arr,rel_vec_hat_arr,loss_v_arr,loss_d_arr) # final v_pred,v_t,pos_t
+    return avg_loss,(v_pred_arr,v_t_arr,pos_arr,dot_arr,rel_vec_hat_arr,loss_v_arr,loss_d_arr)
 
 # @partial(jax.jit,static_argnums=())
 def forward_model_loop(SC,weights,params):
@@ -238,17 +260,20 @@ LAMBDA_D = 1 # 1,0.1
 
 # ENV/sc params
 ke = rnd.split(rnd.PRNGKey(0),10)
-MODULES = 15 # 10,8
+MODULES = 17 # (4*N+1)
 M = MODULES**2
-NEURONS = 10
-N = (NEURONS**2)
-SIGMA_A = 0.5 # 0.5,1,0.3,1,0.5,1,0.1
-SIGMA_D = 0.5
 APERTURE = jnp.pi/2 ###
 ACTION_FRAC = 1/2
 ACTION_SPACE = ACTION_FRAC*APERTURE # 'AGENT_SPEED'
 DOT_SPEED = 2/3
-THETA = jnp.linspace(-(APERTURE-APERTURE/NEURONS),(APERTURE-APERTURE/NEURONS),NEURONS)
+NEURONS_AP = 10
+N_A = (NEURONS_AP**2)
+NEURONS_FULL = jnp.int32(NEURONS_AP*(jnp.pi//APERTURE))
+N_F = (NEURONS_FULL**2)
+THETA_AP = jnp.linspace(-(APERTURE-APERTURE/NEURONS_AP),(APERTURE-APERTURE/NEURONS_AP),NEURONS_AP)
+THETA_FULL = jnp.linspace(-(jnp.pi-jnp.pi/NEURONS_FULL),(jnp.pi-jnp.pi/NEURONS_FULL),NEURONS_FULL)
+SIGMA_A = 0.5 # 0.5,1,0.3,1,0.5,1,0.1
+SIGMA_D = 0.5
 COLORS = jnp.array([[255]]) # ,[255,0,0],[0,255,0],[0,0,255],[100,100,100]])
 N_DOTS = 1 #COLORS.shape[0]
 STEP_ARRAY = jnp.arange(1,TOT_STEPS+1)
@@ -257,17 +282,18 @@ DOT_VEC = None
 SAMPLES = None # rnd.choice(ke[2],M,(EPOCHS,VMAPS,STEPS)) # [E,V] rnd.randint(rnd.PRNGKey(0),0,EPOCHS*STEPS,(EPOCHS,STEPS))
 POS_0 = None # rnd.choice(ke[3],jnp.arange(-APERTURE,APERTURE,0.01),(EPOCHS,VMAPS,2)) #jnp.array([-0.5,0.5]) #rnd.uniform(ke[3],shape=(EPOCHS,VMAPS,2),minval=-APERTURE,maxval=APERTURE) ### FILL IN; rand array [E,V,2]
 HP_0 = None # jnp.sqrt(INIT/(H))*rnd.normal(ke[4],(EPOCHS,VMAPS,H)) # [E,V,H]
-ID_ARR = rnd.permutation(ke[5],jnp.arange(0,M),independent=True) # CHANGE TO PERMUATION
-VEC_ARR = gen_vectors(MODULES,ACTION_SPACE)
-H1VEC_ARR = jnp.diag(jnp.ones(M))[:,ID_ARR]
-SC = (ID_ARR,VEC_ARR,H1VEC_ARR)
+# ID_ARR = rnd.permutation(ke[5],jnp.arange(0,M),independent=True) # CHANGE TO PERMUATION
+# VEC_ARR = gen_vectors(MODULES,ACTION_SPACE)
+# H1VEC_ARR = jnp.diag(jnp.ones(M))[:,ID_ARR]
+# SC = (ID_ARR,VEC_ARR,H1VEC_ARR)
+SC = gen_sc(ke,MODULES,ACTION_FRAC)
 
 # INITIALIZATION ### FIX
 ki = rnd.split(rnd.PRNGKey(1),num=50)
 W_h10 = jnp.sqrt(INIT/(H+M))*rnd.normal(ki[0],(H,M))
-W_v0 = jnp.sqrt(INIT/(H+N))*rnd.normal(ki[1],(H,N))
-W_r0 = jnp.sqrt(INIT/(N+H))*rnd.normal(ki[2],(N,H))
-W_dot0 = jnp.sqrt(INIT/(H+4))*rnd.normal(ki[3],(4,H))
+W_v0 = jnp.sqrt(INIT/(H+N_A))*rnd.normal(ki[1],(H,N_A))
+W_r0 = jnp.sqrt(INIT/(N_F+H))*rnd.normal(ki[2],(N_F,H))
+# W_dot0 = jnp.sqrt(INIT/(H+4))*rnd.normal(ki[3],(4,H))
 U_vh0,_ = jnp.linalg.qr(jnp.sqrt(INIT/(H+H))*rnd.normal(ki[2],(H,H)))
 b_vh0 = jnp.sqrt(INIT/(H))*rnd.normal(ki[3],(H,))
 
@@ -285,7 +311,8 @@ params = {
     "LR" : LR,
     "WD" : WD,
     "H" : H,
-    "N" : N,
+    "N_A" : N_A,
+    "N_F" : N_F,
     "M" : M,
     "INIT" : INIT,
     "VMAPS" : VMAPS,
@@ -294,7 +321,8 @@ params = {
     "N_DOTS" : N_DOTS,
     "DOT_0" : DOT_0,
     "DOT_VEC" : DOT_VEC,
-    "THETA" : THETA,
+    "THETA_AP" : THETA_AP,
+    "THETA_FULL": THETA_FULL,
     "SIGMA_A" : SIGMA_A,
     "SIGMA_D" : SIGMA_D,
     "COLORS" : COLORS,
