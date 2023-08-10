@@ -63,17 +63,18 @@ def neuron_act_noise(val,THETA,SIGMA_A,SIGMA_N,dot,pos):
 def mod_(x):
     return (x+jnp.pi)%(2*jnp.pi)-jnp.pi
 
-def gen_sc(keys,MODULES,ACTION_FRAC):
-    m = (MODULES-1)//(1/ACTION_FRAC)
-    vec_range = jnp.arange(MODULES**2)
-    x = jnp.arange(-m,m+1)
-    y = jnp.arange(-m,m+1)[::-1]
+def gen_sc(keys,MODULES,ACTION_SPACE,PLAN_SPACE):
+    index_range = jnp.arange(MODULES**2)
+    x = jnp.linspace(-PLAN_SPACE,PLAN_SPACE,MODULES)
+    y = jnp.linspace(-PLAN_SPACE,PLAN_SPACE,MODULES)[::-1]
     xv,yv = jnp.meshgrid(x,y)
+    print('xv=',xv,'yv=',yv,'xv.shape=',xv.shape,'yv.shape=',yv.shape)
     A_full = jnp.vstack([xv.flatten(),yv.flatten()])
 
-    inner_mask = (jnp.abs(xv) <= m//2) & (jnp.abs(yv) <= m//2)
-    A_inner_ind = vec_range[inner_mask.flatten()]
-    A_outer_ind = vec_range[~inner_mask.flatten()]
+    inner_mask = (jnp.abs(xv) <= ACTION_SPACE) & (jnp.abs(yv) <= ACTION_SPACE)
+    print('s,f=',inner_mask.shape,inner_mask.flatten().shape,inner_mask)
+    A_inner_ind = index_range[inner_mask.flatten()]
+    A_outer_ind = index_range[~inner_mask.flatten()]
     A_inner_perm = rnd.permutation(keys[0],A_inner_ind)
     A_outer_perm = rnd.permutation(keys[1],A_outer_ind)
     ID_ARR = jnp.concatenate((A_inner_perm,A_outer_perm),axis=0)
@@ -108,20 +109,21 @@ def gen_vectors(MODULES,APERTURE):
     return v
 
 def gen_samples(key,MODULES,ACTION_FRAC,INIT_STEPS,TOT_STEPS):
-    m = (MODULES-1)//(1/ACTION_FRAC)
-    init_vals = jnp.arange((m+1)**2,dtype=jnp.int32)
-    main_vals = jnp.arange((m+1)**2,MODULES**2,dtype=jnp.int32)
+    M_P = (MODULES-1)//2 # (1/ACTION_FRAC)
+    M_A = jnp.int32(M_P*2/3) ### FIX
+    init_vals = jnp.arange((2*M_A+1)**2)
+    main_vals = jnp.arange((2*M_A+1)**2,MODULES**2)
     keys = rnd.split(key,2)
-    init_samples = rnd.choice(keys[0],init_vals,shape=(INIT_STEPS,))
-    main_samples = rnd.choice(keys[1],main_vals,shape=(TOT_STEPS-INIT_STEPS-1,))
-    return jnp.concatenate([init_samples,main_samples],axis=0)
+    init_samples = rnd.choice(keys[0],init_vals,shape=(TOT_STEPS-1,)) # INIT_STEPS,
+    # main_samples = rnd.choice(keys[1],main_vals,shape=(TOT_STEPS-INIT_STEPS-1,))
+    return init_samples # jnp.concatenate([init_samples,main_samples],axis=0)
 
 def new_params(params,e):
     EPOCHS = params["EPOCHS"]
     VMAPS = params["VMAPS"]
     N_DOTS = params["N_DOTS"]
     APERTURE = params["APERTURE"]
-    DOT_SPEED = params["DOT_SPEED"]
+    MAX_DOT_SPEED = params["MAX_DOT_SPEED"]
     MODULES = params["MODULES"]
     ACTION_FRAC = params["ACTION_FRAC"]
     INIT_STEPS = params["INIT_STEPS"]
@@ -133,19 +135,19 @@ def new_params(params,e):
     POS_0 = rnd.uniform(ki[0],shape=(VMAPS,2),minval=-jnp.pi,maxval=jnp.pi)
     params["POS_0"] = POS_0
     params["DOT_0"] = POS_0 + rnd.uniform(ki[1],shape=(VMAPS,2),minval=-APERTURE,maxval=APERTURE) #gen_dot(ki[0],VMAPS,N_DOTS,APERTURE) #key_,rnd.uniform(ki[0],shape=(EPOCHS,VMAPS,N_dot,2),minval=-APERTURE,maxval=APERTURE) #jnp.tile(jnp.array([[2,3]]).reshape(1,1,1,2),(EPOCHS,VMAPS,1,1)) #
-    params["DOT_VEC"] = gen_dot_vecs(ki[2],VMAPS,APERTURE) 
+    params["DOT_VEC"] = gen_dot_vecs(ki[2],VMAPS,MAX_DOT_SPEED) 
     kv = rnd.split(ki[3],num=VMAPS)
-    params["SAMPLES"] = jax.vmap(gen_samples,in_axes=(0,None,None,None,None),out_axes=0)(kv,MODULES,ACTION_FRAC,INIT_STEPS,TOT_STEPS) #rnd.choice(ki[3],M,shape=(VMAPS,(TOT_STEPS-1)))
+    params["SAMPLES"] = jax.vmap(gen_samples,in_axes=0,out_axes=0)(kv,MODULES,ACTION_FRAC,INIT_STEPS,TOT_STEPS) #rnd.choice(ki[3],M,shape=(VMAPS,(TOT_STEPS-1)))
     params["HP_0"] = jnp.sqrt(INIT/(H))*rnd.normal(ki[4],(VMAPS,H))
 
-def gen_dot_vecs(key,VMAPS,APERTURE):
-    dot_vecs = rnd.uniform(key,shape=(VMAPS,2),minval=-APERTURE,maxval=APERTURE)
-    mask = jnp.all((-APERTURE/2 <= dot_vecs)&(dot_vecs <= APERTURE/2),axis=1)
-    while mask.any():
-        key = rnd.split(key)[0]
-        new_vecs = rnd.uniform(key,shape=(jnp.sum(mask),2),minval=-APERTURE,maxval=APERTURE)
-        dot_vecs = dot_vecs.at[mask].set(new_vecs)
-        mask = jnp.all((-APERTURE/2 <= dot_vecs)&(dot_vecs <= APERTURE/2),axis=1)
+def gen_dot_vecs(key,VMAPS,MAX_DOT_SPEED):
+    dot_vecs = rnd.uniform(key,shape=(VMAPS,2),minval=-MAX_DOT_SPEED,maxval=MAX_DOT_SPEED)
+    # mask = jnp.all((-APERTURE/2 <= dot_vecs)&(dot_vecs <= APERTURE/2),axis=1)
+    # while mask.any():
+    #     key = rnd.split(key)[0]
+    #     new_vecs = rnd.uniform(key,shape=(jnp.sum(mask),2),minval=-APERTURE,maxval=APERTURE)
+    #     dot_vecs = dot_vecs.at[mask].set(new_vecs)
+    #     mask = jnp.all((-APERTURE/2 <= dot_vecs)&(dot_vecs <= APERTURE/2),axis=1)
     return dot_vecs
 
 @jit
@@ -258,16 +260,16 @@ def forward_model_loop(SC,weights,params):
     return arrs,aux # [VMAPS,STEPS,N]x2,[VMAPS,STEPS,2]x3,[VMAPS,STEPS]x2,..
 
 # hyperparams
-TOT_EPOCHS = 10000 #10000 # 1000 #250000
+TOT_EPOCHS = 3 #10000 # 1000 #250000
 EPOCHS = 1
 PLOTS = 3
 # LOOPS = TOT_EPOCHS//EPOCHS
-VMAPS = 700 # 800,500
+VMAPS = 650 # 800,500
 PLAN_ITS = 10 # 8,5
 INIT_STEPS = 3 
 PRED_STEPS = 17 # 12
 TOT_STEPS = INIT_STEPS + PRED_STEPS
-LR = 0.00005 # 0.003,,0.0001
+LR = 0.00003 # 0.003,,0.0001
 WD = 0.0001 # 0.0001
 H = 300 # 500,300
 INIT = 2 # 0.5,0.1
@@ -275,13 +277,16 @@ LAMBDA_D = 1 # 1,0.1
 
 # ENV/sc params
 ke = rnd.split(rnd.PRNGKey(0),10)
-MODULES = 9 # 17 # (4*N+1)
+MODULES = 7 # 17 # (3*N+1)
 M = MODULES**2
 APERTURE = jnp.pi/2 ###
 ACTION_FRAC = 1/2
 ACTION_SPACE = ACTION_FRAC*APERTURE # 'AGENT_SPEED'
-DOT_SPEED = 2/3
-NEURONS_AP = 8 # 10
+PLAN_FRAC = 3/4
+PLAN_SPACE = PLAN_FRAC*APERTURE
+MAX_DOT_SPEED_FRAC = 2/3
+MAX_DOT_SPEED = MAX_DOT_SPEED_FRAC*APERTURE
+NEURONS_AP = 6 # 10
 N_A = (NEURONS_AP**2)
 NEURONS_FULL = jnp.int32(NEURONS_AP*(jnp.pi//APERTURE))
 N_F = (NEURONS_FULL**2)
@@ -302,7 +307,7 @@ HP_0 = None # jnp.sqrt(INIT/(H))*rnd.normal(ke[4],(EPOCHS,VMAPS,H)) # [E,V,H]
 # VEC_ARR = gen_vectors(MODULES,ACTION_SPACE)
 # H1VEC_ARR = jnp.diag(jnp.ones(M))[:,ID_ARR]
 # SC = (ID_ARR,VEC_ARR,H1VEC_ARR)
-SC = gen_sc(ke,MODULES,ACTION_FRAC)
+SC = gen_sc(ke,MODULES,ACTION_SPACE,PLAN_SPACE)
 
 # INITIALIZATION ### FIX
 ki = rnd.split(rnd.PRNGKey(1),num=50)
@@ -357,8 +362,8 @@ params = {
     "HP_0" : HP_0,
     "LAMBDA_D" : LAMBDA_D,
     "ACTION_SPACE" : ACTION_SPACE,
-    "ACTION_FRAC" : ACTION_FRAC,
-    "DOT_SPEED" : DOT_SPEED,
+    "PLAN_FRAC" : PLAN_FRAC,
+    "MAX_DOT_SPEED_FRAC" : MAX_DOT_SPEED_FRAC,
 }
 
 weights = {
