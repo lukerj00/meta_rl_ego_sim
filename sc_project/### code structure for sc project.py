@@ -706,3 +706,28 @@ print('H1VEC_ARR=',H1VEC_ARR,H1VEC_ARR.shape)
 # plt.title('Weighted Circular Covariance')
 # # plt.colorbar(label='Weights')
 # plt.show()
+
+def gen_sc__(keys,MODULES,ACTION_SPACE,PLAN_SPACE):
+    index_range = jnp.arange(MODULES**2)
+    x = jnp.linspace(-PLAN_SPACE,PLAN_SPACE,MODULES)
+    y = jnp.linspace(-PLAN_SPACE,PLAN_SPACE,MODULES)[::-1]
+    xv,yv = jnp.meshgrid(x,y)
+    print('xv=',xv,'yv=',yv,'xv.shape=',xv.shape,'yv.shape=',yv.shape)
+    A_full = jnp.vstack([xv.flatten(),yv.flatten()])
+
+    inner_mask = (jnp.abs(xv) <= ACTION_SPACE) & (jnp.abs(yv) <= ACTION_SPACE)
+    print('s,f=',inner_mask.shape,inner_mask.flatten().shape,inner_mask)
+    A_inner_ind = index_range[inner_mask.flatten()]
+    A_outer_ind = index_range[~inner_mask.flatten()]
+    A_inner_perm = rnd.permutation(keys[0],A_inner_ind)
+    A_outer_perm = rnd.permutation(keys[1],A_outer_ind)
+    ID_ARR = jnp.concatenate((A_inner_perm,A_outer_perm),axis=0)
+
+    VEC_ARR = A_full[:,ID_ARR]
+    H1VEC_ARR = jnp.eye(MODULES**2) # [:,ID_ARR]
+    SC = (ID_ARR,VEC_ARR,H1VEC_ARR)
+    return SC
+
+sc = gen_sc__(keys,7,jnp.pi/4,jnp.pi/3)
+print(sc[0].shape,sc[1].shape,sc[2].shape)
+print('vec_arr=',sc[1],'h1vec_arr=',sc[2])
