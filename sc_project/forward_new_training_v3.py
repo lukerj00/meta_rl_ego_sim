@@ -44,9 +44,6 @@ def neuron_act_noise(val,THETA,SIGMA_A,SIGMA_N,dot,pos):
     key = rnd.PRNGKey(val)
     N_ = THETA.size
     dot = dot.reshape((1, 2))
-    # th_x = jnp.tile(THETA, (N_, 1)).reshape((N_**2,))
-    # th_y = jnp.tile(jnp.flip(THETA).reshape(N_, 1), (1, N_)).reshape((N_**2,))
-    # G_0 = jnp.vstack([th_x, th_y])
     xv,yv = jnp.meshgrid(THETA,THETA[::-1])
     G_0 = jnp.vstack([xv.flatten(),yv.flatten()])
     E = G_0.T - (dot - pos)
@@ -67,14 +64,14 @@ def mod_(x):
     return (x+jnp.pi)%(2*jnp.pi)-jnp.pi
 
 def gen_sc(keys,MODULES,ACTION_FRAC):
-    M = (MODULES-1)//(1/ACTION_FRAC)
+    m = (MODULES-1)//(1/ACTION_FRAC)
     vec_range = jnp.arange(MODULES**2)
-    x = jnp.arange(-M,M+1)
-    y = jnp.arange(-M,M+1)[::-1]
+    x = jnp.arange(-m,m+1)
+    y = jnp.arange(-m,m+1)[::-1]
     xv,yv = jnp.meshgrid(x,y)
     A_full = jnp.vstack([xv.flatten(),yv.flatten()])
 
-    inner_mask = (jnp.abs(xv) <= M//2) & (jnp.abs(yv) <= M//2)
+    inner_mask = (jnp.abs(xv) <= m//2) & (jnp.abs(yv) <= m//2)
     A_inner_ind = vec_range[inner_mask.flatten()]
     A_outer_ind = vec_range[~inner_mask.flatten()]
     A_inner_perm = rnd.permutation(keys[0],A_inner_ind)
@@ -110,6 +107,15 @@ def gen_vectors(MODULES,APERTURE):
     v = jnp.vstack([x_,y_]) # [2,M]
     return v
 
+def gen_samples(key,MODULES,ACTION_FRAC,INIT_STEPS,TOT_STEPS):
+    m = (MODULES-1)//(1/ACTION_FRAC)
+    init_vals = jnp.arange((m+1)**2)
+    main_vals = jnp.arange((m+1)**2,MODULES**2)
+    keys = rnd.split(key,2)
+    init_samples = rnd.choice(keys[0],init_vals,shape=(INIT_STEPS,))
+    main_samples = rnd.choice(keys[1],main_vals,shape=(TOT_STEPS-INIT_STEPS-1,))
+    return jnp.concatenate([init_samples,main_samples],axis=0)
+
 def new_params(params,e):
     EPOCHS = params["EPOCHS"]
     VMAPS = params["VMAPS"]
@@ -117,16 +123,19 @@ def new_params(params,e):
     APERTURE = params["APERTURE"]
     DOT_SPEED = params["DOT_SPEED"]
     MODULES = params["MODULES"]
+    ACTION_FRAC = params["ACTION_FRAC"]
+    INIT_STEPS = params["INIT_STEPS"]
     TOT_STEPS = params["TOT_STEPS"]
     # N = params["N"]
-    # M = params["M"]
+    M = params["M"]
     H = params["H"]
     ki = rnd.split(rnd.PRNGKey(e),num=10) #l/0
     POS_0 = rnd.uniform(ki[0],shape=(VMAPS,2),minval=-jnp.pi,maxval=jnp.pi)
     params["POS_0"] = POS_0
     params["DOT_0"] = POS_0 + rnd.uniform(ki[1],shape=(VMAPS,2),minval=-APERTURE,maxval=APERTURE) #gen_dot(ki[0],VMAPS,N_DOTS,APERTURE) #key_,rnd.uniform(ki[0],shape=(EPOCHS,VMAPS,N_dot,2),minval=-APERTURE,maxval=APERTURE) #jnp.tile(jnp.array([[2,3]]).reshape(1,1,1,2),(EPOCHS,VMAPS,1,1)) #
     params["DOT_VEC"] = gen_dot_vecs(ki[2],VMAPS,APERTURE) 
-    params["SAMPLES"] = rnd.choice(ki[3],M,shape=(VMAPS,(TOT_STEPS-1)))
+    kv = rnd.split(ki[3],num=VMAPS)
+    params["SAMPLES"] = jax.vmap(gen_samples,in_axes=0,out_axes=0)(kv,MODULES,ACTION_FRAC,INIT_STEPS,TOT_STEPS) #rnd.choice(ki[3],M,shape=(VMAPS,(TOT_STEPS-1)))
     params["HP_0"] = jnp.sqrt(INIT/(H))*rnd.normal(ki[4],(VMAPS,H))
 
 def gen_dot_vecs(key,VMAPS,APERTURE):
@@ -184,8 +193,8 @@ def body_fnc(SC,p_weights,params,pos_0,dot_0,dot_vec,h_0,samples):
     for t in range(1,params["TOT_STEPS"]):
         v_pred,h_t = plan(h1vec_arr[:,t-1],v_t_1,h_t_1,p_weights,params["PLAN_ITS"]) # ,dot_hat_t
         # loss_d,rel_vec_hat = loss_dot(dot_hat_t,dot_arr[:,t],pos_arr[:,t])
-        v_t_ap = neuron_act_noise(samples[t],params["THETA_AP"],params["SIGMA_A"],params["SIGMA_N"],dot_arr[:,t],pos_arr[:,t])
-        v_t_full = neuron_act_noise(samples[t],params["THETA_FULL"],params["SIGMA_A"],params["SIGMA_N"],dot_arr[:,t],pos_arr[:,t])
+        v_t_ap = neuron_act_noise(samples[t-1],params["THETA_AP"],params["SIGMA_A"],params["SIGMA_N"],dot_arr[:,t],pos_arr[:,t])
+        v_t_full = neuron_act_noise(samples[t-1],params["THETA_FULL"],params["SIGMA_A"],params["SIGMA_N"],dot_arr[:,t],pos_arr[:,t])
         loss_v = jnp.sum((v_pred-v_t_full)**2)
         v_pred_arr = v_pred_arr.at[t,:].set(v_pred)
         # rel_vec_hat_arr = rel_vec_hat_arr.at[t,:].set(rel_vec_hat)
