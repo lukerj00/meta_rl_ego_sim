@@ -68,11 +68,9 @@ def gen_sc(keys,MODULES,ACTION_SPACE,PLAN_SPACE):
     x = jnp.linspace(-PLAN_SPACE,PLAN_SPACE,MODULES)
     y = jnp.linspace(-PLAN_SPACE,PLAN_SPACE,MODULES)[::-1]
     xv,yv = jnp.meshgrid(x,y)
-    print('xv=',xv,'yv=',yv,'xv.shape=',xv.shape,'yv.shape=',yv.shape)
     A_full = jnp.vstack([xv.flatten(),yv.flatten()])
 
     inner_mask = (jnp.abs(xv) <= ACTION_SPACE) & (jnp.abs(yv) <= ACTION_SPACE)
-    print('s,f=',inner_mask.shape,inner_mask.flatten().shape,inner_mask)
     A_inner_ind = index_range[inner_mask.flatten()]
     A_outer_ind = index_range[~inner_mask.flatten()]
     A_inner_perm = rnd.permutation(keys[0],A_inner_ind)
@@ -114,9 +112,9 @@ def gen_samples(key,MODULES,ACTION_FRAC,INIT_STEPS,TOT_STEPS):
     init_vals = jnp.arange((2*M_A+1)**2)
     main_vals = jnp.arange((2*M_A+1)**2,MODULES**2)
     keys = rnd.split(key,2)
-    init_samples = rnd.choice(keys[0],init_vals,shape=(TOT_STEPS-1,)) # INIT_STEPS,
-    # main_samples = rnd.choice(keys[1],main_vals,shape=(TOT_STEPS-INIT_STEPS-1,))
-    return init_samples # jnp.concatenate([init_samples,main_samples],axis=0)
+    init_samples = rnd.choice(keys[0],init_vals,shape=(INIT_STEPS,)) # INIT_STEPS,
+    main_samples = rnd.choice(keys[1],main_vals,shape=(TOT_STEPS-INIT_STEPS-1,))
+    return jnp.concatenate([init_samples,main_samples],axis=0) # init_samples
 
 def new_params(params,e):
     EPOCHS = params["EPOCHS"]
@@ -137,7 +135,7 @@ def new_params(params,e):
     params["DOT_0"] = POS_0 + rnd.uniform(ki[1],shape=(VMAPS,2),minval=-APERTURE,maxval=APERTURE) #gen_dot(ki[0],VMAPS,N_DOTS,APERTURE) #key_,rnd.uniform(ki[0],shape=(EPOCHS,VMAPS,N_dot,2),minval=-APERTURE,maxval=APERTURE) #jnp.tile(jnp.array([[2,3]]).reshape(1,1,1,2),(EPOCHS,VMAPS,1,1)) #
     params["DOT_VEC"] = gen_dot_vecs(ki[2],VMAPS,MAX_DOT_SPEED) 
     kv = rnd.split(ki[3],num=VMAPS)
-    params["SAMPLES"] = jax.vmap(gen_samples,in_axes=0,out_axes=0)(kv,MODULES,ACTION_FRAC,INIT_STEPS,TOT_STEPS) #rnd.choice(ki[3],M,shape=(VMAPS,(TOT_STEPS-1)))
+    params["SAMPLES"] = jax.vmap(gen_samples,in_axes=(0,None,None,None,None),out_axes=0)(kv,MODULES,ACTION_FRAC,INIT_STEPS,TOT_STEPS) #rnd.choice(ki[3],M,shape=(VMAPS,(TOT_STEPS-1)))
     params["HP_0"] = jnp.sqrt(INIT/(H))*rnd.normal(ki[4],(VMAPS,H))
 
 def gen_dot_vecs(key,VMAPS,MAX_DOT_SPEED):
@@ -260,16 +258,16 @@ def forward_model_loop(SC,weights,params):
     return arrs,aux # [VMAPS,STEPS,N]x2,[VMAPS,STEPS,2]x3,[VMAPS,STEPS]x2,..
 
 # hyperparams
-TOT_EPOCHS = 3 #10000 # 1000 #250000
+TOT_EPOCHS = 5000 #10000 # 1000 #250000
 EPOCHS = 1
 PLOTS = 3
 # LOOPS = TOT_EPOCHS//EPOCHS
-VMAPS = 650 # 800,500
+VMAPS = 800 # 800,500
 PLAN_ITS = 10 # 8,5
 INIT_STEPS = 3 
 PRED_STEPS = 17 # 12
 TOT_STEPS = INIT_STEPS + PRED_STEPS
-LR = 0.00003 # 0.003,,0.0001
+LR = 0.00005 # 0.003,,0.0001
 WD = 0.0001 # 0.0001
 H = 300 # 500,300
 INIT = 2 # 0.5,0.1
@@ -361,9 +359,10 @@ params = {
     # "V_0" : V_0,
     "HP_0" : HP_0,
     "LAMBDA_D" : LAMBDA_D,
+    "ACTION_FRAC" : ACTION_FRAC,
     "ACTION_SPACE" : ACTION_SPACE,
     "PLAN_FRAC" : PLAN_FRAC,
-    "MAX_DOT_SPEED_FRAC" : MAX_DOT_SPEED_FRAC,
+    "MAX_DOT_SPEED" : MAX_DOT_SPEED,
 }
 
 weights = {
