@@ -526,88 +526,82 @@ import matplotlib.pyplot as plt
 # c = a.reshape((3,1)) + b
 # print('c=',c,c.shape)
 
-import numpy as np
+# import numpy as np
 
-def gen_arrays(N,keys):
-    # Total size of the grid
-    M = (2 * N + 1)**2
+# def gen_arrays(N,keys):
+#     # Total size of the grid
+#     M = (2 * N + 1)**2
 
-    # Generate the plan vector array (A)
-    x = jnp.tile(jnp.arange(-2 * N, 2 * N + 1), 2 * N + 1)
-    y = jnp.repeat(jnp.arange(-2 * N, 2 * N + 1)[::-1], 2 * N + 1)
-    A = jnp.stack([x, y], axis=-1)
-    print('A,shape=',A,A.shape)
+#     # Generate the plan vector array (A)
+#     x = jnp.tile(jnp.arange(-2 * N, 2 * N + 1), 2 * N + 1)
+#     y = jnp.repeat(jnp.arange(-2 * N, 2 * N + 1)[::-1], 2 * N + 1)
+#     A = jnp.stack([x, y], axis=-1)
+#     print('A,shape=',A,A.shape)
 
-    # Define indices corresponding to a centered N x N grid (inner area)
-    inner_indices = jnp.array([i * (2 * N + 1) + j for i in range(N, 3 * N) for j in range(N, 3 * N)])
-    print('inner_indices=',inner_indices)
+#     # Define indices corresponding to a centered N x N grid (inner area)
+#     inner_indices = jnp.array([i * (2 * N + 1) + j for i in range(N, 3 * N) for j in range(N, 3 * N)])
+#     print('inner_indices=',inner_indices)
 
-    # Shuffle all indices
-    shuffled_indices = rnd.permutation(keys[0], jnp.arange((2 * N + 1)**2), independent=False)
+#     # Shuffle all indices
+#     shuffled_indices = rnd.permutation(keys[0], jnp.arange((2 * N + 1)**2), independent=False)
 
-    # Rearrange inner_indices to the start of the permutation
-    shuffled_indices = jnp.concatenate([shuffled_indices[jnp.isin(shuffled_indices, inner_indices)], 
-                                        shuffled_indices[~jnp.isin(shuffled_indices, inner_indices)]])
+#     # Rearrange inner_indices to the start of the permutation
+#     shuffled_indices = jnp.concatenate([shuffled_indices[jnp.isin(shuffled_indices, inner_indices)], 
+#                                         shuffled_indices[~jnp.isin(shuffled_indices, inner_indices)]])
 
-    # Use shuffled indices to permute A and create V
-    A = A[shuffled_indices]
-    V = jnp.eye((2 * N + 1)**2)[shuffled_indices]
+#     # Use shuffled indices to permute A and create V
+#     A = A[shuffled_indices]
+#     V = jnp.eye((2 * N + 1)**2)[shuffled_indices]
 
-    return A, V
+#     return A, V
 
 k = rnd.PRNGKey(0)
 keys = rnd.split(k,2)
 
-# # Example usage:
-# N = 1
-# A, V = gen_arrays(N,keys)
-# print("A :", A, A.shape)  # [4N**2, 2]
-# print("V :", V, V.shape)  # [4N**2, 4N**2]
+# # # Example usage:
+# # N = 1
+# # A, V = gen_arrays(N,keys)
+# # print("A :", A, A.shape)  # [4N**2, 2]
+# # print("V :", V, V.shape)  # [4N**2, 4N**2]
 
+# def gen_arrays(N, keys):
+#     # Create the full grid of vectors
+#     x = jnp.arange(-2 * N, 2 * N + 1)
+#     y = jnp.arange(-2 * N, 2 * N + 1)
+#     xv, yv = jnp.meshgrid(x, y)
+#     A_full = jnp.stack([xv.flatten(), yv.flatten()], axis=-1)
 
-def gen_arrays(N, keys):
-    # Create the full grid of vectors
-    x = jnp.arange(-2 * N, 2 * N + 1)
-    y = jnp.arange(-2 * N, 2 * N + 1)
-    xv, yv = jnp.meshgrid(x, y)
-    A_full = jnp.stack([xv.flatten(), yv.flatten()], axis=-1)
+#     # Determine the indices that are part of the inner grid
+#     inner_mask = (jnp.abs(xv) <= N) & (jnp.abs(yv) <= N)
+#     print('inner_mask=',inner_mask.flatten(),inner_mask.shape)
+#     tot_ind = jnp.arange((2 * (2*N) + 1)**2)
+#     A_inner_ind = tot_ind[inner_mask.flatten()]
+#     A_outer_ind = tot_ind[~inner_mask.flatten()]
 
-    # Determine the indices that are part of the inner grid
-    inner_mask = (jnp.abs(xv) <= N) & (jnp.abs(yv) <= N)
-    print('inner_mask=',inner_mask.flatten(),inner_mask.shape)
-    tot_ind = jnp.arange((2 * (2*N) + 1)**2)
-    A_inner_ind = tot_ind[inner_mask.flatten()]
-    A_outer_ind = tot_ind[~inner_mask.flatten()]
+#     # Split into inner and outer vectors
+#     A_inner = A_full[A_inner_ind]
+#     A_outer = A_full[A_outer_ind]
 
-    # Split into inner and outer vectors
-    A_inner = A_full[A_inner_ind]
-    A_outer = A_full[A_outer_ind]
+#     print('A_inner=',A_inner,A_inner.shape)
+#     print('A_outer=',A_outer,A_outer.shape)
 
-    print('A_inner=',A_inner,A_inner.shape)
-    print('A_outer=',A_outer,A_outer.shape)
-
-def gen_sc(keys,MODULES,ACTION_SPACE):
-    M = (MODULES-1)//(1/ACTION_SPACE)
-    print('M=',M)
+def gen_sc(keys,MODULES,ACTION_FRAC):
+    M = (MODULES-1)//(1/ACTION_FRAC)
     vec_range = jnp.arange(MODULES**2)
     x = jnp.arange(-M,M+1)
     y = jnp.arange(-M,M+1)[::-1]
     xv,yv = jnp.meshgrid(x,y)
-    A_full = jnp.stack((xv.flatten(),yv.flatten()),axis=-1)
-    print('A_full=',A_full,A_full.shape)
+    A_full = jnp.vstack([xv.flatten(),yv.flatten()])
 
-    inner_mask = (jnp.abs(xv) <= M//2) & (jnp.abs(yv) <= M//2)
-    print('inner_mask=',inner_mask.flatten(),inner_mask.shape)
+    inner_mask = (jnp.abs(xv) <= M//2) & (jnp.abs(yv) <= M//2) # (all above just to create boolean mask, to select 'inner' indices)
+    print('inner_mask=',inner_mask.flatten())
     A_inner_ind = vec_range[inner_mask.flatten()]
     A_outer_ind = vec_range[~inner_mask.flatten()]
     A_inner_perm = rnd.permutation(keys[0],A_inner_ind)
-    print('A_inner_perm=',A_inner_perm)
     A_outer_perm = rnd.permutation(keys[1],A_outer_ind)
-    print('A_outer_perm=',A_outer_perm)
     ID_ARR = jnp.concatenate((A_inner_perm,A_outer_perm),axis=0)
-    print('ID_ARR=',ID_ARR)
 
-    VEC_ARR = A_full[ID_ARR,:]
+    VEC_ARR = A_full[:,ID_ARR]
     H1VEC_ARR = jnp.eye(MODULES**2) # [:,ID_ARR]
     SC = (ID_ARR,VEC_ARR,H1VEC_ARR)
     return SC
@@ -617,52 +611,98 @@ print('ID_ARR=',ID_ARR,ID_ARR.shape)
 print('VEC_ARR=',VEC_ARR,VEC_ARR.shape)
 print('H1VEC_ARR=',H1VEC_ARR,H1VEC_ARR.shape)
 
-MODULES = 17 # (4*N+1)
-M = MODULES**2
-APERTURE = jnp.pi/2 ###
-ACTION_FRAC = 1/2
-ACTION_SPACE = ACTION_FRAC*APERTURE # 'AGENT_SPEED'
-DOT_SPEED = 2/3
-NEURONS_AP = 10
-NEURONS_FULL = jnp.int32(NEURONS_AP*(jnp.pi//APERTURE))
-print('N_F=',NEURONS_FULL)
-N = (NEURONS_AP**2)
-SIGMA_A = 0.5 # 0.5,1,0.3,1,0.5,1,0.1
-SIGMA_D = 0.5
+# MODULES = 17 # (4*N+1)
+# M = MODULES**2
+# APERTURE = jnp.pi/2 ###
+# ACTION_FRAC = 1/2
+# ACTION_SPACE = ACTION_FRAC*APERTURE # 'AGENT_SPEED'
+# DOT_SPEED = 2/3
+# NEURONS_AP = 10
+# NEURONS_FULL = jnp.int32(NEURONS_AP*(jnp.pi//APERTURE))
+# print('N_F=',NEURONS_FULL)
+# N = (NEURONS_AP**2)
+# SIGMA_A = 0.5 # 0.5,1,0.3,1,0.5,1,0.1
+# SIGMA_D = 0.5
 
-THETA_AP = jnp.linspace(-(APERTURE-APERTURE/NEURONS_AP),(APERTURE-APERTURE/NEURONS_AP),NEURONS_AP)
-THETA_FULL = jnp.linspace(-(jnp.pi-jnp.pi/NEURONS_FULL),(jnp.pi-jnp.pi/NEURONS_FULL),NEURONS_FULL)
+# THETA_AP = jnp.linspace(-(APERTURE-APERTURE/NEURONS_AP),(APERTURE-APERTURE/NEURONS_AP),NEURONS_AP)
+# THETA_FULL = jnp.linspace(-(jnp.pi-jnp.pi/NEURONS_FULL),(jnp.pi-jnp.pi/NEURONS_FULL),NEURONS_FULL)
 
-print('t_a=',THETA_AP,'t_f=',THETA_FULL)
+# print('t_a=',THETA_AP,'t_f=',THETA_FULL)
 
-def neuron_act1(THETA, SIGMA_A, dot, pos):
-    N_ = THETA.size
-    dot = dot.reshape((1, 2))
-    th_x = jnp.tile(THETA, (N_, 1)).reshape((N_**2,))
-    th_y = jnp.tile(jnp.flip(THETA).reshape(N_, 1), (1, N_)).reshape((N_**2,))
-    G_0 = jnp.vstack([th_x, th_y])
-    print('G_0=',G_0)
-    E = G_0.T - (dot - pos)
-    act = jnp.exp((jnp.cos(E[:, 0]) + jnp.cos(E[:, 1]) - 2) / SIGMA_A**2)
-    return act
+# def neuron_act1(THETA, SIGMA_A, dot, pos):
+#     N_ = THETA.size
+#     dot = dot.reshape((1, 2))
+#     th_x = jnp.tile(THETA, (N_, 1)).reshape((N_**2,))
+#     th_y = jnp.tile(jnp.flip(THETA).reshape(N_, 1), (1, N_)).reshape((N_**2,))
+#     G_0 = jnp.vstack([th_x, th_y])
+#     print('G_0=',G_0)
+#     E = G_0.T - (dot - pos)
+#     act = jnp.exp((jnp.cos(E[:, 0]) + jnp.cos(E[:, 1]) - 2) / SIGMA_A**2)
+#     return act
 
-def neuron_act2(THETA, SIGMA_A, dot, pos):
-    N_ = THETA.size
-    dot = dot.reshape((1, 2))
-    # th_x = jnp.tile(THETA, (N_, 1)).reshape((N_**2,))
-    # th_y = jnp.tile(jnp.flip(THETA).reshape(N_, 1), (1, N_)).reshape((N_**2,))
-    # G_0 = jnp.vstack([th_x, th_y])
-    xv,yv = jnp.meshgrid(THETA,THETA[::-1])
-    G_0 = jnp.vstack([xv.flatten(),yv.flatten()])
-    print('G_0=',G_0)
-    E = G_0.T - (dot - pos)
-    act = jnp.exp((jnp.cos(E[:, 0]) + jnp.cos(E[:, 1]) - 2) / SIGMA_A**2)
-    return act
+# def neuron_act2(THETA, SIGMA_A, dot, pos):
+#     N_ = THETA.size
+#     dot = dot.reshape((1, 2))
+#     # th_x = jnp.tile(THETA, (N_, 1)).reshape((N_**2,))
+#     # th_y = jnp.tile(jnp.flip(THETA).reshape(N_, 1), (1, N_)).reshape((N_**2,))
+#     # G_0 = jnp.vstack([th_x, th_y])
+#     xv,yv = jnp.meshgrid(THETA,THETA[::-1])
+#     G_0 = jnp.vstack([xv.flatten(),yv.flatten()])
+#     print('G_0=',G_0)
+#     E = G_0.T - (dot - pos)
+#     act = jnp.exp((jnp.cos(E[:, 0]) + jnp.cos(E[:, 1]) - 2) / SIGMA_A**2)
+#     return act
 
-act1 = neuron_act1(THETA_FULL,SIGMA_A,jnp.array([1,2]),jnp.array([0,0]))
-print('a1=',act1)
-act2 = neuron_act2(THETA_FULL,SIGMA_A,jnp.array([1,2]),jnp.array([0,0]))
-print('a2=',act2)
+# act1 = neuron_act1(THETA_FULL,SIGMA_A,jnp.array([1,2]),jnp.array([0,0]))
+# print('a1=',act1)
+# act2 = neuron_act2(THETA_FULL,SIGMA_A,jnp.array([1,2]),jnp.array([0,0]))
+# print('a2=',act2)
 
-eq = jnp.array_equal(act1,act2)
-print(eq)
+# eq = jnp.array_equal(act1,act2)
+# print(eq)
+
+# import numpy as np
+# import matplotlib.pyplot as plt
+# from matplotlib.patches import Ellipse
+
+# theta_x = np.random.uniform(-np.pi,np.pi,size=(100,))
+# theta_y = np.random.normal(-np.pi,np.pi,size=(100,))
+# weights = np.random.rand(100) # Random weights between 0 and 1
+
+# # Map to [-pi, pi] space
+# def circ_mean_var(v_t,x,y):
+#     # Convert to complex numbers, weighted
+#     z_x = weights*(np.cos(theta_x) + 1j*np.sin(theta_x))
+#     z_y = weights*(np.cos(theta_y) + 1j*np.sin(theta_y))
+
+#     mean_x = np.angle(np.sum(z_x)/np.sum(weights))
+#     mean_y = np.angle(np.sum(z_y)/np.sum(weights))
+
+#     # Compute weighted circular variance for each angle
+#     circular_var_x = 1 - np.abs(np.sum(z_x) / np.sum(weights))
+#     circular_var_y = 1 - np.abs(np.sum(z_y) / np.sum(weights))
+#     circular_cov_matrix = np.diag([circular_var_x, circular_var_y])
+
+#     # Draw the ellipse representing the circular covariance in blue
+#     eigvals,eigvecs = np.linalg.eigh(circular_cov_matrix)
+#     sigma_x,sigma_y = np.sqrt(eigvals)  # no Scale factor for visualization
+#     return mean_x,mean_y,sigma_x,sigma_y
+
+# mean_x,mean_y,sigma_x,sigma_y = circ_mean_var(weights,theta_x,theta_y)
+
+# Scatter plot of the generated points, colored by weights
+# plt.scatter(theta_x, theta_y, c=weights, alpha=0.5, cmap='viridis')
+
+# # Draw the circular mean as a blue cross
+# plt.scatter(mean_x, mean_y, c='blue', marker='x')
+
+# ell_circular = Ellipse(xy=(mean_x, mean_y), width=sigma_x, height=sigma_y, edgecolor='blue', facecolor='none')
+# plt.gca().add_patch(ell_circular)
+
+# plt.xlim([-np.pi, np.pi])
+# plt.ylim([-np.pi, np.pi])
+# plt.xlabel('Theta X')
+# plt.ylabel('Theta Y')
+# plt.title('Weighted Circular Covariance')
+# # plt.colorbar(label='Weights')
+# plt.show()
