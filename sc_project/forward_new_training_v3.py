@@ -109,8 +109,8 @@ def gen_vectors(MODULES,APERTURE):
 
 def gen_samples(key,MODULES,ACTION_FRAC,INIT_STEPS,TOT_STEPS):
     m = (MODULES-1)//(1/ACTION_FRAC)
-    init_vals = jnp.arange((m+1)**2)
-    main_vals = jnp.arange((m+1)**2,MODULES**2)
+    init_vals = jnp.arange((m+1)**2,dtype=jnp.int32)
+    main_vals = jnp.arange((m+1)**2,MODULES**2,dtype=jnp.int32)
     keys = rnd.split(key,2)
     init_samples = rnd.choice(keys[0],init_vals,shape=(INIT_STEPS,))
     main_samples = rnd.choice(keys[1],main_vals,shape=(TOT_STEPS-INIT_STEPS-1,))
@@ -135,7 +135,7 @@ def new_params(params,e):
     params["DOT_0"] = POS_0 + rnd.uniform(ki[1],shape=(VMAPS,2),minval=-APERTURE,maxval=APERTURE) #gen_dot(ki[0],VMAPS,N_DOTS,APERTURE) #key_,rnd.uniform(ki[0],shape=(EPOCHS,VMAPS,N_dot,2),minval=-APERTURE,maxval=APERTURE) #jnp.tile(jnp.array([[2,3]]).reshape(1,1,1,2),(EPOCHS,VMAPS,1,1)) #
     params["DOT_VEC"] = gen_dot_vecs(ki[2],VMAPS,APERTURE) 
     kv = rnd.split(ki[3],num=VMAPS)
-    params["SAMPLES"] = jax.vmap(gen_samples,in_axes=0,out_axes=0)(kv,MODULES,ACTION_FRAC,INIT_STEPS,TOT_STEPS) #rnd.choice(ki[3],M,shape=(VMAPS,(TOT_STEPS-1)))
+    params["SAMPLES"] = jax.vmap(gen_samples,in_axes=(0,None,None,None,None),out_axes=0)(kv,MODULES,ACTION_FRAC,INIT_STEPS,TOT_STEPS) #rnd.choice(ki[3],M,shape=(VMAPS,(TOT_STEPS-1)))
     params["HP_0"] = jnp.sqrt(INIT/(H))*rnd.normal(ki[4],(VMAPS,H))
 
 def gen_dot_vecs(key,VMAPS,APERTURE):
@@ -258,16 +258,16 @@ def forward_model_loop(SC,weights,params):
     return arrs,aux # [VMAPS,STEPS,N]x2,[VMAPS,STEPS,2]x3,[VMAPS,STEPS]x2,..
 
 # hyperparams
-TOT_EPOCHS = 3 #10000 # 1000 #250000
+TOT_EPOCHS = 10000 #10000 # 1000 #250000
 EPOCHS = 1
 PLOTS = 3
 # LOOPS = TOT_EPOCHS//EPOCHS
-VMAPS = 650 # 800,500
+VMAPS = 700 # 800,500
 PLAN_ITS = 10 # 8,5
 INIT_STEPS = 3 
 PRED_STEPS = 17 # 12
 TOT_STEPS = INIT_STEPS + PRED_STEPS
-LR = 0.00003 # 0.003,,0.0001
+LR = 0.00005 # 0.003,,0.0001
 WD = 0.0001 # 0.0001
 H = 300 # 500,300
 INIT = 2 # 0.5,0.1
@@ -357,6 +357,7 @@ params = {
     "HP_0" : HP_0,
     "LAMBDA_D" : LAMBDA_D,
     "ACTION_SPACE" : ACTION_SPACE,
+    "ACTION_FRAC" : ACTION_FRAC,
     "DOT_SPEED" : DOT_SPEED,
 }
 
