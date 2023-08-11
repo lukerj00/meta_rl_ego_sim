@@ -35,7 +35,7 @@ def load_(str_):
 
 def save_pkl(param,str_):  # can't jit (can't pickle jax tracers)
 	path_ = str(Path(__file__).resolve().parents[0]) + '/test_data/' # '/scratch/lrj34/'
-	dt = datetime.now().strftime("%d_%m-%H%M")
+	dt = datetime.now().strftime("%d_%m-%H%M%S")
 	with open(path_+str_+'_'+dt+'.pkl','wb') as file:
 		pickle.dump(param,file,pickle.HIGHEST_PROTOCOL)
 
@@ -258,16 +258,16 @@ def forward_model_loop(SC,weights,params):
     return arrs,aux # [VMAPS,STEPS,N]x2,[VMAPS,STEPS,2]x3,[VMAPS,STEPS]x2,..
 
 # hyperparams
-TOT_EPOCHS = 5000 #10000 # 1000 #250000
+TOT_EPOCHS = 20000 #10000 # 1000 #250000
 EPOCHS = 1
 PLOTS = 3
 # LOOPS = TOT_EPOCHS//EPOCHS
 VMAPS = 700 # 800,500
 PLAN_ITS = 10 # 8,5
-INIT_STEPS = 3 
+INIT_STEPS = 5
 TOT_STEPS = 30
 PRED_STEPS = TOT_STEPS-INIT_STEPS
-LR = 0.00005 # 0.003,,0.0001
+LR = 0.00003 # 0.003,,0.0001
 WD = 0.0001 # 0.0001
 H = 300 # 500,300
 INIT = 2 # 0.5,0.1
@@ -290,7 +290,7 @@ NEURONS_FULL = jnp.int32(NEURONS_AP*(jnp.pi//APERTURE))
 N_F = (NEURONS_FULL**2)
 THETA_AP = jnp.linspace(-(APERTURE-APERTURE/NEURONS_AP),(APERTURE-APERTURE/NEURONS_AP),NEURONS_AP)
 THETA_FULL = jnp.linspace(-(jnp.pi-jnp.pi/NEURONS_FULL),(jnp.pi-jnp.pi/NEURONS_FULL),NEURONS_FULL)
-SIGMA_A = 0.3 # 0.5,1,0.3,1,0.5,1,0.1
+SIGMA_A = 0.4 # 0.3,0.5,1,0.3,1,0.5,1,0.1
 # SIGMA_D = 0.5
 SIGMA_N = 0.05 # 0.05
 COLORS = jnp.array([[255]]) # ,[255,0,0],[0,255,0],[0,0,255],[100,100,100]])
