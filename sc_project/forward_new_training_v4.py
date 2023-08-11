@@ -106,9 +106,9 @@ def gen_vectors(MODULES,APERTURE):
     v = jnp.vstack([x_,y_]) # [2,M]
     return v
 
-def gen_samples(key,MODULES,ACTION_FRAC,INIT_STEPS,TOT_STEPS):
+def gen_samples(key,MODULES,ACTION_SPACE,PLANNING_SPACE,INIT_STEPS,TOT_STEPS):
     M_P = (MODULES-1)//2 # (1/ACTION_FRAC)
-    M_A = jnp.int32(M_P*2/3) ### FIX
+    M_A = jnp.int32(M_P*(ACTION_SPACE/PLANNING_SPACE)) ### FIX
     init_vals = jnp.arange((2*M_A+1)**2)
     main_vals = jnp.arange((2*M_A+1)**2,MODULES**2)
     keys = rnd.split(key,2)
@@ -123,7 +123,8 @@ def new_params(params,e):
     APERTURE = params["APERTURE"]
     MAX_DOT_SPEED = params["MAX_DOT_SPEED"]
     MODULES = params["MODULES"]
-    ACTION_FRAC = params["ACTION_FRAC"]
+    ACTION_SPACE = params["ACTION_SPACE"]
+    PLAN_SPACE = params["PLAN_SPACE"]
     INIT_STEPS = params["INIT_STEPS"]
     TOT_STEPS = params["TOT_STEPS"]
     # N = params["N"]
@@ -135,7 +136,7 @@ def new_params(params,e):
     params["DOT_0"] = POS_0 + rnd.uniform(ki[1],shape=(VMAPS,2),minval=-APERTURE,maxval=APERTURE) #gen_dot(ki[0],VMAPS,N_DOTS,APERTURE) #key_,rnd.uniform(ki[0],shape=(EPOCHS,VMAPS,N_dot,2),minval=-APERTURE,maxval=APERTURE) #jnp.tile(jnp.array([[2,3]]).reshape(1,1,1,2),(EPOCHS,VMAPS,1,1)) #
     params["DOT_VEC"] = gen_dot_vecs(ki[2],VMAPS,MAX_DOT_SPEED) 
     kv = rnd.split(ki[3],num=VMAPS)
-    params["SAMPLES"] = jax.vmap(gen_samples,in_axes=(0,None,None,None,None),out_axes=0)(kv,MODULES,ACTION_FRAC,INIT_STEPS,TOT_STEPS) #rnd.choice(ki[3],M,shape=(VMAPS,(TOT_STEPS-1)))
+    params["SAMPLES"] = jax.vmap(gen_samples,in_axes=(0,None,None,None,None,None),out_axes=0)(kv,MODULES,ACTION_SPACE,PLAN_SPACE,INIT_STEPS,TOT_STEPS) #rnd.choice(ki[3],M,shape=(VMAPS,(TOT_STEPS-1)))
     params["HP_0"] = jnp.sqrt(INIT/(H))*rnd.normal(ki[4],(VMAPS,H))
 
 def gen_dot_vecs(key,VMAPS,MAX_DOT_SPEED):
@@ -202,11 +203,11 @@ def body_fnc(SC,p_weights,params,pos_0,dot_0,dot_vec,h_0,samples):
         loss_v_arr = loss_v_arr.at[t].set(loss_v)
         # loss_d_arr = loss_d_arr.at[t].set(loss_d)
         h_t_1,v_t_1 = h_t,v_t_ap
-        if t >= params["INIT_STEPS"]:
+        if t >= 0: # params["INIT_STEPS"]:
             tot_loss_v += loss_v
             # tot_loss_d += loss_d
     loss_tot = tot_loss_v # + params["LAMBDA_D"]*tot_loss_d
-    avg_loss = loss_tot/(params["PRED_STEPS"])
+    avg_loss = loss_tot/params["TOT_STEPS"] # params["PRED_STEPS"]
     return avg_loss,(v_pred_arr,v_t_arr,pos_arr,dot_arr,rel_vec_hat_arr,loss_v_arr,loss_d_arr)
 
 # @partial(jax.jit,static_argnums=())
@@ -267,7 +268,7 @@ PLAN_ITS = 10 # 8,5
 INIT_STEPS = 5
 TOT_STEPS = 30
 PRED_STEPS = TOT_STEPS-INIT_STEPS
-LR = 0.00003 # 0.003,,0.0001
+LR = 0.00005 # 0.003,,0.0001
 WD = 0.0001 # 0.0001
 H = 300 # 500,300
 INIT = 2 # 0.5,0.1
@@ -278,20 +279,20 @@ ke = rnd.split(rnd.PRNGKey(0),10)
 MODULES = 7 # 17 # (3*N+1)
 M = MODULES**2
 APERTURE = (jnp.sqrt(2)/2)*jnp.pi ###
-ACTION_FRAC = 1/2
+ACTION_FRAC = 1/4 # 
 ACTION_SPACE = ACTION_FRAC*APERTURE # 'AGENT_SPEED'
-PLAN_FRAC = 3/4
-PLAN_SPACE = PLAN_FRAC*APERTURE
-MAX_DOT_SPEED_FRAC = 2/3
-MAX_DOT_SPEED = MAX_DOT_SPEED_FRAC*APERTURE
-NEURONS_FULL = 12 # jnp.int32(NEURONS_AP*(jnp.pi//APERTURE))
+PLAN_FRAC_REL = 3/2
+PLAN_SPACE = PLAN_FRAC_REL*ACTION_SPACE
+MAX_DOT_SPEED_REL_FRAC = 5/4
+MAX_DOT_SPEED = MAX_DOT_SPEED_REL_FRAC*ACTION_SPACE
+NEURONS_FULL = 15 # 12 # jnp.int32(NEURONS_AP*(jnp.pi//APERTURE))
 N_F = (NEURONS_FULL**2)
 NEURONS_AP = jnp.int32(jnp.floor(NEURONS_FULL*(APERTURE/jnp.pi))) # 6 # 10
 N_A = (NEURONS_AP**2)
 THETA_FULL = jnp.linspace(-(jnp.pi-jnp.pi/NEURONS_FULL),(jnp.pi-jnp.pi/NEURONS_FULL),NEURONS_FULL)
 THETA_AP = THETA_FULL[NEURONS_FULL//2 - NEURONS_AP//2 : NEURONS_FULL//2 + NEURONS_AP//2]
 # THETA_AP = jnp.linspace(-(APERTURE-APERTURE/NEURONS_AP),(APERTURE-APERTURE/NEURONS_AP),NEURONS_AP)
-SIGMA_A = 0.4 # 0.3,0.5,1,0.3,1,0.5,1,0.1
+SIGMA_A = 0.5 # 0.3,0.5,1,0.3,1,0.5,1,0.1
 # SIGMA_D = 0.5
 SIGMA_N = 0.05 # 0.05
 COLORS = jnp.array([[255]]) # ,[255,0,0],[0,255,0],[0,0,255],[100,100,100]])
@@ -361,7 +362,7 @@ params = {
     "LAMBDA_D" : LAMBDA_D,
     "ACTION_FRAC" : ACTION_FRAC,
     "ACTION_SPACE" : ACTION_SPACE,
-    "PLAN_FRAC" : PLAN_FRAC,
+    "PLAN_SPACE" : PLAN_SPACE,
     "MAX_DOT_SPEED" : MAX_DOT_SPEED,
 }
 
