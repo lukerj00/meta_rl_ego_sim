@@ -728,7 +728,7 @@ def gen_sc__(keys,MODULES,ACTION_SPACE,PLAN_SPACE):
     SC = (ID_ARR,VEC_ARR,H1VEC_ARR)
     return SC
 
-sc = gen_sc__(keys,7,jnp.pi/4,jnp.pi/3)
+sc = gen_sc__(keys,7,(1/4)*(jnp.sqrt(2)/2)*jnp.pi,(3/8)*(jnp.sqrt(2)/2)*jnp.pi)
 print(sc[0].shape,sc[1].shape,sc[2].shape)
 print('vec_arr=',sc[1],'h1vec_arr=',sc[2])
 
@@ -741,3 +741,37 @@ THETA_FULL = jnp.linspace(-(jnp.pi-jnp.pi/NEURONS_FULL),(jnp.pi-jnp.pi/NEURONS_F
 THETA_AP = THETA_FULL[NEURONS_FULL//2 - NEURONS_AP//2 : NEURONS_FULL//2 + NEURONS_AP//2]
 
 print('AP=',APERTURE,'THETA_FULL=',THETA_FULL,'THETA_AP=',THETA_AP)
+
+def gen_sc(keys,MODULES,ACTION_SPACE,PLAN_SPACE):
+    index_range = jnp.arange(MODULES**2)
+    x = jnp.linspace(-PLAN_SPACE,PLAN_SPACE,MODULES)
+    y = jnp.linspace(-PLAN_SPACE,PLAN_SPACE,MODULES)[::-1]
+    xv,yv = jnp.meshgrid(x,y)
+    A_full = jnp.vstack([xv.flatten(),yv.flatten()])
+
+    inner_mask = (jnp.abs(xv) <= ACTION_SPACE) & (jnp.abs(yv) <= ACTION_SPACE)
+    A_inner_ind = index_range[inner_mask.flatten()]
+    A_outer_ind = index_range[~inner_mask.flatten()]
+    A_inner_perm = rnd.permutation(keys[0],A_inner_ind)
+    A_outer_perm = rnd.permutation(keys[1],A_outer_ind)
+    ID_ARR = jnp.concatenate((A_inner_perm,A_outer_perm),axis=0)
+
+    VEC_ARR = A_full[:,ID_ARR]
+    H1VEC_ARR = jnp.eye(MODULES**2) # [:,ID_ARR]
+    SC = (ID_ARR,VEC_ARR,H1VEC_ARR)
+    return SC
+
+def gen_timeseries(SC,pos_0,dot_0,dot_vec,samples,step_array):
+    ID_ARR,VEC_ARR,H1VEC_ARR = SC
+    h1vec_arr = H1VEC_ARR[:,samples]
+    vec_arr = VEC_ARR[:,samples]
+    cum_vecs = jnp.cumsum(vec_arr,axis=1)
+    pos_1_end = (pos_0+cum_vecs.T).T
+    dot_1_end = (dot_0+jnp.outer(dot_vec,step_array).T).T
+    pos_arr = jnp.concatenate((pos_0.reshape(2,1),pos_1_end),axis=1)
+    dot_arr = jnp.concatenate((dot_0.reshape(2,1),dot_1_end),axis=1)
+    return pos_arr,dot_arr,h1vec_arr,vec_arr
+
+SC = gen_sc(keys,7,(1/4)*(jnp.sqrt(2)/2)*jnp.pi,(3/8)*(jnp.sqrt(2)/2)*jnp.pi)
+pa,da,h1v,va = gen_timeseries(SC,jnp.array([0.,0.]),jnp.array([1.,1.]),jnp.array([0.5,0.5]),rnd.randint(keys[0],shape=(19,),minval=0,maxval=9),jnp.arange(1,20))
+print('pa=',pa,'da=',da,'h1v=',h1v,'va=',va)

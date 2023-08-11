@@ -161,8 +161,25 @@ def gen_timeseries(SC,pos_0,dot_0,dot_vec,samples,step_array):
     dot_arr = jnp.concatenate((dot_0.reshape(2,1),dot_1_end),axis=1)
     return pos_arr,dot_arr,h1vec_arr,vec_arr
 
+@jit
+def get_inner_activation_indices(N, x):
+    inner_N = int(N * x) # Length of one side of the central region
+    start_idx = (N - inner_N) // 2 # Starting index
+    end_idx = start_idx + inner_N # Ending index
+    row_indices, col_indices = jnp.meshgrid(jnp.arange(start_idx, end_idx), jnp.arange(start_idx, end_idx))
+    flat_indices = jnp.ravel_multi_index((row_indices.flatten(), col_indices.flatten()), (N, N))
+    return flat_indices
+
+# def get_inner_activations(activations, NEURONS_AP, NEURONS_FULL):
+#     x = NEURONS_AP / NEURONS_FULL # Fraction of neurons in the central region
+#     N = int(jnp.sqrt(activations.shape[0])) # Length of one side of the square array
+#     indices = get_inner_activation_indices(N, x)
+#     # Use jnp.take to gather the values at the given indices
+#     inner_activations = jnp.take(activations, indices)
+#     return inner_activations
+
 @partial(jax.jit,static_argnums=(4,))
-def plan(h1vec,v_0,h_0,p_weights,PLAN_ITS): # self,hp_t_1,pos_t_1,v_t_1,r_t_1,weights,params
+def plan(h1vec,v_0,h_0,p_weights,PLAN_ITS,NEURONS_AP,NEURONS_FULL): # self,hp_t_1,pos_t_1,v_t_1,r_t_1,weights,params
     def loop_body(carry,i):
         return RNN_forward(carry)
     def RNN_forward(carry):
@@ -177,32 +194,39 @@ def plan(h1vec,v_0,h_0,p_weights,PLAN_ITS): # self,hp_t_1,pos_t_1,v_t_1,r_t_1,we
     # W_dot = p_weights["W_dot"]
     carry_0 = (p_weights,h1vec,v_0,h_0)
     (*_,h_t),_ = jax.lax.scan(loop_body,carry_0,jnp.zeros(PLAN_ITS))
-    v_pred = jnp.matmul(W_r,h_t)
+    v_pred_full = jnp.matmul(W_r,h_t)
     # dot_hat_t = jnp.matmul(W_dot,h_t)
-    return v_pred,h_t # dot_hat_t,
+    x = NEURONS_AP / NEURONS_FULL
+    N = jnp.int32(jnp.sqrt(v_pred_full.shape[0]))
+    indices = get_inner_activation_indices(N, x)
+    v_pred_ap = jnp.take(v_pred_full, indices)
+    return v_pred_ap,v_pred_full,h_t # dot_hat_t,
 
-def body_fnc(SC,p_weights,params,pos_0,dot_0,dot_vec,h_0,samples):
+def body_fnc(SC,p_weights,params,pos_0,dot_0,dot_vec,h_0,samples,e):
     loss_v_arr,loss_d_arr = (jnp.zeros(params["TOT_STEPS"]) for _ in range(2))
     v_pred_arr,v_t_arr = (jnp.zeros((params["TOT_STEPS"],params["N_F"])) for _ in range(2))
     rel_vec_hat_arr = jnp.zeros((params["TOT_STEPS"],2))
     pos_arr,dot_arr,h1vec_arr,vec_arr = gen_timeseries(SC,pos_0,dot_0,dot_vec,samples,params["STEP_ARRAY"])
     tot_loss_v,tot_loss_d = 0,0
     h_t_1 = h_0
-    v_t_1 = neuron_act_noise(samples[0],params["THETA_AP"],params["SIGMA_A"],params["SIGMA_N"],dot_arr[:,0],pos_arr[:,0])
+    v_t_1_ap = neuron_act_noise(samples[0],params["THETA_AP"],params["SIGMA_A"],params["SIGMA_N"],dot_arr[:,0],pos_arr[:,0])
     v_t_1_full = neuron_act_noise(samples[0],params["THETA_FULL"],params["SIGMA_A"],params["SIGMA_N"],dot_arr[:,0],pos_arr[:,0])
     v_t_arr = v_t_arr.at[0,:].set(v_t_1_full)
     for t in range(1,params["TOT_STEPS"]):
-        v_pred,h_t = plan(h1vec_arr[:,t-1],v_t_1,h_t_1,p_weights,params["PLAN_ITS"]) # ,dot_hat_t
+        v_pred_ap,v_pred_full,h_t = plan(h1vec_arr[:,t-1],v_t_1_ap,h_t_1,p_weights,params["PLAN_ITS"],params["NEURONS_AP"],params["NEURONS_FULL"]) # ,dot_hat_t
         # loss_d,rel_vec_hat = loss_dot(dot_hat_t,dot_arr[:,t],pos_arr[:,t])
         v_t_ap = neuron_act_noise(samples[t-1],params["THETA_AP"],params["SIGMA_A"],params["SIGMA_N"],dot_arr[:,t],pos_arr[:,t])
         v_t_full = neuron_act_noise(samples[t-1],params["THETA_FULL"],params["SIGMA_A"],params["SIGMA_N"],dot_arr[:,t],pos_arr[:,t])
-        loss_v = jnp.sum((v_pred-v_t_full)**2)
-        v_pred_arr = v_pred_arr.at[t,:].set(v_pred)
+        if e < params["INIT_TRAIN_EPOCHS"]:
+            loss_v = jnp.sum((v_pred_ap-v_t_ap)**2)
+        else:
+            loss_v = jnp.sum((v_pred_full-v_t_full)**2)
+        v_pred_arr = v_pred_arr.at[t,:].set(v_pred_full)
         # rel_vec_hat_arr = rel_vec_hat_arr.at[t,:].set(rel_vec_hat)
         v_t_arr = v_t_arr.at[t,:].set(v_t_full)
         loss_v_arr = loss_v_arr.at[t].set(loss_v)
         # loss_d_arr = loss_d_arr.at[t].set(loss_d)
-        h_t_1,v_t_1 = h_t,v_t_ap
+        h_t_1,v_t_1_ap = h_t,v_t_ap
         if t >= 0: # params["INIT_STEPS"]:
             tot_loss_v += loss_v
             # tot_loss_d += loss_d
@@ -227,8 +251,8 @@ def forward_model_loop(SC,weights,params):
         pos_0 = params["POS_0"] #[e,:,:] ## (change) same pos_0 across vmaps
         h_0 = params["HP_0"] #[e,:,:]
         val_grad = jax.value_and_grad(body_fnc,argnums=1,allow_int=True,has_aux=True)
-        val_grad_vmap = jax.vmap(val_grad,in_axes=(None,None,None,0,0,0,0,0),out_axes=(0,0))
-        (loss,aux),grads = val_grad_vmap(SC,p_weights,params,pos_0,dot_0,dot_vec,h_0,samples) # val_grad_vmap ,,v_0
+        val_grad_vmap = jax.vmap(val_grad,in_axes=(None,None,None,0,0,0,0,0,None),out_axes=(0,0))
+        (loss,aux),grads = val_grad_vmap(SC,p_weights,params,pos_0,dot_0,dot_vec,h_0,samples,e) # val_grad_vmap ,,v_0
         v_pred_arr,v_t_arr,pos_arr,dot_arr,rel_vec_hat_arr,loss_v_arr_,loss_d_arr_ = aux # [VMAPS,STEPS,N]x2,[VMAPS,STEPS,2]x3,[VMAPS,STEPS]x2 (final timestep)
         grads_ = jax.tree_util.tree_map(lambda x: jnp.mean(x,axis=0),grads)
         opt_update,opt_state = optimizer.update(grads_,opt_state,p_weights)
@@ -259,8 +283,9 @@ def forward_model_loop(SC,weights,params):
     return arrs,aux # [VMAPS,STEPS,N]x2,[VMAPS,STEPS,2]x3,[VMAPS,STEPS]x2,..
 
 # hyperparams
-TOT_EPOCHS = 10000 #10000 # 1000 #250000
+TOT_EPOCHS = 1000 #10000 # 1000 #250000
 EPOCHS = 1
+INIT_TRAIN_EPOCHS = 500
 PLOTS = 3
 # LOOPS = TOT_EPOCHS//EPOCHS
 VMAPS = 700 # 800,500
@@ -324,6 +349,7 @@ b_vh0 = jnp.sqrt(INIT/(H))*rnd.normal(ki[3],(H,))
 params = {
     "TOT_EPOCHS" : TOT_EPOCHS,
     "EPOCHS" : EPOCHS,
+    "INIT_TRAIN_EPOCHS" : INIT_TRAIN_EPOCHS,
     # "LOOPS" : LOOPS,
     "TOT_STEPS" : TOT_STEPS,
     "INIT_STEPS" : INIT_STEPS,
