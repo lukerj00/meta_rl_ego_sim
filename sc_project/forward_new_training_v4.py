@@ -190,16 +190,19 @@ def plan(h1vec,v_0,h_0,p_weights,PLAN_ITS,NEURONS_AP,NEURONS_FULL): # self,hp_t_
         b_vh = p_weights["b_vh"]
         h_t = jax.nn.sigmoid(jnp.matmul(W_h1,h1vec) + jnp.matmul(W_v,v_0) + jnp.matmul(U_vh,h_t_1) + b_vh)
         return (p_weights,h1vec,v_0,h_t),None
-    W_r = p_weights["W_r"]
+    W_r_f = p_weights["W_r_f"]
+    W_r_a = p_weights["W_r_a"]
     # W_dot = p_weights["W_dot"]
     carry_0 = (p_weights,h1vec,v_0,h_0)
     (*_,h_t),_ = jax.lax.scan(loop_body,carry_0,jnp.zeros(PLAN_ITS))
-    v_pred_full = jnp.matmul(W_r,h_t)
+    v_pred_full = jnp.matmul(W_r_f,h_t)
     # dot_hat_t = jnp.matmul(W_dot,h_t)
-    x = NEURONS_AP / NEURONS_FULL
-    N = jnp.int32(jnp.sqrt(v_pred_full.shape[0]))
-    indices = get_inner_activation_indices(N, x)
-    v_pred_ap = jnp.take(v_pred_full, indices)
+
+    # x = NEURONS_AP / NEURONS_FULL
+    # N = jnp.int32(jnp.sqrt(v_pred_full.shape[0]))
+    # indices = get_inner_activation_indices(N, x)
+    # v_pred_ap = jnp.take(v_pred_full, indices)
+    v_pred_ap = jnp.matmul(W_r_a,h_t)
     return v_pred_ap,v_pred_full,h_t # dot_hat_t,
 
 def body_fnc(SC,p_weights,params,pos_0,dot_0,dot_vec,h_0,samples,e):
@@ -338,7 +341,8 @@ SC = gen_sc(ke,MODULES,ACTION_SPACE,PLAN_SPACE)
 ki = rnd.split(rnd.PRNGKey(1),num=50)
 W_h10 = jnp.sqrt(INIT/(H+M))*rnd.normal(ki[0],(H,M))
 W_v0 = jnp.sqrt(INIT/(H+N_A))*rnd.normal(ki[1],(H,N_A))
-W_r0 = jnp.sqrt(INIT/(N_F+H))*rnd.normal(ki[2],(N_F,H))
+W_r_f0 = jnp.sqrt(INIT/(N_F+H))*rnd.normal(ki[2],(N_F,H))
+W_r_a0 = jnp.sqrt(INIT/(N_A+H))*rnd.normal(ki[3],(N_A,H))
 # W_dot0 = jnp.sqrt(INIT/(H+4))*rnd.normal(ki[3],(4,H))
 W_v0 = jnp.sqrt(INIT/(H+N_A))*rnd.normal(ki[1],(H,N_A))
 W_r0 = jnp.sqrt(INIT/(N_F+H))*rnd.normal(ki[2],(N_F,H))
@@ -398,7 +402,8 @@ weights = {
     },
     'p_weights' : {
         "W_h1" : W_h10,
-        "W_r" : W_r0,
+        "W_r_f" : W_r_f0,
+        "W_r_a" : W_r_a0,
         "W_v" : W_v0,
         # "W_dot" : W_dot0,
         "U_vh" : U_vh0,
