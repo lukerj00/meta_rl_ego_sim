@@ -731,3 +731,13 @@ def gen_sc__(keys,MODULES,ACTION_SPACE,PLAN_SPACE):
 sc = gen_sc__(keys,7,jnp.pi/4,jnp.pi/3)
 print(sc[0].shape,sc[1].shape,sc[2].shape)
 print('vec_arr=',sc[1],'h1vec_arr=',sc[2])
+
+APERTURE = (jnp.sqrt(2)/2)*jnp.pi ###
+NEURONS_FULL = 12 # jnp.int32(NEURONS_AP*(jnp.pi//APERTURE))
+N_F = (NEURONS_FULL**2)
+NEURONS_AP = jnp.int32(jnp.floor(NEURONS_FULL*(APERTURE/jnp.pi))) # 6 # 10
+N_A = (NEURONS_AP**2)
+THETA_FULL = jnp.linspace(-(jnp.pi-jnp.pi/NEURONS_FULL),(jnp.pi-jnp.pi/NEURONS_FULL),NEURONS_FULL)
+THETA_AP = THETA_FULL[NEURONS_FULL//2 - NEURONS_AP//2 : NEURONS_FULL//2 + NEURONS_AP//2]
+
+print('AP=',APERTURE,'THETA_FULL=',THETA_FULL,'THETA_AP=',THETA_AP)
