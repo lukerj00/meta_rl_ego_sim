@@ -259,7 +259,7 @@ def forward_model_loop(SC,weights,params):
     return arrs,aux # [VMAPS,STEPS,N]x2,[VMAPS,STEPS,2]x3,[VMAPS,STEPS]x2,..
 
 # hyperparams
-TOT_EPOCHS = 2000 #10000 # 1000 #250000
+TOT_EPOCHS = 5000 #10000 # 1000 #250000
 EPOCHS = 1
 PLOTS = 3
 # LOOPS = TOT_EPOCHS//EPOCHS
@@ -285,14 +285,14 @@ PLAN_FRAC_REL = 3/2
 PLAN_SPACE = PLAN_FRAC_REL*ACTION_SPACE
 MAX_DOT_SPEED_REL_FRAC = 5/4
 MAX_DOT_SPEED = MAX_DOT_SPEED_REL_FRAC*ACTION_SPACE
-NEURONS_FULL = 15 # 12 # jnp.int32(NEURONS_AP*(jnp.pi//APERTURE))
+NEURONS_FULL = 20 # 15 # 12 # jnp.int32(NEURONS_AP*(jnp.pi//APERTURE))
 N_F = (NEURONS_FULL**2)
 NEURONS_AP = jnp.int32(jnp.floor(NEURONS_FULL*(APERTURE/jnp.pi))) # 6 # 10
 N_A = (NEURONS_AP**2)
 THETA_FULL = jnp.linspace(-(jnp.pi-jnp.pi/NEURONS_FULL),(jnp.pi-jnp.pi/NEURONS_FULL),NEURONS_FULL)
 THETA_AP = THETA_FULL[NEURONS_FULL//2 - NEURONS_AP//2 : NEURONS_FULL//2 + NEURONS_AP//2]
 # THETA_AP = jnp.linspace(-(APERTURE-APERTURE/NEURONS_AP),(APERTURE-APERTURE/NEURONS_AP),NEURONS_AP)
-SIGMA_A = 0.5 # 0.3,0.5,1,0.3,1,0.5,1,0.1
+SIGMA_A = 0.3 # 0.3,0.5,1,0.3,1,0.5,1,0.1
 # SIGMA_D = 0.5
 SIGMA_N = 0.05 # 0.05
 COLORS = jnp.array([[255]]) # ,[255,0,0],[0,255,0],[0,0,255],[100,100,100]])
@@ -476,4 +476,4 @@ plt.savefig(path_ + 'forward_new_training_v4_' + dt + '.png')
 # dt = datetime.now().strftime("%d_%m-%H%M%S")
 # plt.savefig(path_ + 'figs_forward_new_training_v4_' + dt + '.png')
 
-save_pkl((arrs,aux),'forward_new_v4_'+str(M)) # (no rel_vec / loss_v / loss_d)
+save_pkl((arrs,aux),'forward_new_v4_'+str(M)+'M_'+str(N_F)+'N') # (no rel_vec / loss_v / loss_d)
