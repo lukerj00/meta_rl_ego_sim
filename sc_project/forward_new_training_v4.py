@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# train planning on whole ground truth
+# train on ap then full, using mask
 """
 Created on Wed May 10 2023
 
@@ -161,9 +161,9 @@ def gen_timeseries(SC,pos_0,dot_0,dot_vec,samples,step_array):
     dot_arr = jnp.concatenate((dot_0.reshape(2,1),dot_1_end),axis=1)
     return pos_arr,dot_arr,h1vec_arr,vec_arr
 
-@jit
+# @jit
 def get_inner_activation_indices(N, x):
-    inner_N = int(N * x) # Length of one side of the central region
+    inner_N = jnp.int32(N * x) # Length of one side of the central region
     start_idx = (N - inner_N) // 2 # Starting index
     end_idx = start_idx + inner_N # Ending index
     row_indices, col_indices = jnp.meshgrid(jnp.arange(start_idx, end_idx), jnp.arange(start_idx, end_idx))
@@ -192,17 +192,12 @@ def plan(h1vec,v_0,h_0,p_weights,PLAN_ITS,NEURONS_AP,NEURONS_FULL): # self,hp_t_
         return (p_weights,h1vec,v_0,h_t),None
     W_r_f = p_weights["W_r_f"]
     W_r_a = p_weights["W_r_a"]
-    # W_dot = p_weights["W_dot"]
     carry_0 = (p_weights,h1vec,v_0,h_0)
     (*_,h_t),_ = jax.lax.scan(loop_body,carry_0,jnp.zeros(PLAN_ITS))
     v_pred_full = jnp.matmul(W_r_f,h_t)
-    # dot_hat_t = jnp.matmul(W_dot,h_t)
 
-    # x = NEURONS_AP / NEURONS_FULL
-    # N = jnp.int32(jnp.sqrt(v_pred_full.shape[0]))
-    # indices = get_inner_activation_indices(N, x)
-    # v_pred_ap = jnp.take(v_pred_full, indices)
-    v_pred_ap = jnp.matmul(W_r_a,h_t)
+    v_pred_ap = jnp.take(v_pred_full, params["INDICES"])
+    # v_pred_ap = jnp.matmul(W_r_a,h_t)
     return v_pred_ap,v_pred_full,h_t # dot_hat_t,
 
 def body_fnc(SC,p_weights,params,pos_0,dot_0,dot_vec,h_0,samples,e):
@@ -210,31 +205,31 @@ def body_fnc(SC,p_weights,params,pos_0,dot_0,dot_vec,h_0,samples,e):
     v_pred_arr,v_t_arr = (jnp.zeros((params["TOT_STEPS"],params["N_F"])) for _ in range(2))
     rel_vec_hat_arr = jnp.zeros((params["TOT_STEPS"],2))
     pos_arr,dot_arr,h1vec_arr,vec_arr = gen_timeseries(SC,pos_0,dot_0,dot_vec,samples,params["STEP_ARRAY"])
-    tot_loss_v,tot_loss_d = 0,0
+    tot_loss_v,tot_loss_v_full,tot_loss_v_ap,tot_loss_d = 0,0,0,0
     h_t_1 = h_0
     v_t_1_ap = neuron_act_noise(samples[0],params["THETA_AP"],params["SIGMA_A"],params["SIGMA_N"],dot_arr[:,0],pos_arr[:,0])
     v_t_1_full = neuron_act_noise(samples[0],params["THETA_FULL"],params["SIGMA_A"],params["SIGMA_N"],dot_arr[:,0],pos_arr[:,0])
     v_t_arr = v_t_arr.at[0,:].set(v_t_1_full)
     for t in range(1,params["TOT_STEPS"]):
         v_pred_ap,v_pred_full,h_t = plan(h1vec_arr[:,t-1],v_t_1_ap,h_t_1,p_weights,params["PLAN_ITS"],params["NEURONS_AP"],params["NEURONS_FULL"]) # ,dot_hat_t
-        # loss_d,rel_vec_hat = loss_dot(dot_hat_t,dot_arr[:,t],pos_arr[:,t])
         v_t_ap = neuron_act_noise(samples[t-1],params["THETA_AP"],params["SIGMA_A"],params["SIGMA_N"],dot_arr[:,t],pos_arr[:,t])
         v_t_full = neuron_act_noise(samples[t-1],params["THETA_FULL"],params["SIGMA_A"],params["SIGMA_N"],dot_arr[:,t],pos_arr[:,t])
-        if e < params["INIT_TRAIN_EPOCHS"]:
-            loss_v = jnp.sum((v_pred_ap-v_t_ap)**2)
-        else:
-            loss_v = jnp.sum((v_pred_full-v_t_full)**2)
+        loss_v_full = jnp.sum((v_pred_full-v_t_full)**2)
+        loss_v_ap = jnp.sum((v_pred_ap-v_t_ap)**2)
         v_pred_arr = v_pred_arr.at[t,:].set(v_pred_full)
-        # rel_vec_hat_arr = rel_vec_hat_arr.at[t,:].set(rel_vec_hat)
         v_t_arr = v_t_arr.at[t,:].set(v_t_full)
-        loss_v_arr = loss_v_arr.at[t].set(loss_v)
-        # loss_d_arr = loss_d_arr.at[t].set(loss_d)
         h_t_1,v_t_1_ap = h_t,v_t_ap
         if t >= 0: # params["INIT_STEPS"]:
-            tot_loss_v += loss_v
-            # tot_loss_d += loss_d
-    loss_tot = tot_loss_v # + params["LAMBDA_D"]*tot_loss_d
-    avg_loss = loss_tot/params["TOT_STEPS"] # params["PRED_STEPS"]
+            if e < params["INIT_TRAIN_EPOCHS"]:
+                tot_loss_v += loss_v_ap
+                loss_v_arr = loss_v_arr.at[t].set(loss_v_ap)
+                v_pred_arr = v_pred_arr.at[t,:params["N_A"]].set(v_pred_ap)
+            else:
+                tot_loss_v += loss_v_full
+                loss_v_arr = loss_v_arr.at[t].set(loss_v_full)
+                v_pred_arr = v_pred_arr.at[t,:].set(v_pred_full)
+    # loss_tot = tot_loss_v # + params["LAMBDA_D"]*tot_loss_d
+    avg_loss = tot_loss_v/(params["TOT_STEPS"]-1) # params["PRED_STEPS"]
     return avg_loss,(v_pred_arr,v_t_arr,pos_arr,dot_arr,rel_vec_hat_arr,loss_v_arr,loss_d_arr)
 
 # @partial(jax.jit,static_argnums=())
@@ -286,19 +281,19 @@ def forward_model_loop(SC,weights,params):
     return arrs,aux # [VMAPS,STEPS,N]x2,[VMAPS,STEPS,2]x3,[VMAPS,STEPS]x2,..
 
 # hyperparams
-TOT_EPOCHS = 1000 #10000 # 1000 #250000
+TOT_EPOCHS = 5000 #10000 # 1000 #250000
 EPOCHS = 1
-INIT_TRAIN_EPOCHS = 500
+INIT_TRAIN_EPOCHS = 2000
 PLOTS = 3
 # LOOPS = TOT_EPOCHS//EPOCHS
-VMAPS = 700 # 800,500
+VMAPS = 400 # 800,500
 PLAN_ITS = 10 # 8,5
 INIT_STEPS = 5
 TOT_STEPS = 30
 PRED_STEPS = TOT_STEPS-INIT_STEPS
 LR = 0.00003 # 0.003,,0.0001
 WD = 0.0001 # 0.0001
-H = 300 # 500,300
+H = 500 # 500,300
 INIT = 2 # 0.5,0.1
 LAMBDA_D = 1 # 1,0.1
 
@@ -320,7 +315,7 @@ N_A = (NEURONS_AP**2)
 THETA_FULL = jnp.linspace(-(jnp.pi-jnp.pi/NEURONS_FULL),(jnp.pi-jnp.pi/NEURONS_FULL),NEURONS_FULL)
 THETA_AP = THETA_FULL[NEURONS_FULL//2 - NEURONS_AP//2 : NEURONS_FULL//2 + NEURONS_AP//2]
 # THETA_AP = jnp.linspace(-(APERTURE-APERTURE/NEURONS_AP),(APERTURE-APERTURE/NEURONS_AP),NEURONS_AP)
-SIGMA_A = 0.5 # 0.3,0.5,1,0.3,1,0.5,1,0.1
+SIGMA_A = 0.3 # 0.3,0.5,1,0.3,1,0.5,1,0.1
 # SIGMA_D = 0.5
 SIGMA_N = 0.05 # 0.05
 COLORS = jnp.array([[255]]) # ,[255,0,0],[0,255,0],[0,0,255],[100,100,100]])
@@ -336,6 +331,10 @@ HP_0 = None # jnp.sqrt(INIT/(H))*rnd.normal(ke[4],(EPOCHS,VMAPS,H)) # [E,V,H]
 # H1VEC_ARR = jnp.diag(jnp.ones(M))[:,ID_ARR]
 # SC = (ID_ARR,VEC_ARR,H1VEC_ARR)
 SC = gen_sc(ke,MODULES,ACTION_SPACE,PLAN_SPACE)
+
+x = NEURONS_AP / NEURONS_FULL
+# N = jnp.int32(jnp.sqrt(v_pred_full.shape[0]))
+INDICES = get_inner_activation_indices(NEURONS_FULL, x)
 
 # INITIALIZATION ### FIX
 ki = rnd.split(rnd.PRNGKey(1),num=50)
@@ -365,6 +364,8 @@ params = {
     "LR" : LR,
     "WD" : WD,
     "H" : H,
+    "NEURONS_AP" : NEURONS_AP,
+    "NEURONS_FULL" : NEURONS_FULL,
     "N_A" : N_A,
     "N_F" : N_F,
     "N_A" : N_A,
@@ -394,6 +395,7 @@ params = {
     "ACTION_SPACE" : ACTION_SPACE,
     "PLAN_SPACE" : PLAN_SPACE,
     "MAX_DOT_SPEED" : MAX_DOT_SPEED,
+    "INDICES" : INDICES,
 }
 
 weights = {
