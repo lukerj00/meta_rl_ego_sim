@@ -165,7 +165,7 @@ def body_fnc(SC,p_weights,params,pos_0,dots,samples,h_0):
         h1vec = H1VEC_ARR[:,s] # (H1VEC_ARR - pos_t_1)[:,s]
         v_pred,h_t = plan(h1vec,v_t_1,h_t_1,p_weights,params) # h_0[s,:]
         pos_t = pos_t_1 + VEC_ARR[:,s] #VEC_ARR[:,s]
-        v_t = move(pos_t,dots,params)
+        v_t = move(pos_t,dots,params) # (neuron_act)
         loss = jnp.sum((v_pred-v_t)**2)
         loss_tot += loss #+ loss_e
         pos_t_1 = pos_t

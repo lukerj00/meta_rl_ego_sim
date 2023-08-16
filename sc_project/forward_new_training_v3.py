@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# train planning on whole ground truth
+# train planning on full ground truth
 """
 Created on Wed May 10 2023
 
