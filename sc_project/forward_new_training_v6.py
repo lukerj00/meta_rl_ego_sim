@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# 'nice' hp's; const dot speed; penalise similarity
+# 'nice' hp's; const dot speed; (penalise similarity)
 """
 Created on Wed May 10 2023
 
@@ -206,34 +206,36 @@ def plan(h1vec,v_0,h_0,p_weights,PLAN_ITS): # self,hp_t_1,pos_t_1,v_t_1,r_t_1,we
 
     v_pred_ap = jnp.take(v_pred_pl, params["INDICES"])
     # v_pred_ap = jnp.matmul(W_r_a,h_t)
-    return v_pred_ap,v_pred_pl,h_t # dot_hat_t,
+    return v_pred_ap,v_pred_full,h_t # dot_hat_t,
 
 def body_fnc(SC,p_weights,params,pos_0,dot_0,dot_vec,h_0,samples,e):###
     loss_v_arr,loss_c_arr = (jnp.zeros(params["TOT_STEPS"]) for _ in range(2))
-    v_pred_arr,v_t_arr = (jnp.zeros((params["TOT_STEPS"],params["N_P"])) for _ in range(2))
+    v_pred_arr,v_t_arr = (jnp.zeros((params["TOT_STEPS"],params["N_F"])) for _ in range(2))
     rel_vec_hat_arr = jnp.zeros((params["TOT_STEPS"],2))
     pos_arr,dot_arr,h1vec_arr,vec_arr = gen_timeseries(SC,pos_0,dot_0,dot_vec,samples,params["STEP_ARRAY"])
     tot_loss_v,tot_loss_c = 0,0
     h_t_1 = h_0
     v_t_1_ap = neuron_act_noise(samples[0],params["THETA_AP"],params["SIGMA_A"],params["SIGMA_N"],dot_arr[:,0],pos_arr[:,0])
-    v_t_arr = v_t_arr.at[0,:params["N_A"]].set(v_t_1_ap)
-    # v_t_1_pl = neuron_act_noise(samples[0],params["THETA_PLAN"],params["SIGMA_A"],params["SIGMA_N"],dot_arr[:,0],pos_arr[:,0])
+    v_t_1_full = neuron_act_noise(samples[0],params["THETA_FULL"],params["SIGMA_A"],params["SIGMA_N"],dot_arr[:,0],pos_arr[:,0])
+    v_t_arr = v_t_arr.at[0,:].set(v_t_1_full)
     for t in range(1,params["TOT_STEPS"]):
-        v_pred_ap,v_pred_pl,h_t = plan(h1vec_arr[:,t-1],v_t_1_ap,h_t_1,p_weights,params["PLAN_ITS"]) # ,dot_hat_t
+        v_pred_ap,v_pred_full,h_t = plan(h1vec_arr[:,t-1],v_t_1_ap,h_t_1,p_weights,params["PLAN_ITS"]) # ,dot_hat_t
         v_t_ap = neuron_act_noise(samples[t-1],params["THETA_AP"],params["SIGMA_A"],params["SIGMA_N"],dot_arr[:,t],pos_arr[:,t])
-        # v_t_pl = neuron_act_noise(samples[t-1],params["THETA_PLAN"],params["SIGMA_A"],params["SIGMA_N"],dot_arr[:,t],pos_arr[:,t])
-        # loss_v_pl = jnp.sum((v_pred_pl-v_t_pl)**2)
+        v_t_full = neuron_act_noise(samples[t-1],params["THETA_FULL"],params["SIGMA_A"],params["SIGMA_N"],dot_arr[:,t],pos_arr[:,t])
+        
+        loss_v_full = jnp.sum((v_pred_full-v_t_full)**2)
         loss_v_ap = jnp.sum((v_pred_ap-v_t_1_ap)**2) # v_t_1 not v_t
         loss_cos_ap = cosine_similarity(v_pred_ap,v_t_ap)
         loss_prev_mse_ap = jnp.sum((v_pred_ap-v_t_1_ap)**2)
-        v_t_arr = v_t_arr.at[t,:params["N_A"]].set(v_t_ap)
+        
+        v_t_arr = v_t_arr.at[t,:].set(v_t_full)
+        v_pred_arr = v_pred_arr.at[t,:].set(v_pred_full)    
+        loss_v_arr = loss_v_arr.at[t].set(loss_v_ap)
+        loss_c_arr = loss_c_arr.at[t].set(loss_cos_ap)
         h_t_1,v_t_1_ap = h_t,v_t_ap
         if t >= 0: # params["INIT_STEPS"]:
             # if e < params["INIT_TRAIN_EPOCHS"]:
-            tot_loss_v += loss_v_ap + params["LAMBDA_C"]*loss_cos_ap #- params["LAMBDA_P"]*loss_prev_mse_ap
-            loss_v_arr = loss_v_arr.at[t].set(loss_v_ap)
-            loss_c_arr = loss_c_arr.at[t].set(loss_cos_ap)
-            v_pred_arr = v_pred_arr.at[t,:params["N_A"]].set(v_pred_ap)
+            tot_loss_v += loss_v_full #+ params["LAMBDA_C"]*loss_cos_ap #- params["LAMBDA_P"]*loss_prev_mse_ap
             # else:
             #     tot_loss_v += loss_v_pl
             #     loss_v_arr = loss_v_arr.at[t].set(loss_v_pl)
@@ -302,9 +304,9 @@ PLAN_ITS = 10 # 8,5
 INIT_STEPS = 30 # (taking loss over all steps so doesnt matter)
 TOT_STEPS = 30
 PRED_STEPS = TOT_STEPS-INIT_STEPS
-LR = 0.0001 # 0.003,,0.0001
+LR = 0.001 # 0.003,,0.0001
 WD = 0.0001 # 0.0001
-H = 1000 # 500,300
+H = 600 # 500,300
 INIT = 2 # 0.5,0.1
 LAMBDA_D = 1 # 1,0.1
 LAMBDA_C = 10
@@ -313,15 +315,15 @@ LAMBDA_C = 10
 ke = rnd.split(rnd.PRNGKey(0),10)
 MODULES = 7 # 17 # (3*N+1)
 M = MODULES**2
-APERTURE = (jnp.sqrt(2)/2)*jnp.pi ###
-ACTION_FRAC = 1/4 # 
+APERTURE = (jnp.sqrt(2)/2)*jnp.pi ### unconstrained
+ACTION_FRAC = 1/4 # unconstrained
 ACTION_SPACE = ACTION_FRAC*APERTURE # 'AGENT_SPEED'
 PLAN_FRAC_REL = 3/2
 PLAN_SPACE = PLAN_FRAC_REL*ACTION_SPACE
 MAX_DOT_SPEED_REL_FRAC = 5/4
 MAX_DOT_SPEED = MAX_DOT_SPEED_REL_FRAC*ACTION_SPACE
 ALPHA = 1
-NEURONS_FULL = 20 # 15 # 12 # jnp.int32(NEURONS_AP*(jnp.pi//APERTURE))
+NEURONS_FULL = 12 # 15 # 12 # jnp.int32(NEURONS_AP*(jnp.pi//APERTURE))
 N_F = (NEURONS_FULL**2)
 NEURONS_AP = jnp.int32(jnp.floor(NEURONS_FULL*(APERTURE/jnp.pi))) # 6 # 10
 N_A = (NEURONS_AP**2)
