@@ -775,3 +775,14 @@ def gen_timeseries(SC,pos_0,dot_0,dot_vec,samples,step_array):
 SC = gen_sc(keys,7,(1/4)*(jnp.sqrt(2)/2)*jnp.pi,(3/8)*(jnp.sqrt(2)/2)*jnp.pi)
 pa,da,h1v,va = gen_timeseries(SC,jnp.array([0.,0.]),jnp.array([1.,1.]),jnp.array([0.5,0.5]),rnd.randint(keys[0],shape=(19,),minval=0,maxval=9),jnp.arange(1,20))
 print('pa=',pa,'da=',da,'h1v=',h1v,'va=',va)
+
+def get_inner_activation_indices(N, x):
+    inner_N = jnp.int32(N * x) # Length of one side of the central region
+    start_idx = (N - inner_N) // 2 # Starting index
+    end_idx = start_idx + inner_N # Ending index
+    row_indices, col_indices = jnp.meshgrid(jnp.arange(start_idx, end_idx), jnp.arange(start_idx, end_idx))
+    flat_indices = jnp.ravel_multi_index((row_indices.flatten(), col_indices.flatten()), (N, N))
+    return flat_indices
+flat_indices = get_inner_activation_indices(4,0.5)
+ind_take = jnp.take(jnp.arange(32),flat_indices)
+print('INNER=',flat_indices,ind_take,ind_take.shape)
