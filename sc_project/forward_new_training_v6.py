@@ -216,7 +216,7 @@ def body_fnc(SC,p_weights,params,pos_0,dot_0,dot_vec,h_0,samples,e):###
     tot_loss_v,tot_loss_c = 0,0
     h_t_1 = h_0
     v_t_1_ap = neuron_act_noise(samples[0],params["THETA_AP"],params["SIGMA_A"],params["SIGMA_N"],dot_arr[:,0],pos_arr[:,0])
-    v_t_arr = v_t_arr.at[0,:].set(v_t_1_ap)
+    v_t_arr = v_t_arr.at[0,:params["N_A"]].set(v_t_1_ap)
     # v_t_1_pl = neuron_act_noise(samples[0],params["THETA_PLAN"],params["SIGMA_A"],params["SIGMA_N"],dot_arr[:,0],pos_arr[:,0])
     for t in range(1,params["TOT_STEPS"]):
         v_pred_ap,v_pred_pl,h_t = plan(h1vec_arr[:,t-1],v_t_1_ap,h_t_1,p_weights,params["PLAN_ITS"]) # ,dot_hat_t
@@ -226,7 +226,7 @@ def body_fnc(SC,p_weights,params,pos_0,dot_0,dot_vec,h_0,samples,e):###
         loss_v_ap = jnp.sum((v_pred_ap-v_t_1_ap)**2) # v_t_1 not v_t
         loss_cos_ap = cosine_similarity(v_pred_ap,v_t_ap)
         loss_prev_mse_ap = jnp.sum((v_pred_ap-v_t_1_ap)**2)
-        v_t_arr = v_t_arr.at[t,:].set(v_t_ap)
+        v_t_arr = v_t_arr.at[t,:params["N_A"]].set(v_t_ap)
         h_t_1,v_t_1_ap = h_t,v_t_ap
         if t >= 0: # params["INIT_STEPS"]:
             # if e < params["INIT_TRAIN_EPOCHS"]:
@@ -292,7 +292,7 @@ def forward_model_loop(SC,weights,params):
     return arrs,aux # [VMAPS,STEPS,N]x2,[VMAPS,STEPS,2]x3,[VMAPS,STEPS]x2,..
 
 # hyperparams
-TOT_EPOCHS = 1000 #10000 # 1000 #250000
+TOT_EPOCHS = 10000 #10000 # 1000 #250000
 EPOCHS = 1
 INIT_TRAIN_EPOCHS = 50000 ### epochs until phase 2
 PLOTS = 3
