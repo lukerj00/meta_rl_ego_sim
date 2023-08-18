@@ -217,13 +217,13 @@ def body_fnc(SC,p_weights,params,pos_0,dot_0,dot_vec,h_0,samples,e):###
     h_t_1 = h_0
 
     v_t_1_ap = neuron_act_noise(samples[0],params["THETA_AP"],params["SIGMA_A"],params["SIGMA_N"],dot_arr[:,0],pos_arr[:,0])
-    v_t_1_pl = neuron_act_noise(samples[0],params["THETA_PLAN"],params["SIGMA_A"],params["SIGMA_N"],dot_arr[:,0],pos_arr[:,0])
-    v_t_arr = v_t_arr.at[0,:].set(v_t_1_pl) # :params["N_A"], v_t_1_ap
+    # v_t_1_pl = neuron_act_noise(samples[0],params["THETA_PLAN"],params["SIGMA_A"],params["SIGMA_N"],dot_arr[:,0],pos_arr[:,0])
+    v_t_arr = v_t_arr.at[0,:].set(v_t_1_ap) # :params["N_A"], v_t_1_ap
     for t in range(1,params["TOT_STEPS"]):
         v_pred_ap,v_pred_pl,h_t = plan(h1vec_arr[:,t-1],v_t_1_ap,h_t_1,p_weights,params["PLAN_ITS"]) # ,dot_hat_t
         
         v_t_ap = neuron_act_noise(samples[t-1],params["THETA_AP"],params["SIGMA_A"],params["SIGMA_N"],dot_arr[:,t],pos_arr[:,t])
-        v_t_pl = neuron_act_noise(samples[t-1],params["THETA_PLAN"],params["SIGMA_A"],params["SIGMA_N"],dot_arr[:,t],pos_arr[:,t])
+        # v_t_pl = neuron_act_noise(samples[t-1],params["THETA_PLAN"],params["SIGMA_A"],params["SIGMA_N"],dot_arr[:,t],pos_arr[:,t])
         
         # loss_v_pl = jnp.sum((v_pred_pl-v_t_pl)**2)
         loss_v_ap = jnp.sum((v_pred_ap-v_t_1_ap)**2) # v_t_1 not v_t
@@ -296,7 +296,7 @@ def forward_model_loop(SC,weights,params):
     return arrs,aux # [VMAPS,STEPS,N]x2,[VMAPS,STEPS,2]x3,[VMAPS,STEPS]x2,..
 
 # hyperparams
-TOT_EPOCHS = 2000 #10000 # 1000 #250000
+TOT_EPOCHS = 1000 #10000 # 1000 #250000
 EPOCHS = 1
 INIT_TRAIN_EPOCHS = 50000 ### epochs until phase 2
 PLOTS = 3
@@ -318,22 +318,22 @@ ke = rnd.split(rnd.PRNGKey(0),10)
 MODULES = 7 # 17 # (3*N+1)
 M = MODULES**2
 APERTURE = (jnp.sqrt(2)/2)*jnp.pi ###
-ACTION_FRAC = 1/4 # 
+ACTION_FRAC = 1 # unconstrained
 ACTION_SPACE = ACTION_FRAC*APERTURE # 'AGENT_SPEED'
 PLAN_FRAC_REL = 3/2
 PLAN_SPACE = PLAN_FRAC_REL*ACTION_SPACE
 MAX_DOT_SPEED_REL_FRAC = 5/4
 MAX_DOT_SPEED = MAX_DOT_SPEED_REL_FRAC*ACTION_SPACE
 ALPHA = 1
-NEURONS_FULL = 12 ## 15 # 12 # jnp.int32(NEURONS_AP*(jnp.pi//APERTURE))
+NEURONS_FULL = 20 ## 15 # 12 # jnp.int32(NEURONS_AP*(jnp.pi//APERTURE))
 N_F = (NEURONS_FULL**2)
-NEURONS_AP = NEURONS_FULL ## jnp.int32(jnp.floor(NEURONS_FULL*(APERTURE/jnp.pi))) # 6 # 10
+NEURONS_AP = jnp.int32(jnp.floor(NEURONS_FULL*(APERTURE/jnp.pi))) # 6 # 10
 N_A = (NEURONS_AP**2)
 NEURONS_PLAN = NEURONS_FULL ## NEURONS_AP + 2*ALPHA
 N_P = (NEURONS_PLAN**2)
 THETA_FULL = jnp.linspace(-(APERTURE-jnp.pi/NEURONS_FULL),(APERTURE-jnp.pi/NEURONS_FULL),NEURONS_FULL)
 # THETA_FULL = jnp.linspace(-(jnp.pi-jnp.pi/NEURONS_FULL),(jnp.pi-jnp.pi/NEURONS_FULL),NEURONS_FULL)
-THETA_AP = THETA_FULL ## THETA_FULL[NEURONS_FULL//2 - NEURONS_AP//2 : NEURONS_FULL//2 + NEURONS_AP//2]
+THETA_AP = THETA_FULL[NEURONS_FULL//2 - NEURONS_AP//2 : NEURONS_FULL//2 + NEURONS_AP//2]
 THETA_PLAN = THETA_FULL ## [NEURONS_FULL//2 - NEURONS_PLAN//2 : NEURONS_FULL//2 + NEURONS_PLAN//2]
 SIGMA_A = 0.3 # 0.3,0.5,1,0.3,1,0.5,1,0.1
 # SIGMA_D = 0.5
