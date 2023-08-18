@@ -119,12 +119,12 @@ def gen_vectors(MODULES,APERTURE):
 def gen_samples(key,MODULES,ACTION_SPACE,PLANNING_SPACE,INIT_STEPS,TOT_STEPS):###
     M_P = (MODULES-1)//2 # (1/ACTION_FRAC)
     M_A = jnp.int32(M_P*(ACTION_SPACE/PLANNING_SPACE)) ### FIX
-    init_vals = jnp.arange((2*M_A+1)**2)
-    main_vals = jnp.arange((2*M_A+1)**2,MODULES**2)
+    init_vals = jnp.arange((2*M_A+1)**2) # action space
+    main_vals = jnp.arange((2*M_A+1)**2,MODULES**2) # 'plan' space
     keys = rnd.split(key,2)
     init_samples = rnd.choice(keys[0],init_vals,shape=(INIT_STEPS,)) # INIT_STEPS,
-    # main_samples = rnd.choice(keys[1],main_vals,shape=(TOT_STEPS-INIT_STEPS-1,))
-    return init_samples #jnp.concatenate([init_samples,main_samples],axis=0) # init_samples
+    main_samples = rnd.choice(keys[1],main_vals,shape=(TOT_STEPS-INIT_STEPS-1,))
+    return jnp.concatenate([init_samples,main_samples],axis=0) # init_samples
 
 def new_params(params,e):
     EPOCHS = params["EPOCHS"]
@@ -210,7 +210,7 @@ def plan(h1vec,v_0,h_0,p_weights,PLAN_ITS): # self,hp_t_1,pos_t_1,v_t_1,r_t_1,we
 
 def body_fnc(SC,p_weights,params,pos_0,dot_0,dot_vec,h_0,samples,e):###
     loss_v_arr,loss_c_arr = (jnp.zeros(params["TOT_STEPS"]) for _ in range(2))
-    v_pred_arr,v_t_arr = (jnp.zeros((params["TOT_STEPS"],params["N_A"])) for _ in range(2)) # N_P
+    v_pred_arr,v_t_arr = (jnp.zeros((params["TOT_STEPS"],params["N_F"])) for _ in range(2)) # N_P
     rel_vec_hat_arr = jnp.zeros((params["TOT_STEPS"],2))
     pos_arr,dot_arr,h1vec_arr,vec_arr = gen_timeseries(SC,pos_0,dot_0,dot_vec,samples,params["STEP_ARRAY"])
     tot_loss_v,tot_loss_c = 0,0
@@ -226,19 +226,20 @@ def body_fnc(SC,p_weights,params,pos_0,dot_0,dot_vec,h_0,samples,e):###
         # v_t_pl = neuron_act_noise(samples[t-1],params["THETA_PLAN"],params["SIGMA_A"],params["SIGMA_N"],dot_arr[:,t],pos_arr[:,t])
         
         # loss_v_pl = jnp.sum((v_pred_pl-v_t_pl)**2)
-        loss_v_ap = jnp.sum((v_pred_ap-v_t_1_ap)**2) # v_t_1 not v_t
-        # loss_cos_ap = cosine_similarity(v_pred_ap,v_t_ap)
+        loss_v_ap = jnp.sum((v_pred_ap-v_t_ap)**2) # v_t_1 not v_t
+        loss_cos_ap = cosine_similarity(v_pred_ap,v_t_ap)
         # loss_prev_mse_ap = jnp.sum((v_pred_ap-v_t_1_ap)**2)
         
         v_t_arr = v_t_arr.at[t,:].set(v_t_ap) # :params["N_A"], v_t_ap
         v_pred_arr = v_pred_arr.at[t,:].set(v_pred_ap) # params["N_A"], v_pred_ap
+        loss_v_arr = loss_v_arr.at[t].set(loss_v_ap)
+        loss_c_arr = loss_c_arr.at[t].set(loss_cos_ap)
         h_t_1,v_t_1_ap = h_t,v_t_ap
         
         if t >= 0: # params["INIT_STEPS"]:
             # if e < params["INIT_TRAIN_EPOCHS"]: # phase 1 (ap) /p2 (pl) stuff
-            tot_loss_v += loss_v_ap #+ params["LAMBDA_C"]*loss_cos_ap #- params["LAMBDA_P"]*loss_prev_mse_ap
-            loss_v_arr = loss_v_arr.at[t].set(loss_v_ap)
-            # loss_c_arr = loss_c_arr.at[t].set(loss_cos_ap)
+            tot_loss_v += loss_v_ap + params["LAMBDA_C"]*loss_cos_ap #- params["LAMBDA_P"]*loss_prev_mse_ap
+
             # else:
             #     tot_loss_v += loss_v_pl
             #     loss_v_arr = loss_v_arr.at[t].set(loss_v_pl)
@@ -279,7 +280,7 @@ def forward_model_loop(SC,weights,params):
         print("loss_avg={}",jnp.mean(loss))
         print("loss_sem={}",jnp.std(loss)/jnp.sqrt(params["VMAPS"]))
         print("loss_v={}",jnp.mean(loss_v_arr_,axis=0))
-        # print("loss_c={}",jnp.mean(loss_c_arr_,axis=0))
+        print("loss_c={}",jnp.mean(loss_c_arr_,axis=0))
         # print("std_v={}",jnp.std(loss_v_arr)/jnp.sqrt(params["VMAPS"]))
         # print("loss_d={}",jnp.mean(loss_d_arr_,axis=0))
         # print("std_d={}",jnp.std(loss_d_arr)/jnp.sqrt(params["VMAPS"]))
@@ -296,44 +297,44 @@ def forward_model_loop(SC,weights,params):
     return arrs,aux # [VMAPS,STEPS,N]x2,[VMAPS,STEPS,2]x3,[VMAPS,STEPS]x2,..
 
 # hyperparams
-TOT_EPOCHS = 1000 #10000 # 1000 #250000
+TOT_EPOCHS = 10000 #10000 # 1000 #250000
 EPOCHS = 1
 INIT_TRAIN_EPOCHS = 50000 ### epochs until phase 2
 PLOTS = 3
 # LOOPS = TOT_EPOCHS//EPOCHS
 VMAPS = 500 # 800,500
 PLAN_ITS = 10 # 8,5
-INIT_STEPS = 30 # (taking loss over all steps so doesnt matter)
+INIT_STEPS = 0 # (taking loss over all steps so doesnt matter)
 TOT_STEPS = 30
 PRED_STEPS = TOT_STEPS-INIT_STEPS
-LR = 0.001 # 0.003,,0.0001
+LR = 0.003 # 0.003,,0.0001
 WD = 0.0001 # 0.0001
-H = 300 ## 500,300
+H = 500 ## 500,300
 INIT = 2 # 0.5,0.1
 LAMBDA_D = 1 # 1,0.1
-LAMBDA_C = 10
+LAMBDA_C = 1
 
 # ENV/sc params
 ke = rnd.split(rnd.PRNGKey(0),10)
 MODULES = 7 # 17 # (3*N+1)
 M = MODULES**2
 APERTURE = (jnp.sqrt(2)/2)*jnp.pi ###
-ACTION_FRAC = 1 # unconstrained
+ACTION_FRAC = 1/4 # unconstrained
 ACTION_SPACE = ACTION_FRAC*APERTURE # 'AGENT_SPEED'
 PLAN_FRAC_REL = 3/2
 PLAN_SPACE = PLAN_FRAC_REL*ACTION_SPACE
 MAX_DOT_SPEED_REL_FRAC = 5/4
 MAX_DOT_SPEED = MAX_DOT_SPEED_REL_FRAC*ACTION_SPACE
 ALPHA = 1
-NEURONS_FULL = 20 ## 15 # 12 # jnp.int32(NEURONS_AP*(jnp.pi//APERTURE))
+NEURONS_FULL = 12 ## 15 # 12 # jnp.int32(NEURONS_AP*(jnp.pi//APERTURE))
 N_F = (NEURONS_FULL**2)
-NEURONS_AP = jnp.int32(jnp.floor(NEURONS_FULL*(APERTURE/jnp.pi))) # 6 # 10
+NEURONS_AP = NEURONS_FULL ## jnp.int32(jnp.floor(NEURONS_FULL*(APERTURE/jnp.pi))) # 6 # 10
 N_A = (NEURONS_AP**2)
 NEURONS_PLAN = NEURONS_FULL ## NEURONS_AP + 2*ALPHA
 N_P = (NEURONS_PLAN**2)
 THETA_FULL = jnp.linspace(-(APERTURE-jnp.pi/NEURONS_FULL),(APERTURE-jnp.pi/NEURONS_FULL),NEURONS_FULL)
 # THETA_FULL = jnp.linspace(-(jnp.pi-jnp.pi/NEURONS_FULL),(jnp.pi-jnp.pi/NEURONS_FULL),NEURONS_FULL)
-THETA_AP = THETA_FULL[NEURONS_FULL//2 - NEURONS_AP//2 : NEURONS_FULL//2 + NEURONS_AP//2]
+THETA_AP = THETA_FULL # [NEURONS_FULL//2 - NEURONS_AP//2 : NEURONS_FULL//2 + NEURONS_AP//2]
 THETA_PLAN = THETA_FULL ## [NEURONS_FULL//2 - NEURONS_PLAN//2 : NEURONS_FULL//2 + NEURONS_PLAN//2]
 SIGMA_A = 0.3 # 0.3,0.5,1,0.3,1,0.5,1,0.1
 # SIGMA_D = 0.5
@@ -457,19 +458,19 @@ fig,ax = plt.subplots(1,3,figsize=(13,6))
 plt.suptitle('forward_new_training_v7, '+title__,fontsize=10)
 plt.subplot(1,3,1)
 plt.errorbar(jnp.arange(TOT_EPOCHS),loss_arr,yerr=loss_sem,color='black',ecolor='lightgray',elinewidth=2,capsize=0)
-# plt.xscale('log')
+plt.xscale('log')
 # plt.yscale('log')
 plt.ylabel(r'Total loss',fontsize=15)
 plt.xlabel(r'Iteration',fontsize=15)
 plt.subplot(1,3,2)
 plt.errorbar(jnp.arange(TOT_EPOCHS),jnp.mean(loss_v_arr,axis=1),yerr=jnp.mean(v_std_arr,axis=1),color='black',ecolor='lightgray',elinewidth=2,capsize=0)
-# plt.xscale('log')
+plt.xscale('log')
 plt.yscale('log')
 plt.ylabel(r'Visual model loss',fontsize=15)
 plt.xlabel(r'Iteration',fontsize=15)
 plt.subplot(1,3,3)
 plt.errorbar(jnp.arange(TOT_EPOCHS),jnp.mean(loss_c_arr,axis=1),yerr=jnp.mean(c_std_arr,axis=1),color='black',ecolor='lightgray',elinewidth=2,capsize=0)
-# plt.xscale('log')
+plt.xscale('log')
 # plt.yscale('log')
 plt.ylabel(r'cosine similarity',fontsize=15)
 plt.xlabel(r'Iteration',fontsize=15)
