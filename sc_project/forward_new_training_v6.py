@@ -113,8 +113,8 @@ def gen_samples(key,MODULES,ACTION_SPACE,PLANNING_SPACE,INIT_STEPS,TOT_STEPS):##
     main_vals = jnp.arange((2*M_A+1)**2,MODULES**2)
     keys = rnd.split(key,2)
     init_samples = rnd.choice(keys[0],init_vals,shape=(INIT_STEPS,)) # INIT_STEPS,
-    # main_samples = rnd.choice(keys[1],main_vals,shape=(TOT_STEPS-INIT_STEPS-1,))
-    return init_samples #jnp.concatenate([init_samples,main_samples],axis=0) # init_samples
+    main_samples = rnd.choice(keys[1],main_vals,shape=(TOT_STEPS-INIT_STEPS-1,))
+    return jnp.concatenate([init_samples,main_samples],axis=0) # init_samples
 
 def new_params(params,e):
     EPOCHS = params["EPOCHS"]
@@ -202,9 +202,9 @@ def plan(h1vec,v_0,h_0,p_weights,PLAN_ITS): # self,hp_t_1,pos_t_1,v_t_1,r_t_1,we
     W_r_pl = p_weights["W_r_pl"]
     carry_0 = (p_weights,h1vec,v_0,h_0)
     (*_,h_t),_ = jax.lax.scan(loop_body,carry_0,jnp.zeros(PLAN_ITS))
-    v_pred_pl = jnp.matmul(W_r_pl,h_t)
+    v_pred_full = jnp.matmul(W_r_pl,h_t)
 
-    v_pred_ap = jnp.take(v_pred_pl, params["INDICES"])
+    v_pred_ap = jnp.take(v_pred_full, params["INDICES"])
     # v_pred_ap = jnp.matmul(W_r_a,h_t)
     return v_pred_ap,v_pred_full,h_t # dot_hat_t,
 
@@ -241,7 +241,7 @@ def body_fnc(SC,p_weights,params,pos_0,dot_0,dot_vec,h_0,samples,e):###
             #     loss_v_arr = loss_v_arr.at[t].set(loss_v_pl)
             #     v_pred_arr = v_pred_arr.at[t,:].set(v_pred_pl)
     # loss_tot = tot_loss_v # + params["LAMBDA_D"]*tot_loss_d
-    avg_loss = tot_loss_v/(params["TOT_STEPS"]-1) # params["PRED_STEPS"]
+    avg_loss = tot_loss_v/(params["TOT_STEPS"]) # params["PRED_STEPS"]
     return avg_loss,(v_pred_arr,v_t_arr,pos_arr,dot_arr,rel_vec_hat_arr,loss_v_arr,loss_c_arr)
 
 # @partial(jax.jit,static_argnums=())
@@ -294,14 +294,14 @@ def forward_model_loop(SC,weights,params):
     return arrs,aux # [VMAPS,STEPS,N]x2,[VMAPS,STEPS,2]x3,[VMAPS,STEPS]x2,..
 
 # hyperparams
-TOT_EPOCHS = 10000 #10000 # 1000 #250000
+TOT_EPOCHS = 20000 #10000 # 1000 #250000
 EPOCHS = 1
 INIT_TRAIN_EPOCHS = 50000 ### epochs until phase 2
 PLOTS = 3
 # LOOPS = TOT_EPOCHS//EPOCHS
-VMAPS = 200 # 800,500
+VMAPS = 300 # 800,500
 PLAN_ITS = 10 # 8,5
-INIT_STEPS = 30 # (taking loss over all steps so doesnt matter)
+INIT_STEPS = 0 # (taking loss over all steps so doesnt matter)
 TOT_STEPS = 30
 PRED_STEPS = TOT_STEPS-INIT_STEPS
 LR = 0.001 # 0.003,,0.0001
@@ -323,15 +323,15 @@ PLAN_SPACE = PLAN_FRAC_REL*ACTION_SPACE
 MAX_DOT_SPEED_REL_FRAC = 5/4
 MAX_DOT_SPEED = MAX_DOT_SPEED_REL_FRAC*ACTION_SPACE
 ALPHA = 1
-NEURONS_FULL = 12 # 15 # 12 # jnp.int32(NEURONS_AP*(jnp.pi//APERTURE))
+NEURONS_FULL = 15 # 15 # 12 # jnp.int32(NEURONS_AP*(jnp.pi//APERTURE))
 N_F = (NEURONS_FULL**2)
 NEURONS_AP = jnp.int32(jnp.floor(NEURONS_FULL*(APERTURE/jnp.pi))) # 6 # 10
 N_A = (NEURONS_AP**2)
-NEURONS_PLAN = NEURONS_AP + 2*ALPHA
+NEURONS_PLAN = NEURONS_FULL #NEURONS_AP + 2*ALPHA
 N_P = (NEURONS_PLAN**2)
 THETA_FULL = jnp.linspace(-(jnp.pi-jnp.pi/NEURONS_FULL),(jnp.pi-jnp.pi/NEURONS_FULL),NEURONS_FULL)
 THETA_AP = THETA_FULL[NEURONS_FULL//2 - NEURONS_AP//2 : NEURONS_FULL//2 + NEURONS_AP//2]
-THETA_PLAN = THETA_FULL[NEURONS_FULL//2 - NEURONS_PLAN//2 : NEURONS_FULL//2 + NEURONS_PLAN//2]
+THETA_PLAN = THETA_FULL #[NEURONS_FULL//2 - NEURONS_PLAN//2 : NEURONS_FULL//2 + NEURONS_PLAN//2]
 SIGMA_A = 0.3 # 0.3,0.5,1,0.3,1,0.5,1,0.1
 # SIGMA_D = 0.5
 SIGMA_N = 0.05 # 0.05
@@ -449,7 +449,7 @@ arrs,aux = forward_model_loop(SC,weights,params)
 print("Training time: ",datetime.now()-startTime,"s/epoch=",((datetime.now()-startTime)/TOT_EPOCHS).total_seconds())
 print("Time finished:",datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
 plt.figure(figsize=(12,6))
-title__ = f'EPOCHS={TOT_EPOCHS}, INIT_EPOCHS={INIT_TRAIN_EPOCHS}, VMAPS={VMAPS}, PLAN_ITS={PLAN_ITS}, init={INIT:.2f}, update={LR:.6f}, WD={WD:.5f}, TOT_STEPS={TOT_STEPS}, PRED_STEPS={PRED_STEPS} \n ALPHA={ALPHA}, APERTURE={APERTURE:.2f}, ACTION_SPACE={ACTION_SPACE:.2f}, SIGMA_A={SIGMA_A:.1f}, NEURONS_FULL={NEURONS_FULL**2}, MODULES={M}, H={H}'
+title__ = f'EPOCHS={TOT_EPOCHS}, INIT_EPOCHS={INIT_TRAIN_EPOCHS}, VMAPS={VMAPS}, PLAN_ITS={PLAN_ITS}, init={INIT:.2f}, update={LR:.6f}, WD={WD:.5f}, TOT_STEPS={TOT_STEPS}, PRED_STEPS={PRED_STEPS} \n ALPHA={ALPHA}, APERTURE={APERTURE:.2f}, PLAN_SPACE={ACTION_SPACE:.2f}, SIGMA_A={SIGMA_A:.1f}, NEURONS_FULL={NEURONS_FULL**2}, MODULES={M}, H={H}'
 fig,ax = plt.subplots(1,3,figsize=(13,6))
 plt.suptitle('forward_new_training_v6, '+title__,fontsize=10)
 plt.subplot(1,3,1)
