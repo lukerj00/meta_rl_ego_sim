@@ -108,7 +108,7 @@ def gen_vectors(MODULES,APERTURE):
 
 def gen_samples(key,MODULES,ACTION_SPACE,PLANNING_SPACE,INIT_STEPS,TOT_STEPS):###
     M_P = (MODULES-1)//2 # (1/ACTION_FRAC)
-    M_A = jnp.int32(M_P*(ACTION_SPACE/PLANNING_SPACE)) ### FIX
+    M_A = jnp.int32(M_P*(ACTION_SPACE/PLANNING_SPACE)) ### FIX (AS/PS=2/3)
     init_vals = jnp.arange((2*M_A+1)**2)
     main_vals = jnp.arange((2*M_A+1)**2,MODULES**2)
     keys = rnd.split(key,2)
@@ -294,7 +294,7 @@ def forward_model_loop(SC,weights,params):
     return arrs,aux # [VMAPS,STEPS,N]x2,[VMAPS,STEPS,2]x3,[VMAPS,STEPS]x2,..
 
 # hyperparams
-TOT_EPOCHS = 20000 #10000 # 1000 #250000
+TOT_EPOCHS = 10000 #10000 # 1000 #250000
 EPOCHS = 1
 INIT_TRAIN_EPOCHS = 50000 ### epochs until phase 2
 PLOTS = 3
@@ -306,7 +306,7 @@ TOT_STEPS = 30
 PRED_STEPS = TOT_STEPS-INIT_STEPS
 LR = 0.001 # 0.003,,0.0001
 WD = 0.0001 # 0.0001
-H = 600 # 500,300
+H = 400 # 500,300
 INIT = 2 # 0.5,0.1
 LAMBDA_D = 1 # 1,0.1
 LAMBDA_C = 10
@@ -315,15 +315,15 @@ LAMBDA_C = 10
 ke = rnd.split(rnd.PRNGKey(0),10)
 MODULES = 7 # 17 # (3*N+1)
 M = MODULES**2
-APERTURE = (jnp.sqrt(2)/2)*jnp.pi ### unconstrained
-ACTION_FRAC = 1/4 # unconstrained
+APERTURE = (1/2)*jnp.pi # (jnp.sqrt(2)/2)*jnp.pi ### unconstrained
+ACTION_FRAC = 1/2 # unconstrained
 ACTION_SPACE = ACTION_FRAC*APERTURE # 'AGENT_SPEED'
 PLAN_FRAC_REL = 3/2
 PLAN_SPACE = PLAN_FRAC_REL*ACTION_SPACE
 MAX_DOT_SPEED_REL_FRAC = 5/4
 MAX_DOT_SPEED = MAX_DOT_SPEED_REL_FRAC*ACTION_SPACE
 ALPHA = 1
-NEURONS_FULL = 15 # 15 # 12 # jnp.int32(NEURONS_AP*(jnp.pi//APERTURE))
+NEURONS_FULL = 12 # 15 # 12 # jnp.int32(NEURONS_AP*(jnp.pi//APERTURE))
 N_F = (NEURONS_FULL**2)
 NEURONS_AP = jnp.int32(jnp.floor(NEURONS_FULL*(APERTURE/jnp.pi))) # 6 # 10
 N_A = (NEURONS_AP**2)
