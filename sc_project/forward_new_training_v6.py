@@ -277,7 +277,7 @@ def forward_model_loop(SC,weights,params):
         print("loss_avg={}",jnp.mean(loss))
         print("loss_sem={}",jnp.std(loss)/jnp.sqrt(params["VMAPS"]))
         print("loss_v={}",jnp.mean(loss_v_arr_,axis=0))
-        print("loss_c={}",jnp.mean(loss_c_arr_,axis=0))
+        print("loss_c_avg={}",jnp.mean(jnp.mean(loss_c_arr_,axis=0)))
         # print("std_v={}",jnp.std(loss_v_arr)/jnp.sqrt(params["VMAPS"]))
         # print("loss_d={}",jnp.mean(loss_d_arr_,axis=0))
         # print("std_d={}",jnp.std(loss_d_arr)/jnp.sqrt(params["VMAPS"]))
@@ -294,19 +294,19 @@ def forward_model_loop(SC,weights,params):
     return arrs,aux # [VMAPS,STEPS,N]x2,[VMAPS,STEPS,2]x3,[VMAPS,STEPS]x2,..
 
 # hyperparams
-TOT_EPOCHS = 10000 #10000 # 1000 #250000
+TOT_EPOCHS = 20000 #10000 # 1000 #250000
 EPOCHS = 1
 INIT_TRAIN_EPOCHS = 50000 ### epochs until phase 2
 PLOTS = 3
 # LOOPS = TOT_EPOCHS//EPOCHS
-VMAPS = 300 # 800,500
+VMAPS = 500 # 800,500
 PLAN_ITS = 10 # 8,5
 INIT_STEPS = 0 # (taking loss over all steps so doesnt matter)
 TOT_STEPS = 30
 PRED_STEPS = TOT_STEPS-INIT_STEPS
 LR = 0.001 # 0.003,,0.0001
 WD = 0.0001 # 0.0001
-H = 400 # 500,300
+H = 600 # 500,300
 INIT = 2 # 0.5,0.1
 LAMBDA_D = 1 # 1,0.1
 LAMBDA_C = 10
@@ -315,7 +315,7 @@ LAMBDA_C = 10
 ke = rnd.split(rnd.PRNGKey(0),10)
 MODULES = 7 # 17 # (3*N+1)
 M = MODULES**2
-APERTURE = (1/2)*jnp.pi # (jnp.sqrt(2)/2)*jnp.pi ### unconstrained
+APERTURE = (3/5)*jnp.pi # (jnp.sqrt(2)/2)*jnp.pi ### unconstrained
 ACTION_FRAC = 1/2 # unconstrained
 ACTION_SPACE = ACTION_FRAC*APERTURE # 'AGENT_SPEED'
 PLAN_FRAC_REL = 3/2
@@ -323,7 +323,7 @@ PLAN_SPACE = PLAN_FRAC_REL*ACTION_SPACE
 MAX_DOT_SPEED_REL_FRAC = 5/4
 MAX_DOT_SPEED = MAX_DOT_SPEED_REL_FRAC*ACTION_SPACE
 ALPHA = 1
-NEURONS_FULL = 12 # 15 # 12 # jnp.int32(NEURONS_AP*(jnp.pi//APERTURE))
+NEURONS_FULL = 14 # 12 # 15 # 12 # jnp.int32(NEURONS_AP*(jnp.pi//APERTURE))
 N_F = (NEURONS_FULL**2)
 NEURONS_AP = jnp.int32(jnp.floor(NEURONS_FULL*(APERTURE/jnp.pi))) # 6 # 10
 N_A = (NEURONS_AP**2)
