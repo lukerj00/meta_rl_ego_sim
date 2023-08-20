@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# 'nice' hp's; const dot speed; (penalise similarity)
+# GRU
 """
 Created on Wed May 10 2023
 
@@ -186,25 +186,36 @@ def cosine_similarity(x,y):
     return dot_product/(x_norm*y_norm)
 
 @partial(jax.jit,static_argnums=(4,))
-def plan(h1vec,v_0,h_0,p_weights,PLAN_ITS): # self,hp_t_1,pos_t_1,v_t_1,r_t_1,weights,params
+def plan(h1vec,v_t_1,h_0,p_weights,PLAN_ITS): # self,hp_t_1,pos_t_1,v_t_1,r_t_1,weights,params
     def loop_body(carry,i):
         return RNN_forward(carry)
     def RNN_forward(carry):
-        p_weights,h1vec,v_0,h_t_1 = carry
-        W_h1 = p_weights["W_h1"]
-        W_v = p_weights["W_v"]
-        U_vh = p_weights["U_vh"]
-        b_vh = p_weights["b_vh"]
-        h_t = jax.nn.sigmoid(jnp.matmul(W_h1,h1vec) + jnp.matmul(W_v,v_0) + jnp.matmul(U_vh,h_t_1) + b_vh)
-        return (p_weights,h1vec,v_0,h_t),None
-    W_r_f = p_weights["W_r_f"]
-    W_r_a = p_weights["W_r_a"]
-    W_r_pl = p_weights["W_r_pl"]
-    carry_0 = (p_weights,h1vec,v_0,h_0)
+        p_weights,h1vec,v_t_1,h_t_1 = carry
+        W_h1_z = p_weights["W_h1_z"]
+        W_v_z = p_weights["W_v_z"]
+        U_z = p_weights["U_z"]
+        b_z = p_weights["b_z"]
+        W_h1_f = p_weights["W_h1_f"]
+        W_v_f = p_weights["W_v_f"]
+        U_f = p_weights["U_f"]
+        b_f = p_weights["b_f"]
+        W_h1_h = p_weights["W_h1_h"]
+        W_v_h = p_weights["W_v_h"]
+        U_h = p_weights["U_h"]
+        b_h = p_weights["b_h"]
+        z_t = jax.nn.sigmoid(jnp.matmul(W_h1_z,h1vec) + jnp.matmul(W_v_z,v_t_1) + jnp.matmul(U_z,h_t_1) + b_z)
+        f_t = jax.nn.sigmoid(jnp.matmul(W_h1_f,h1vec) + jnp.matmul(W_v_f,v_t_1) + jnp.matmul(U_f,h_t_1) + b_f)
+        hhat_t = jnp.tanh(jnp.matmul(W_h1_h,h1vec) + jnp.matmul(W_v_h,v_t_1) + jnp.matmul(U_h,jnp.multiply(f_t,h_t_1)) + b_h)
+        h_t = jnp.multiply(z_t,h_t_1) + jnp.multiply((1-z_t),hhat_t)
+        # h_t = jax.nn.sigmoid(jnp.matmul(W_h1,h1vec) + jnp.matmul(W_v,v_t_1) + jnp.matmul(U_vh,h_t_1) + b_vh)
+        return (p_weights,h1vec,v_t_1,h_t),None
+    W_r_full = p_weights["W_r_full"]
+    # W_r_a = p_weights["W_r_a"]
+    # W_r_pl = p_weights["W_r_pl"]
+    carry_0 = (p_weights,h1vec,v_t_1,h_0)
     (*_,h_t),_ = jax.lax.scan(loop_body,carry_0,jnp.zeros(PLAN_ITS))
-    v_pred_full = jnp.matmul(W_r_pl,h_t)
-
-    v_pred_ap = jnp.take(v_pred_full, params["INDICES"])
+    v_pred_full = jnp.matmul(W_r_full,h_t)
+    v_pred_ap = jnp.take(v_pred_full,params["INDICES"])
     # v_pred_ap = jnp.matmul(W_r_a,h_t)
     return v_pred_ap,v_pred_full,h_t # dot_hat_t,
 
@@ -225,13 +236,13 @@ def body_fnc(SC,p_weights,params,pos_0,dot_0,dot_vec,h_0,samples,e):###
         
         loss_v_full = jnp.sum((v_pred_full-v_t_full)**2)
         loss_v_ap = jnp.sum((v_pred_ap-v_t_1_ap)**2) # v_t_1 not v_t
-        loss_cos_ap = cosine_similarity(v_pred_ap,v_t_ap)
-        loss_prev_mse_ap = jnp.sum((v_pred_ap-v_t_1_ap)**2)
+        loss_cos_full = cosine_similarity(v_pred_full,v_t_full)
+        # loss_prev_mse_ap = jnp.sum((v_pred_ap-v_t_1_ap)**2)
         
         v_t_arr = v_t_arr.at[t,:].set(v_t_full)
-        v_pred_arr = v_pred_arr.at[t,:].set(v_pred_full)    
-        loss_v_arr = loss_v_arr.at[t].set(loss_v_ap)
-        loss_c_arr = loss_c_arr.at[t].set(loss_cos_ap)
+        v_pred_arr = v_pred_arr.at[t,:].set(v_pred_full)
+        loss_v_arr = loss_v_arr.at[t].set(loss_v_full)###
+        loss_c_arr = loss_c_arr.at[t].set(loss_cos_full)###
         h_t_1,v_t_1_ap = h_t,v_t_ap
         if t >= 0: # params["INIT_STEPS"]:
             # if e < params["INIT_TRAIN_EPOCHS"]:
@@ -248,7 +259,7 @@ def body_fnc(SC,p_weights,params,pos_0,dot_0,dot_vec,h_0,samples,e):###
 def forward_model_loop(SC,weights,params):
     p_weights = weights["p_weights"]
     T = params["TOT_EPOCHS"]
-    loss_arr,loss_sem = (jnp.empty(params["TOT_EPOCHS"]) for _ in range(2))
+    loss_arr,loss_std = (jnp.empty(params["TOT_EPOCHS"]) for _ in range(2))
     loss_v_arr,v_std_arr,loss_c_arr,c_std_arr = (jnp.empty((params["TOT_EPOCHS"],params["TOT_STEPS"])) for _ in range(4))
     optimizer = optax.adamw(learning_rate=params["LR"],weight_decay=params["WD"])
     opt_state = optimizer.init(p_weights)
@@ -262,20 +273,20 @@ def forward_model_loop(SC,weights,params):
         h_0 = params["HP_0"] #[e,:,:]
         val_grad = jax.value_and_grad(body_fnc,argnums=1,allow_int=True,has_aux=True)
         val_grad_vmap = jax.vmap(val_grad,in_axes=(None,None,None,0,0,0,0,0,None),out_axes=(0,0))
-        (loss,aux),grads = val_grad_vmap(SC,p_weights,params,pos_0,dot_0,dot_vec,h_0,samples,e) # val_grad_vmap ,,v_0
+        (loss,aux),grads = val_grad_vmap(SC,p_weights,params,pos_0,dot_0,dot_vec,h_0,samples,e) # val_grad_vmap ,,v_t_1
         v_pred_arr,v_t_arr,pos_arr,dot_arr,rel_vec_hat_arr,loss_v_arr_,loss_c_arr_ = aux # [VMAPS,STEPS,N]x2,[VMAPS,STEPS,2]x3,[VMAPS,STEPS]x2 (final timestep)
         grads_ = jax.tree_util.tree_map(lambda x: jnp.mean(x,axis=0),grads)
         opt_update,opt_state = optimizer.update(grads_,opt_state,p_weights)
         p_weights = optax.apply_updates(p_weights,opt_update)
         loss_arr = loss_arr.at[e].set(jnp.mean(loss))
-        loss_sem = loss_sem.at[e].set(jnp.std(loss)/jnp.sqrt(params["VMAPS"]))
+        loss_std = loss_std.at[e].set(jnp.std(loss)) # /jnp.sqrt(params["VMAPS"]))
         loss_v_arr = loss_v_arr.at[e,:].set(jnp.mean(loss_v_arr_,axis=0))
         loss_c_arr = loss_c_arr.at[e,:].set(jnp.mean(loss_c_arr_,axis=0))
         v_std_arr = v_std_arr.at[e,:].set(jnp.std(loss_v_arr_,axis=0)/jnp.sqrt(params["VMAPS"]))
         c_std_arr = c_std_arr.at[e,:].set(jnp.std(loss_c_arr_,axis=0)/jnp.sqrt(params["VMAPS"]))
         print("e={}",e)
         print("loss_avg={}",jnp.mean(loss))
-        print("loss_sem={}",jnp.std(loss)/jnp.sqrt(params["VMAPS"]))
+        print("loss_std={}",jnp.std(loss)) #/jnp.sqrt(params["VMAPS"]))
         print("loss_v={}",jnp.mean(loss_v_arr_,axis=0))
         print("loss_c_avg={}",jnp.mean(jnp.mean(loss_c_arr_,axis=0)))
         # print("std_v={}",jnp.std(loss_v_arr)/jnp.sqrt(params["VMAPS"]))
@@ -289,24 +300,24 @@ def forward_model_loop(SC,weights,params):
         #     print("rel_vec_hat_arr.shape=",rel_vec_hat_arr.shape)
         #     print("loss_v_arr.shape=",loss_v_arr.shape)
         #     print("loss_d_arr.shape=",loss_d_arr.shape)
-        arrs = (loss_arr,loss_sem,loss_v_arr,v_std_arr,loss_c_arr,c_std_arr)
+        arrs = (loss_arr,loss_std,loss_v_arr,v_std_arr,loss_c_arr,c_std_arr)
         aux = (v_pred_arr,v_t_arr,loss_v_arr_,loss_c_arr_,pos_arr,dot_arr,rel_vec_hat_arr,opt_state,p_weights)
     return arrs,aux # [VMAPS,STEPS,N]x2,[VMAPS,STEPS,2]x3,[VMAPS,STEPS]x2,..
 
 # hyperparams
-TOT_EPOCHS = 20000 #10000 # 1000 #250000
+TOT_EPOCHS = 2000 #10000 # 1000 #250000
 EPOCHS = 1
-INIT_TRAIN_EPOCHS = 50000 ### epochs until phase 2
+INIT_TRAIN_EPOCHS = 100000 ### epochs until phase 2
 PLOTS = 3
 # LOOPS = TOT_EPOCHS//EPOCHS
-VMAPS = 500 # 800,500
-PLAN_ITS = 10 # 8,5
+VMAPS = 300 # 800,500
+PLAN_ITS = 10 # 5,10,8,5
 INIT_STEPS = 0 # (taking loss over all steps so doesnt matter)
 TOT_STEPS = 30
 PRED_STEPS = TOT_STEPS-INIT_STEPS
-LR = 0.001 # 0.003,,0.0001
+LR = 0.0001 # 0.003,,0.0001
 WD = 0.0001 # 0.0001
-H = 600 # 500,300
+H = 500 # 500,300
 INIT = 2 # 0.5,0.1
 LAMBDA_D = 1 # 1,0.1
 LAMBDA_C = 10
@@ -315,7 +326,7 @@ LAMBDA_C = 10
 ke = rnd.split(rnd.PRNGKey(0),10)
 MODULES = 7 # 17 # (3*N+1)
 M = MODULES**2
-APERTURE = (3/5)*jnp.pi # (jnp.sqrt(2)/2)*jnp.pi ### unconstrained
+APERTURE = (1/2)*jnp.pi # (3/5) (jnp.sqrt(2)/2)*jnp.pi ### unconstrained
 ACTION_FRAC = 1/2 # unconstrained
 ACTION_SPACE = ACTION_FRAC*APERTURE # 'AGENT_SPEED'
 PLAN_FRAC_REL = 3/2
@@ -323,7 +334,7 @@ PLAN_SPACE = PLAN_FRAC_REL*ACTION_SPACE
 MAX_DOT_SPEED_REL_FRAC = 5/4
 MAX_DOT_SPEED = MAX_DOT_SPEED_REL_FRAC*ACTION_SPACE
 ALPHA = 1
-NEURONS_FULL = 14 # 12 # 15 # 12 # jnp.int32(NEURONS_AP*(jnp.pi//APERTURE))
+NEURONS_FULL = 12 # 14 # 15 # 12 # jnp.int32(NEURONS_AP*(jnp.pi//APERTURE))
 N_F = (NEURONS_FULL**2)
 NEURONS_AP = jnp.int32(jnp.floor(NEURONS_FULL*(APERTURE/jnp.pi))) # 6 # 10
 N_A = (NEURONS_AP**2)
@@ -351,21 +362,31 @@ SC = gen_sc(ke,MODULES,ACTION_SPACE,PLAN_SPACE)
 
 # x = NEURONS_AP / NEURONS_PLAN
 # N = jnp.int32(jnp.sqrt(v_pred_full.shape[0]))
-INDICES = get_inner_activation_indices(NEURONS_PLAN, NEURONS_AP)
+INDICES = get_inner_activation_indices(NEURONS_FULL, NEURONS_AP)
 
 # INITIALIZATION ### FIX
 ki = rnd.split(rnd.PRNGKey(1),num=50)
-W_h10 = jnp.sqrt(INIT/(H+M))*rnd.normal(ki[0],(H,M))
-W_v0 = jnp.sqrt(INIT/(H+N_A))*rnd.normal(ki[1],(H,N_A))
-W_r_f0 = jnp.sqrt(INIT/(N_F+H))*rnd.normal(ki[2],(N_F,H))
-W_r_a0 = jnp.sqrt(INIT/(N_A+H))*rnd.normal(ki[3],(N_A,H))
-W_r_pl0 = jnp.sqrt(INIT/(N_P+H))*rnd.normal(ki[4],(N_P,H))
-# W_dot0 = jnp.sqrt(INIT/(H+4))*rnd.normal(ki[3],(4,H))
-W_v0 = jnp.sqrt(INIT/(H+N_A))*rnd.normal(ki[1],(H,N_A))
-W_r0 = jnp.sqrt(INIT/(N_F+H))*rnd.normal(ki[2],(N_F,H))
-# W_dot0 = jnp.sqrt(INIT/(H+4))*rnd.normal(ki[3],(4,H))
-U_vh0,_ = jnp.linalg.qr(jnp.sqrt(INIT/(H+H))*rnd.normal(ki[2],(H,H)))
-b_vh0 = jnp.sqrt(INIT/(H))*rnd.normal(ki[3],(H,))
+W_h1_z0 = jnp.sqrt(INIT/(H+M))*rnd.normal(ki[0],(H,M))
+W_v_z0 = jnp.sqrt(INIT/(H+N_A))*rnd.normal(ki[1],(H,N_A))
+U_z0 = jnp.sqrt(INIT/(H+H))*rnd.normal(ki[2],(H,H))
+b_z0 = jnp.sqrt(INIT/(H))*rnd.normal(ki[3],(H,))
+W_h1_f0 = jnp.sqrt(INIT/(H+M))*rnd.normal(ki[4],(H,M))
+W_v_f0 = jnp.sqrt(INIT/(H+N_A))*rnd.normal(ki[5],(H,N_A))
+U_f0 = jnp.sqrt(INIT/(H+H))*rnd.normal(ki[6],(H,H))
+b_f0 = jnp.sqrt(INIT/(H))*rnd.normal(ki[7],(H,))
+W_h1_h0 = jnp.sqrt(INIT/(H+M))*rnd.normal(ki[8],(H,M))
+W_v_h0 = jnp.sqrt(INIT/(H+N_A))*rnd.normal(ki[9],(H,N_A))
+U_h0 = jnp.sqrt(INIT/(H+H))*rnd.normal(ki[10],(H,H))
+b_h0 = jnp.sqrt(INIT/(H))*rnd.normal(ki[11],(H,))
+W_r_full0 = jnp.sqrt(INIT/(N_F+H))*rnd.normal(ki[12],(N_F,H))
+# W_r_a0 = jnp.sqrt(INIT/(N_A+H))*rnd.normal(ki[13],(N_A,H))
+# W_r_pl0 = jnp.sqrt(INIT/(N_P+H))*rnd.normal(ki[14],(N_P,H))
+# # W_dot0 = jnp.sqrt(INIT/(H+4))*rnd.normal(ki[3],(4,H))
+# W_v0 = jnp.sqrt(INIT/(H+N_A))*rnd.normal(ki[1],(H,N_A))
+# W_r0 = jnp.sqrt(INIT/(N_F+H))*rnd.normal(ki[2],(N_F,H))
+# # W_dot0 = jnp.sqrt(INIT/(H+4))*rnd.normal(ki[3],(4,H))
+# U_vh0,_ = jnp.linalg.qr(jnp.sqrt(INIT/(H+H))*rnd.normal(ki[2],(H,H)))
+# b_vh0 = jnp.sqrt(INIT/(H))*rnd.normal(ki[3],(H,))
 
 params = {
     "TOT_EPOCHS" : TOT_EPOCHS,
@@ -423,14 +444,25 @@ weights = {
 
     },
     'p_weights' : {
-        "W_h1" : W_h10,
-        "W_r_f" : W_r_f0,
-        "W_r_a" : W_r_a0,
-        "W_r_pl" : W_r_pl0,
-        "W_v" : W_v0,
-        # "W_dot" : W_dot0,
-        "U_vh" : U_vh0,
-        "b_vh" : b_vh0
+        "W_h1_z" : W_h1_z0,
+        "W_v_z" : W_v_z0,
+        "U_z" : U_z0,
+        "b_z" : b_z0,
+        "W_h1_f" : W_h1_f0,
+        "W_v_f" : W_v_f0,
+        "U_f" : U_f0,
+        "b_f" : b_f0,
+        "W_h1_h" : W_h1_h0,
+        "W_v_h" : W_v_h0,
+        "U_h" : U_h0,
+        "b_h" : b_h0,
+        "W_r_full" : W_r_full0,
+        # "W_r_a" : W_r_a0,
+        # "W_r_pl" : W_r_pl0,
+        # "W_v" : W_v0,
+        # # "W_dot" : W_dot0,
+        # "U_vh" : U_vh0,
+        # "b_vh" : b_vh0
     },
     'r_weights' : {
 
@@ -442,20 +474,20 @@ weights = {
 ###
 startTime = datetime.now()
 arrs,aux = forward_model_loop(SC,weights,params)
-(loss_arr,loss_sem,loss_v_arr,v_std_arr,loss_c_arr,c_std_arr) = arrs
+(loss_arr,loss_std,loss_v_arr,v_std_arr,loss_c_arr,c_std_arr) = arrs
 (v_pred_arr,v_t_arr,loss_v_arr_,loss_c_arr_,pos_arr,dot_arr,rel_vec_hat_arr,opt_state,p_weights) = aux
 
 # plot training loss
 print("Training time: ",datetime.now()-startTime,"s/epoch=",((datetime.now()-startTime)/TOT_EPOCHS).total_seconds())
 print("Time finished:",datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
 plt.figure(figsize=(12,6))
-title__ = f'EPOCHS={TOT_EPOCHS}, INIT_EPOCHS={INIT_TRAIN_EPOCHS}, VMAPS={VMAPS}, PLAN_ITS={PLAN_ITS}, init={INIT:.2f}, update={LR:.6f}, WD={WD:.5f}, TOT_STEPS={TOT_STEPS}, PRED_STEPS={PRED_STEPS} \n ALPHA={ALPHA}, APERTURE={APERTURE:.2f}, PLAN_SPACE={ACTION_SPACE:.2f}, SIGMA_A={SIGMA_A:.1f}, NEURONS_FULL={NEURONS_FULL**2}, MODULES={M}, H={H}'
+title__ = f'EPOCHS={TOT_EPOCHS}, INIT_EPOCHS={INIT_TRAIN_EPOCHS}, VMAPS={VMAPS}, PLAN_ITS={PLAN_ITS}, init={INIT:.2f}, update={LR:.6f}, WD={WD:.5f}, TOT_STEPS={TOT_STEPS}, PRED_STEPS={PRED_STEPS} \n ALPHA={ALPHA}, APERTURE={APERTURE:.2f}, ACTION_SPACE={ACTION_SPACE:.2f}, SIGMA_A={SIGMA_A:.1f}, NEURONS_FULL={NEURONS_FULL**2}, MODULES={M}, H={H}'
 fig,ax = plt.subplots(1,3,figsize=(13,6))
-plt.suptitle('forward_new_training_v6, '+title__,fontsize=10)
+plt.suptitle('forward_new_training_v8, '+title__,fontsize=10)
 plt.subplot(1,3,1)
-plt.errorbar(jnp.arange(TOT_EPOCHS),loss_arr,yerr=loss_sem,color='black',ecolor='lightgray',elinewidth=2,capsize=0)
-# plt.xscale('log')
-# plt.yscale('log')
+plt.errorbar(jnp.arange(TOT_EPOCHS),loss_arr,yerr=loss_std,color='black',ecolor='lightgray',elinewidth=2,capsize=0)
+plt.xscale('log')
+plt.yscale('log')
 plt.ylabel(r'Total loss',fontsize=15)
 plt.xlabel(r'Iteration',fontsize=15)
 plt.subplot(1,3,2)
@@ -475,7 +507,7 @@ plt.show()
 
 path_ = str(Path(__file__).resolve().parents[1]) + '/sc_project/figs/'
 dt = datetime.now().strftime("%d_%m-%H%M%S")
-plt.savefig(path_ + 'forward_new_training_v6_' + dt + '.png')
+plt.savefig(path_ + 'forward_new_training_v8_' + dt + '.png')
 
 # plot before and after heatmaps using v_pred_arr and v_t_arr:
 # print("v_pred_arr=",v_pred_arr.shape) # (v,n)
@@ -495,7 +527,7 @@ plt.savefig(path_ + 'forward_new_training_v6_' + dt + '.png')
 # # plot true dot locations
 # fig,axis = plt.subplots(PLOTS,2,figsize=(12,5*PLOTS)) #9,4x plt.figure(figsize=(12,6))
 # title__ = f'EPOCHS={TOT_EPOCHS}, VMAPS={VMAPS}, PLAN_ITS={PLAN_ITS}, STEPS = {STEPS}, PRED_STEPS={PRED_STEPS}, init={INIT:.2f}, update={LR:.6f}, WD={WD:.5f}, \n SIGMA_A={SIGMA_A:.1f}, NEURONS={NEURONS**2}, MODULES={M}, H={H}'
-# plt.suptitle('forward_new_training_v6, '+title__,fontsize=10)
+# plt.suptitle('forward_new_training_v8, '+title__,fontsize=10)
 # for i in range(params["PLOTS"]):
 #     ax0 = plt.subplot2grid((2*PLOTS,2),(2*i,0),colspan=1,rowspan=1)
 #     ax0.set_title('v_pred_arr')
@@ -528,6 +560,6 @@ plt.savefig(path_ + 'forward_new_training_v6_' + dt + '.png')
 # plt.subplots_adjust(top=0.85)
 
 # dt = datetime.now().strftime("%d_%m-%H%M%S")
-# plt.savefig(path_ + 'figs_forward_new_training_v6_' + dt + '.png')
+# plt.savefig(path_ + 'figs_forward_new_training_v8_' + dt + '.png')
 
-save_pkl((arrs,aux),'forward_new_v6_'+str(M)+'M_'+str(N_F)+'N') # (no rel_vec / loss_v / loss_d)
+save_pkl((arrs,aux),'forward_new_v8_'+str(M)+'M_'+str(N_F)+'N') # (no rel_vec / loss_v / loss_d)

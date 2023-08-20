@@ -199,10 +199,10 @@ def plan(h1vec,v_0,h_0,p_weights,PLAN_ITS): # self,hp_t_1,pos_t_1,v_t_1,r_t_1,we
         return (p_weights,h1vec,v_0,h_t),None
     W_r_f = p_weights["W_r_f"]
     W_r_a = p_weights["W_r_a"]
-    W_r_pl = p_weights["W_r_pl"]
+    W_r_full = p_weights["W_r_full"]
     carry_0 = (p_weights,h1vec,v_0,h_0)
     (*_,h_t),_ = jax.lax.scan(loop_body,carry_0,jnp.zeros(PLAN_ITS))
-    v_pred_full = jnp.matmul(W_r_pl,h_t)
+    v_pred_full = jnp.matmul(W_r_full,h_t)
 
     v_pred_ap = jnp.take(v_pred_full, params["INDICES"])
     # v_pred_ap = jnp.matmul(W_r_a,h_t)
@@ -225,13 +225,13 @@ def body_fnc(SC,p_weights,params,pos_0,dot_0,dot_vec,h_0,samples,e):###
         
         loss_v_full = jnp.sum((v_pred_full-v_t_full)**2)
         loss_v_ap = jnp.sum((v_pred_ap-v_t_1_ap)**2) # v_t_1 not v_t
-        loss_cos_ap = cosine_similarity(v_pred_ap,v_t_ap)
-        loss_prev_mse_ap = jnp.sum((v_pred_ap-v_t_1_ap)**2)
+        loss_cos_ap = cosine_similarity(v_pred_full,v_t_full)
+        # loss_prev_mse_ap = jnp.sum((v_pred_ap-v_t_1_ap)**2)
         
         v_t_arr = v_t_arr.at[t,:].set(v_t_full)
         v_pred_arr = v_pred_arr.at[t,:].set(v_pred_full)    
-        loss_v_arr = loss_v_arr.at[t].set(loss_v_ap)
-        loss_c_arr = loss_c_arr.at[t].set(loss_cos_ap)
+        loss_v_arr = loss_v_arr.at[t].set(loss_v_full)
+        loss_c_arr = loss_c_arr.at[t].set(loss_cos_full)
         h_t_1,v_t_1_ap = h_t,v_t_ap
         if t >= 0: # params["INIT_STEPS"]:
             # if e < params["INIT_TRAIN_EPOCHS"]:
@@ -248,7 +248,7 @@ def body_fnc(SC,p_weights,params,pos_0,dot_0,dot_vec,h_0,samples,e):###
 def forward_model_loop(SC,weights,params):
     p_weights = weights["p_weights"]
     T = params["TOT_EPOCHS"]
-    loss_arr,loss_sem = (jnp.empty(params["TOT_EPOCHS"]) for _ in range(2))
+    loss_arr,loss_std = (jnp.empty(params["TOT_EPOCHS"]) for _ in range(2))
     loss_v_arr,v_std_arr,loss_c_arr,c_std_arr = (jnp.empty((params["TOT_EPOCHS"],params["TOT_STEPS"])) for _ in range(4))
     optimizer = optax.adamw(learning_rate=params["LR"],weight_decay=params["WD"])
     opt_state = optimizer.init(p_weights)
@@ -268,14 +268,14 @@ def forward_model_loop(SC,weights,params):
         opt_update,opt_state = optimizer.update(grads_,opt_state,p_weights)
         p_weights = optax.apply_updates(p_weights,opt_update)
         loss_arr = loss_arr.at[e].set(jnp.mean(loss))
-        loss_sem = loss_sem.at[e].set(jnp.std(loss)/jnp.sqrt(params["VMAPS"]))
+        loss_std = loss_std.at[e].set(jnp.std(loss)) #/jnp.sqrt(params["VMAPS"]))
         loss_v_arr = loss_v_arr.at[e,:].set(jnp.mean(loss_v_arr_,axis=0))
         loss_c_arr = loss_c_arr.at[e,:].set(jnp.mean(loss_c_arr_,axis=0))
         v_std_arr = v_std_arr.at[e,:].set(jnp.std(loss_v_arr_,axis=0)/jnp.sqrt(params["VMAPS"]))
         c_std_arr = c_std_arr.at[e,:].set(jnp.std(loss_c_arr_,axis=0)/jnp.sqrt(params["VMAPS"]))
         print("e={}",e)
         print("loss_avg={}",jnp.mean(loss))
-        print("loss_sem={}",jnp.std(loss)/jnp.sqrt(params["VMAPS"]))
+        print("loss_std={}",jnp.std(loss)) #/jnp.sqrt(params["VMAPS"]))
         print("loss_v={}",jnp.mean(loss_v_arr_,axis=0))
         print("loss_c_avg={}",jnp.mean(jnp.mean(loss_c_arr_,axis=0)))
         # print("std_v={}",jnp.std(loss_v_arr)/jnp.sqrt(params["VMAPS"]))
@@ -289,7 +289,7 @@ def forward_model_loop(SC,weights,params):
         #     print("rel_vec_hat_arr.shape=",rel_vec_hat_arr.shape)
         #     print("loss_v_arr.shape=",loss_v_arr.shape)
         #     print("loss_d_arr.shape=",loss_d_arr.shape)
-        arrs = (loss_arr,loss_sem,loss_v_arr,v_std_arr,loss_c_arr,c_std_arr)
+        arrs = (loss_arr,loss_std,loss_v_arr,v_std_arr,loss_c_arr,c_std_arr)
         aux = (v_pred_arr,v_t_arr,loss_v_arr_,loss_c_arr_,pos_arr,dot_arr,rel_vec_hat_arr,opt_state,p_weights)
     return arrs,aux # [VMAPS,STEPS,N]x2,[VMAPS,STEPS,2]x3,[VMAPS,STEPS]x2,..
 
@@ -315,7 +315,7 @@ LAMBDA_C = 10
 ke = rnd.split(rnd.PRNGKey(0),10)
 MODULES = 7 # 17 # (3*N+1)
 M = MODULES**2
-APERTURE = (3/5)*jnp.pi # (jnp.sqrt(2)/2)*jnp.pi ### unconstrained
+APERTURE = (1/2)*jnp.pi # (jnp.sqrt(2)/2)*jnp.pi ### unconstrained
 ACTION_FRAC = 1/2 # unconstrained
 ACTION_SPACE = ACTION_FRAC*APERTURE # 'AGENT_SPEED'
 PLAN_FRAC_REL = 3/2
@@ -323,7 +323,7 @@ PLAN_SPACE = PLAN_FRAC_REL*ACTION_SPACE
 MAX_DOT_SPEED_REL_FRAC = 5/4
 MAX_DOT_SPEED = MAX_DOT_SPEED_REL_FRAC*ACTION_SPACE
 ALPHA = 1
-NEURONS_FULL = 14 # 12 # 15 # 12 # jnp.int32(NEURONS_AP*(jnp.pi//APERTURE))
+NEURONS_FULL = 12 # 15 # 12 # jnp.int32(NEURONS_AP*(jnp.pi//APERTURE))
 N_F = (NEURONS_FULL**2)
 NEURONS_AP = jnp.int32(jnp.floor(NEURONS_FULL*(APERTURE/jnp.pi))) # 6 # 10
 N_A = (NEURONS_AP**2)
@@ -359,7 +359,7 @@ W_h10 = jnp.sqrt(INIT/(H+M))*rnd.normal(ki[0],(H,M))
 W_v0 = jnp.sqrt(INIT/(H+N_A))*rnd.normal(ki[1],(H,N_A))
 W_r_f0 = jnp.sqrt(INIT/(N_F+H))*rnd.normal(ki[2],(N_F,H))
 W_r_a0 = jnp.sqrt(INIT/(N_A+H))*rnd.normal(ki[3],(N_A,H))
-W_r_pl0 = jnp.sqrt(INIT/(N_P+H))*rnd.normal(ki[4],(N_P,H))
+W_r_full0 = jnp.sqrt(INIT/(N_P+H))*rnd.normal(ki[4],(N_P,H))
 # W_dot0 = jnp.sqrt(INIT/(H+4))*rnd.normal(ki[3],(4,H))
 W_v0 = jnp.sqrt(INIT/(H+N_A))*rnd.normal(ki[1],(H,N_A))
 W_r0 = jnp.sqrt(INIT/(N_F+H))*rnd.normal(ki[2],(N_F,H))
@@ -426,7 +426,7 @@ weights = {
         "W_h1" : W_h10,
         "W_r_f" : W_r_f0,
         "W_r_a" : W_r_a0,
-        "W_r_pl" : W_r_pl0,
+        "W_r_full" : W_r_full0,
         "W_v" : W_v0,
         # "W_dot" : W_dot0,
         "U_vh" : U_vh0,
@@ -442,7 +442,7 @@ weights = {
 ###
 startTime = datetime.now()
 arrs,aux = forward_model_loop(SC,weights,params)
-(loss_arr,loss_sem,loss_v_arr,v_std_arr,loss_c_arr,c_std_arr) = arrs
+(loss_arr,loss_std,loss_v_arr,v_std_arr,loss_c_arr,c_std_arr) = arrs
 (v_pred_arr,v_t_arr,loss_v_arr_,loss_c_arr_,pos_arr,dot_arr,rel_vec_hat_arr,opt_state,p_weights) = aux
 
 # plot training loss
@@ -453,7 +453,7 @@ title__ = f'EPOCHS={TOT_EPOCHS}, INIT_EPOCHS={INIT_TRAIN_EPOCHS}, VMAPS={VMAPS},
 fig,ax = plt.subplots(1,3,figsize=(13,6))
 plt.suptitle('forward_new_training_v6, '+title__,fontsize=10)
 plt.subplot(1,3,1)
-plt.errorbar(jnp.arange(TOT_EPOCHS),loss_arr,yerr=loss_sem,color='black',ecolor='lightgray',elinewidth=2,capsize=0)
+plt.errorbar(jnp.arange(TOT_EPOCHS),loss_arr,yerr=loss_std,color='black',ecolor='lightgray',elinewidth=2,capsize=0)
 # plt.xscale('log')
 # plt.yscale('log')
 plt.ylabel(r'Total loss',fontsize=15)
