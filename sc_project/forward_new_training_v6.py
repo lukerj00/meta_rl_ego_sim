@@ -294,7 +294,7 @@ def forward_model_loop(SC,weights,params):
     return arrs,aux # [VMAPS,STEPS,N]x2,[VMAPS,STEPS,2]x3,[VMAPS,STEPS]x2,..
 
 # hyperparams
-TOT_EPOCHS = 50000 #10000 # 1000 #250000
+TOT_EPOCHS = 2000 #10000 # 1000 #250000
 EPOCHS = 1
 INIT_TRAIN_EPOCHS = 50000 ### epochs until phase 2
 PLOTS = 3
@@ -437,8 +437,8 @@ weights = {
     }
 }
 
-# *_,p_weights = load_('/sc_project/pkl/forward_v9_225_16_06-0023.pkl') # ...14-06...,opt_state'/sc_project/pkl/forward_v9_225_13_06-0014.pkl','/pkl/forward_v8M_08_06-1857.pkl'
-# weights["p_weights"] = p_weights
+*_,p_weights = load_('/sc_project/test_data/forward_new_v6_81M_144N_22_08-082725.pkl') # ...14-06...,opt_state'/sc_project/pkl/forward_v9_225_13_06-0014.pkl','/pkl/forward_v8M_08_06-1857.pkl'
+weights["p_weights"] = p_weights
 ###
 startTime = datetime.now()
 arrs,aux = forward_model_loop(SC,weights,params)
