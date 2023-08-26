@@ -35,8 +35,14 @@ def load_(str_):
         param_ = jnp.load(file_,allow_pickle=True)
     return param_
 
-def save_pkl(param,str_):  # can't jit (can't pickle jax tracers)
-	path_ = str(Path(__file__).resolve().parents[1]) + '/pkl/' # '/scratch/lrj34/'
+def save_pkl_sc(param,str_):  # can't jit (can't pickle jax tracers)
+	path_ = str(Path(__file__).resolve().parents[1]) + '/sc_project/pkl_sc/' # '/scratch/lrj34/'
+	dt = datetime.now().strftime("%d_%m-%H_S%M")
+	with open(path_+str_+'_'+dt+'.pkl','wb') as file:
+		pickle.dump(param,file,pickle.HIGHEST_PROTOCOL)
+
+def save_test_data(param,str_):  # can't jit (can't pickle jax tracers)
+	path_ = str(Path(__file__).resolve().parents[1]) + '/sc_project/test_data/' # '/scratch/lrj34/'
 	dt = datetime.now().strftime("%d_%m-%H_S%M")
 	with open(path_+str_+'_'+dt+'.pkl','wb') as file:
 		pickle.dump(param,file,pickle.HIGHEST_PROTOCOL)
@@ -557,14 +563,14 @@ def full_loop(SC,weights,params):
     return losses,stds,other,weights_s #r_arr,pos_arr,sample_arr,dots_arr
 
 # hyperparams ###
-TOT_EPOCHS = 5000 ## 1000
+TOT_EPOCHS = 10000 ## 1000
 # EPOCHS = 1
 PLOTS = 5
 # LOOPS = TOT_EPOCHS//EPOCHS
 VMAPS = 1000 ## 2000,500,1100,1000,800,500
-LR = 0.001 # 0.001,0.0008,0.0005,0.001,0.000001,0.0001
+LR = 0.0005 # 0.001,0.0008,0.0005,0.001,0.000001,0.0001
 WD = 0.0001 # 0.0001
-GRAD_CLIP = 0.5 #0.5 1.0
+GRAD_CLIP = 0.5 ###0.5 1.0
 INIT_S = 2
 INIT_P = 2 # 0.5
 # INIT_R = 3 # 5,2
@@ -741,7 +747,7 @@ weights['p'] = p_weights
 # weights['r'] = r_weights
 ###
 startTime = datetime.now()
-losses,stds,other,weights = full_loop(SC,weights,params) # (loss_arr,actor_loss_arr,critic_loss_arr,kl_loss_arr,vec_kl_arr,act_kl_arr,r_std_arr,l_sem_arr,plan_rate_arr,avg_tot_r_arr,avg_pol_kl_arr,r_init_arr,r_arr,rt_arr,sample_arr,pos_init_arr,pos_arr,dots,sel)
+losses,stds,other,weights_s = full_loop(SC,weights,params) # (loss_arr,actor_loss_arr,critic_loss_arr,kl_loss_arr,vec_kl_arr,act_kl_arr,r_std_arr,l_sem_arr,plan_rate_arr,avg_tot_r_arr,avg_pol_kl_arr,r_init_arr,r_arr,rt_arr,sample_arr,pos_init_arr,pos_arr,dots,sel)
 print("Sim time: ",datetime.now()-startTime,"s/epoch=",((datetime.now()-startTime)/TOT_EPOCHS).total_seconds())
 (loss_arr,actor_loss_arr,critic_loss_arr,vec_kl_arr,act_kl_arr,r_tot_arr,plan_rate_arr) = losses
 (sem_loss_arr,std_actor_arr,std_critic_arr,std_act_kl_arr,std_vec_kl_arr,std_r_arr,std_plan_rate_arr) = stds
@@ -918,8 +924,9 @@ plt.savefig(path_+'outer_loop_pg_new_v1_'+dt+'.png')
 # plt.axis('tight')
 # plt.subplots_adjust(top=0.95)
 
-dt = datetime.now().strftime("%d_%m-%H%M%S")
-path_ = str(Path(__file__).resolve().parents[1]) + '/sc_project/figs/'
-plt.savefig(path_ + 'figs_outer_loop_pg_new_v1_' + dt + '.png') # ctrl_v7_(v,r,h normal, r_tp changed)
+# dt = datetime.now().strftime("%d_%m-%H%M%S")
+# path_ = str(Path(__file__).resolve().parents[1]) + '/sc_project/figs/'
+# plt.savefig(path_ + 'figs_outer_loop_pg_new_v1_' + dt + '.png') # ctrl_v7_(v,r,h normal, r_tp changed)
 
-save_pkl((other,weights["s"]),'outer_loop_pg_new_v1_')
+save_pkl_sc(weights_s,'outer_loop_pg_new_v1_')
+save_test_data(other,'outer_loop_pg_new_v1_')
