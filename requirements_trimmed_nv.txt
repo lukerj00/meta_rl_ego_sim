@@ -9,8 +9,8 @@ Pillow
 ply
 pygame
 # pyls-spyder
-# PyQt5
-# PyQtWebEngine
+PyQt5
+PyQtWebEngine
 PyYAML
 scipy
 # webencodings
