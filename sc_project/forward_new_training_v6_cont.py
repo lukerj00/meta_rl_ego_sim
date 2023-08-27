@@ -304,9 +304,9 @@ PLAN_ITS = 10 # 10,8,5
 INIT_STEPS = 0 # (taking loss over all steps so doesnt matter)
 TOT_STEPS = 30
 PRED_STEPS = TOT_STEPS-INIT_STEPS
-LR = 0.001 # 0.005,0.003,,0.0001
+LR = 0.0005 # 0.005,0.003,,0.0001
 WD = 0.0001 # 0.0001
-H = 400 # 500,300
+H = 300 # 400,500,300
 INIT = 2 # 0.5,0.1
 LAMBDA_D = 1 # 1,0.1
 LAMBDA_C = 10
@@ -437,7 +437,7 @@ weights = {
     }
 }
 
-(*_),(*_,opt_state,p_weights) = load_('/sc_project/test_data/forward_new_v6_81M_144N_23_08-003120.pkl') #'/sc_project/test_data/forward_new_v6_81M_144N_20_08-214748.pkl') # '/sc_project/test_data/forward_new_v6_81M_144N_22_08-082725.pkl') # ...14-06...,opt_state'/sc_project/pkl/forward_v9_225_13_06-0014.pkl','/pkl/forward_v8M_08_06-1857.pkl'
+(*_),(*_,opt_state,p_weights) = load_('/sc_project/test_data/forward_new_v6_81M_144N_23_08-182140.pkl') #'/sc_project/test_data/forward_new_v6_81M_144N_24_08-113913.pkl') # '/sc_project/test_data/forward_new_v6_81M_144N_23_08-003120.pkl') #'/sc_project/test_data/forward_new_v6_81M_144N_20_08-214748.pkl') # '/sc_project/test_data/forward_new_v6_81M_144N_22_08-082725.pkl') # ...14-06...,opt_state'/sc_project/pkl/forward_v9_225_13_06-0014.pkl','/pkl/forward_v8M_08_06-1857.pkl'
 weights["p_weights"] = p_weights
 ###
 startTime = datetime.now()

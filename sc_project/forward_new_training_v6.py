@@ -203,9 +203,7 @@ def plan(h1vec,v_0,h_0,p_weights,PLAN_ITS): # self,hp_t_1,pos_t_1,v_t_1,r_t_1,we
     carry_0 = (p_weights,h1vec,v_0,h_0)
     (*_,h_t),_ = jax.lax.scan(loop_body,carry_0,jnp.zeros(PLAN_ITS))
     v_pred_full = jnp.matmul(W_r_full,h_t)
-
     v_pred_ap = jnp.take(v_pred_full, params["INDICES"])
-    # v_pred_ap = jnp.matmul(W_r_a,h_t)
     return v_pred_ap,v_pred_full,h_t # dot_hat_t,
 
 def body_fnc(SC,p_weights,params,pos_0,dot_0,dot_vec,h_0,samples,e):###
@@ -348,7 +346,6 @@ HP_0 = None # jnp.sqrt(INIT/(H))*rnd.normal(ke[4],(EPOCHS,VMAPS,H)) # [E,V,H]
 # H1VEC_ARR = jnp.diag(jnp.ones(M))[:,ID_ARR]
 # SC = (ID_ARR,VEC_ARR,H1VEC_ARR)
 SC = gen_sc(ke,MODULES,ACTION_SPACE,PLAN_SPACE)
-
 # x = NEURONS_AP / NEURONS_PLAN
 # N = jnp.int32(jnp.sqrt(v_pred_full.shape[0]))
 INDICES = get_inner_activation_indices(NEURONS_PLAN, NEURONS_AP)
