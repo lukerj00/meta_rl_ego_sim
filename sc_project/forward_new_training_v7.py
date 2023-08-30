@@ -149,27 +149,61 @@ def gen_dot_vecs(key,VMAPS,MAX_DOT_SPEED):
     #     mask = jnp.all((-APERTURE/2 <= dot_vecs)&(dot_vecs <= APERTURE/2),axis=1)
     return dot_vecs
 
-def gen_binary_timeseries(N,switch_prob):
-    start = 0
-    rand_vals = jnp.random.rand(val,N)
-    switches = jnp.int32(rand_vals < switch_prob)
-    cum_sum = jnp.cumsum(switches) % 2
-    series = jnp.insert(cum_sum,0,start)
-    complement = 1 - series
-    result = jnp.vstack([series,complement])
-    return result
+def gen_binary_timeseries(keys,N,switch_prob,max_plan_length):
+    ts = [0]  # start with a 0
+    count_ones = 0
+    for i in range(1, N):
+        if ts[i-1] == 0:
+            ts.append(rnd.bernoulli(keys[i],p=switch_prob))
+            if ts[i] == 1:
+                count_ones = 1
+        else:
+            if count_ones > max_plan_length - 1:  # subtract 1 to account for 0-based index
+                ts.append(0)
+                count_ones = 0
+            else:
+                ts.append(rnd.bernoulli(keys[2*i+1],p=1-switch_prob))
+                if ts[i] == 1:
+                    count_ones += 1
+                else:
+                    count_ones = 0
+    return jnp.array(ts)
 
-@jit
-def gen_timeseries(SC,pos_0,dot_0,dot_vec,samples,step_array,switch_prob,N):
-    ID_ARR,VEC_ARR,H1VEC_ARR = SC
-    h1vec_arr = H1VEC_ARR[:,samples]
-    vec_arr = VEC_ARR[:,samples]
-    cum_vecs = jnp.cumsum(vec_arr,axis=1)
-    pos_1_end = (pos_0+cum_vecs.T).T
-    dot_1_end = (dot_0+jnp.outer(dot_vec,step_array).T).T
-    pos_arr = jnp.concatenate((pos_0.reshape(2,1),pos_1_end),axis=1)
-    dot_arr = jnp.concatenate((dot_0.reshape(2,1),dot_1_end),axis=1)
-    return pos_arr,dot_arr,h1vec_arr,vec_arr
+def gen_timeseries(keys, SC, pos_0, dot_0, dot_vec, samples, switch_prob, N, max_plan_length):
+    ID_ARR, VEC_ARR, H1VEC_ARR = SC
+    binary_series = gen_binary_timeseries(keys, N+1, switch_prob, max_plan_length)
+    binary_array = jnp.vstack([binary_series,1-binary_series])
+    h1vec_arr = H1VEC_ARR[:, samples]
+    vec_arr = VEC_ARR[:, samples]
+    pos_plan_arr = np.zeros((2, N+1))
+    pos_arr = np.zeros((2, N+1))
+    dot_arr = np.zeros((2, N+1))
+    pos_plan_arr[:, 0] = pos_0
+    pos_arr[:, 0] = pos_0
+    dot_arr[:, 0] = dot_0
+    for i in range(1, N+1):
+        dot_arr[:, i] = dot_arr[:, i-1] + dot_vec
+        if binary_series[i] == 0:
+            if binary_series[i-1] == 1:  # Transition from 1 to 0
+                pos_plan_arr[:, i] = pos_arr[:, i-1]
+            pos_arr[:, i] = pos_arr[:, i-1] + vec_arr[:, i-1]
+            pos_plan_arr[:, i] = pos_arr[:, i]
+        else:
+            pos_arr[:, i] = pos_arr[:, i-1]
+            pos_plan_arr[:, i] = pos_plan_arr[:, i-1] + vec_arr[:, i-1]
+    return binary_array,jnp.array(pos_plan_arr),jnp.array(pos_arr),jnp.array(dot_arr),jnp.array(h1vec_arr),jnp.array(vec_arr)
+
+# @jit
+# def gen_timeseries(SC,pos_0,dot_0,dot_vec,samples,step_array,switch_prob,N):
+#     ID_ARR,VEC_ARR,H1VEC_ARR = SC
+#     h1vec_arr = H1VEC_ARR[:,samples]
+#     vec_arr = VEC_ARR[:,samples]
+#     cum_vecs = jnp.cumsum(vec_arr,axis=1)
+#     pos_1_end = (pos_0+cum_vecs.T).T
+#     dot_1_end = (dot_0+jnp.outer(dot_vec,step_array).T).T
+#     pos_arr = jnp.concatenate((pos_0.reshape(2,1),pos_1_end),axis=1)
+#     dot_arr = jnp.concatenate((dot_0.reshape(2,1),dot_1_end),axis=1)
+#     return pos_arr,dot_arr,h1vec_arr,vec_arr
 
 # @jit
 def get_inner_activation_indices(N, K):
@@ -220,7 +254,7 @@ def body_fnc(SC,p_weights,params,pos_0,dot_0,dot_vec,h_0,samples,e):###
     loss_v_arr,loss_c_arr = (jnp.zeros(params["TOT_STEPS"]) for _ in range(2))
     v_pred_arr,v_t_arr = (jnp.zeros((params["TOT_STEPS"],params["N_F"])) for _ in range(2))
     rel_vec_hat_arr = jnp.zeros((params["TOT_STEPS"],2))
-    pos_arr,dot_arr,h1vec_arr,vec_arr = gen_timeseries(SC,pos_0,dot_0,dot_vec,samples,params["STEP_ARRAY"])
+    # pos_arr,dot_arr,h1vec_arr,vec_arr = gen_timeseries(SC,pos_0,dot_0,dot_vec,samples,params["STEP_ARRAY"])
     tot_loss_v,tot_loss_c = 0,0
     h_t_1 = h_0
     v_t_1_ap = neuron_act_noise(samples[0],params["THETA_AP"],params["SIGMA_A"],params["SIGMA_N"],dot_arr[:,0],pos_arr[:,0])

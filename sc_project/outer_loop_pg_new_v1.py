@@ -37,13 +37,13 @@ def load_(str_):
 
 def save_pkl_sc(param,str_):  # can't jit (can't pickle jax tracers)
 	path_ = str(Path(__file__).resolve().parents[1]) + '/sc_project/pkl_sc/' # '/scratch/lrj34/'
-	dt = datetime.now().strftime("%d_%m-%H_S%M")
+	dt = datetime.now().strftime("%d_%m-%H%M%S")
 	with open(path_+str_+'_'+dt+'.pkl','wb') as file:
 		pickle.dump(param,file,pickle.HIGHEST_PROTOCOL)
 
 def save_test_data(param,str_):  # can't jit (can't pickle jax tracers)
 	path_ = str(Path(__file__).resolve().parents[1]) + '/sc_project/test_data/' # '/scratch/lrj34/'
-	dt = datetime.now().strftime("%d_%m-%H_S%M")
+	dt = datetime.now().strftime("%d_%m-%H%M%S")
 	with open(path_+str_+'_'+dt+'.pkl','wb') as file:
 		pickle.dump(param,file,pickle.HIGHEST_PROTOCOL)
 
@@ -751,7 +751,7 @@ losses,stds,other,weights_s = full_loop(SC,weights,params) # (loss_arr,actor_los
 print("Sim time: ",datetime.now()-startTime,"s/epoch=",((datetime.now()-startTime)/TOT_EPOCHS).total_seconds())
 (loss_arr,actor_loss_arr,critic_loss_arr,vec_kl_arr,act_kl_arr,r_tot_arr,plan_rate_arr) = losses
 (sem_loss_arr,std_actor_arr,std_critic_arr,std_act_kl_arr,std_vec_kl_arr,std_r_arr,std_plan_rate_arr) = stds
-(r_arr,rt_arr,sample_arr,pos_arr,dots) = other # ,sel
+(r_arr,rt_arr,sample_arr,pos_arr,dot_arr) = other # ,sel
 print('pos_arr=',pos_arr,'pos_arr.shape=',pos_arr.shape)
 
 # plot loss_arr:
