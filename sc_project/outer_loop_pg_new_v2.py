@@ -559,7 +559,7 @@ def full_loop(SC,weights,params):
     losses = (loss_arr,actor_loss_arr,critic_loss_arr,vec_kl_arr,act_kl_arr,r_tot_arr,plan_rate_arr)
     stds = (sem_loss_arr,std_actor_arr,std_critic_arr,std_act_kl_arr,std_vec_kl_arr,std_r_arr,std_plan_rate_arr)
     other = (r_arr,rt_arr,sample_arr,pos_arr,dot_arr) # ,sel
-    return losses,stds,other,weights_s #r_arr,pos_arr,sample_arr,dots_arr
+    return losses,stds,other,opt_state,weights_s #r_arr,pos_arr,sample_arr,dots_arr
 
 # hyperparams ###
 TOT_EPOCHS = 10000 ## 1000
@@ -750,7 +750,7 @@ weights['p'] = p_weights
 # weights['r'] = r_weights
 ###
 startTime = datetime.now()
-losses,stds,other,weights_s = full_loop(SC,weights,params) # (loss_arr,actor_loss_arr,critic_loss_arr,kl_loss_arr,vec_kl_arr,act_kl_arr,r_std_arr,l_sem_arr,plan_rate_arr,avg_tot_r_arr,avg_pol_kl_arr,r_init_arr,r_arr,rt_arr,sample_arr,pos_init_arr,pos_arr,dots,sel)
+losses,stds,other,opt_state,weights_s = full_loop(SC,weights,params) # (loss_arr,actor_loss_arr,critic_loss_arr,kl_loss_arr,vec_kl_arr,act_kl_arr,r_std_arr,l_sem_arr,plan_rate_arr,avg_tot_r_arr,avg_pol_kl_arr,r_init_arr,r_arr,rt_arr,sample_arr,pos_init_arr,pos_arr,dots,sel)
 print("Sim time: ",datetime.now()-startTime,"s/epoch=",((datetime.now()-startTime)/TOT_EPOCHS).total_seconds())
 (loss_arr,actor_loss_arr,critic_loss_arr,vec_kl_arr,act_kl_arr,r_tot_arr,plan_rate_arr) = losses
 (sem_loss_arr,std_actor_arr,std_critic_arr,std_act_kl_arr,std_vec_kl_arr,std_r_arr,std_plan_rate_arr) = stds
@@ -765,7 +765,7 @@ legend_handles = [
 ]
 
 fig,axes = plt.subplots(2,3,figsize=(12,9))
-title__ = f'EPOCHS={TOT_EPOCHS}, VMAPS={VMAPS}, TEST_LENGTH={TEST_LENGTH}, INIT_LENGTH={INIT_LENGTH}, update={LR:.6f}, WD={WD:.5f} \n C_MOVE={C_MOVE:.2f}, C_PLAN={"N_A/A"}, L_CRITIC={LAMBDA_CRITIC}, L_VEC_KL={LAMBDA_VEC_KL}, L_ACT_KL={LAMBDA_ACT_KL}, PRIOR_PLAN={PRIOR_PLAN}, PRIOR_STAT={PRIOR_STAT}, GRAD_CLIP={GRAD_CLIP}'
+title__ = f'EPOCHS={TOT_EPOCHS}, VMAPS={VMAPS}, TEST_LENGTH={TEST_LENGTH}, update={LR:.6f}, WD={WD:.5f}, GRAD_CLIP={GRAD_CLIP}, C_MOVE={C_MOVE:.2f}, C_PLAN={"N_A/A"} \n L_CRITIC={LAMBDA_CRITIC}, L_VEC_KL={LAMBDA_VEC_KL}, L_ACT_KL={LAMBDA_ACT_KL}, PRIOR_PLAN={PRIOR_PLAN}, PRIOR_STAT={PRIOR_STAT}, MAX_DOT_SPEED={MAX_DOT_SPEED:.2f}, ACTION_SPACE={ACTION_SPACE:.2f}, PLAN_SPACE={PLAN_SPACE:.2f}'
 plt.suptitle('outer_loop_pg_new_v2, '+title__,fontsize=10)
 axes[0,0].errorbar(np.arange(TOT_EPOCHS),r_tot_arr,yerr=std_r_arr/2,color='black',ecolor='lightgray',elinewidth=2,capsize=0)
 axes[0,0].set_xlabel('iteration')
@@ -931,5 +931,5 @@ plt.savefig(path_+'outer_loop_pg_new_v2_'+dt+'.png')
 # path_ = str(Path(__file__).resolve().parents[1]) + '/sc_project/figs/'
 # plt.savefig(path_ + 'figs_outer_loop_pg_new_v2_' + dt + '.png') # ctrl_v7_(v,r,h normal, r_tp changed)
 
-save_pkl_sc(weights_s,'outer_loop_pg_new_v2_')
+save_pkl_sc((opt_state,weights_s),'outer_loop_pg_new_v2_')
 save_test_data(other,'outer_loop_pg_new_v2_')

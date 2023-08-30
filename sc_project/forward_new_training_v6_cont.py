@@ -437,7 +437,7 @@ weights = {
     }
 }
 
-(*_),(*_,opt_state,p_weights) = load_('/sc_project/test_data/forward_new_v6_81M_144N_23_08-182140.pkl') #'/sc_project/test_data/forward_new_v6_81M_144N_24_08-113913.pkl') # '/sc_project/test_data/forward_new_v6_81M_144N_23_08-003120.pkl') #'/sc_project/test_data/forward_new_v6_81M_144N_20_08-214748.pkl') # '/sc_project/test_data/forward_new_v6_81M_144N_22_08-082725.pkl') # ...14-06...,opt_state'/sc_project/pkl/forward_v9_225_13_06-0014.pkl','/pkl/forward_v8M_08_06-1857.pkl'
+(*_),(*_,opt_state,p_weights) = load_('') #/sc_project/test_data/forward_new_v6_81M_144N_23_08-182140.pkl') #'/sc_project/test_data/forward_new_v6_81M_144N_24_08-113913.pkl') # '/sc_project/test_data/forward_new_v6_81M_144N_23_08-003120.pkl') #'/sc_project/test_data/forward_new_v6_81M_144N_20_08-214748.pkl') # '/sc_project/test_data/forward_new_v6_81M_144N_22_08-082725.pkl') # ...14-06...,opt_state'/sc_project/pkl/forward_v9_225_13_06-0014.pkl','/pkl/forward_v8M_08_06-1857.pkl'
 weights["p_weights"] = p_weights
 ###
 startTime = datetime.now()

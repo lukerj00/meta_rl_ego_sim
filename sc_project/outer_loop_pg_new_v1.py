@@ -78,7 +78,7 @@ def gen_sc(keys,MODULES,ACTION_SPACE,PLAN_SPACE):
     VEC_ARR = A_full[:,ID_ARR]
     H1VEC_ARR = jnp.eye(MODULES**2) # [:,ID_ARR]
     SC = (ID_ARR,VEC_ARR,H1VEC_ARR)
-    return SC
+    return SC,len(A_inner_ind)
 
 # @partial(jax.jit,static_argnums=(1,2,3))
 # def gen_dots(key,VMAPS,N_DOTS,APERTURE):
@@ -99,7 +99,7 @@ def gen_dot(key,VMAPS,N_DOTS,APERTURE):
     # dot = rnd.uniform(key,shape=(EPOCHS,VMAPS,N_dot,2),minval=-APERTURE,maxval=APERTURE)
     return dot_0 #dot_tot[:,:N_dot,:]
 
-def gen_dot_vecs(key,VMAPS,MAX_DOT_SPEED):
+def gen_dot_vecs(key,VMAPS,MAX_DOT_SPEED): # rejection sampling
     dot_vecs = rnd.uniform(key,shape=(VMAPS,2),minval=-MAX_DOT_SPEED,maxval=MAX_DOT_SPEED) # / 2
     # mask = jnp.all((-APERTURE/2 <= dot_vecs)&(dot_vecs <= APERTURE/2),axis=1)
     # while mask.any():
@@ -286,14 +286,15 @@ def get_policy(args_t,weights_s): # hs_t_1,v_t,r_t,rp_t_1,rm_t_1,weights_s,param
     actions_t = jax.nn.softmax(act_t)
     return (vectors_t,actions_t),val_t,hs_t
 
-def sample_policy(policy,SC,ind):
+def sample_policy(policy,SC,ind,ACTION_SPACE_LEN): # (changed to put sm around indexed vecs)
     vectors,actions = policy
     ID_ARR,VEC_ARR,H1VEC_ARR = SC
     keys = rnd.split(rnd.PRNGKey(ind),num=2)
-    vec_ind = rnd.choice(key=keys[0],a=jnp.arange(len(vectors)),p=vectors)
+    vectors_stable = vectors[:ACTION_SPACE_LEN]-jnp.max(vectors[:ACTION_SPACE_LEN]) + 1e-5
+    vec_ind = rnd.choice(key=keys[0],a=jnp.arange(len(vectors[:ACTION_SPACE_LEN])),p=jax.nn.softmax(vectors_stable)) # [:ACTION_SPACE_LEN]
     h1vec = H1VEC_ARR[:,vec_ind]
     vec = VEC_ARR[:,vec_ind]
-    act_ind = rnd.choice(key=keys[1],a=jnp.arange(len(actions)),p=actions)
+    act_ind = rnd.choice(key=keys[1],a=jnp.arange(len(actions)),p=jax.nn.softmax(actions-jnp.max(actions)))
     act = jnp.eye(len(actions))[act_ind]
     return h1vec,vec,jnp.log(vectors[vec_ind]),act[0],act[1],jnp.log(actions[act_ind])
 
@@ -396,7 +397,7 @@ def dynamic_scan(carry_0):
 
         policy_t,val_t,hs_t = get_policy(args_t_1,weights_s) # hs_t_1,v_t_1,r_t_1,rp_t_1,rm_t_1,weights_s,params
         vec_kl,act_kl = kl_loss(policy_t,consts) #-jnp.dot(policy_t[1],jnp.log(policy_t[1]))
-        h1vec_t,vec_t,lp_vec,rp_t,rm_t,lp_rpm = sample_policy(policy_t,SC,ind[t])
+        h1vec_t,vec_t,lp_vec,rp_t,rm_t,lp_rpm = sample_policy(policy_t,SC,ind[t],params["ACTION_SPACE_LEN"])
         lp_t = lp_vec + lp_rpm # lp_arr = lp_arr.at[t].set(lp_vec+lp_rpm) # lp_arr[t] = lp_vec+lp_rpm # lp_arr = lp_arr.at[t].set(lp_vec+lp_rpm) # jnp.append(arrs[0],lp_vec+lp_rpm)
 
         args_t = (hs_t,hv_t_1,pos_t_1,dot_t_1,dot_vec,ind,rp_t,rm_t,v_t_1,r_t_1,r_tot_1) # sel,hr update rp/rm
@@ -560,10 +561,10 @@ def full_loop(SC,weights,params):
     losses = (loss_arr,actor_loss_arr,critic_loss_arr,vec_kl_arr,act_kl_arr,r_tot_arr,plan_rate_arr)
     stds = (sem_loss_arr,std_actor_arr,std_critic_arr,std_act_kl_arr,std_vec_kl_arr,std_r_arr,std_plan_rate_arr)
     other = (r_arr,rt_arr,sample_arr,pos_arr,dot_arr) # ,sel
-    return losses,stds,other,weights_s #r_arr,pos_arr,sample_arr,dots_arr
+    return losses,stds,other,opt_state,weights_s #r_arr,pos_arr,sample_arr,dots_arr
 
 # hyperparams ###
-TOT_EPOCHS = 10000 ## 1000
+TOT_EPOCHS = 5000 ## 1000
 # EPOCHS = 1
 PLOTS = 5
 # LOOPS = TOT_EPOCHS//EPOCHS
@@ -599,7 +600,7 @@ ACTION_FRAC = 1/2 # unconstrained
 ACTION_SPACE = ACTION_FRAC*APERTURE # 'AGENT_SPEED'
 PLAN_FRAC_REL = 2 # 3/2
 PLAN_SPACE = PLAN_FRAC_REL*ACTION_SPACE
-MAX_DOT_SPEED_REL_FRAC = 1 # 3/2 # 5/4
+MAX_DOT_SPEED_REL_FRAC = 3/2 # 1 , 3/2 # 5/4
 MAX_DOT_SPEED = MAX_DOT_SPEED_REL_FRAC*ACTION_SPACE
 NEURONS_FULL = 12
 N_F = (NEURONS_FULL**2)
@@ -625,7 +626,7 @@ IND = None
 # ID_ARR = rnd.permutation(ke[5],jnp.arange(0,M),independent=True)
 # VEC_ARR = gen_vectors(MODULES,APERTURE)
 # H1VEC_ARR = jnp.diag(jnp.ones(M))[:,ID_ARR]
-SC = gen_sc(ke,MODULES,ACTION_SPACE,PLAN_SPACE) # (ID_ARR,VEC_ARR,H1VEC_ARR)
+SC,ACTION_SPACE_LEN = gen_sc(ke,MODULES,ACTION_SPACE,PLAN_SPACE) # (ID_ARR,VEC_ARR,H1VEC_ARR)
 INDICES = get_inner_activation_indices(NEURONS_FULL,NEURONS_AP)
 NEURON_GRID_AP = get_inner_activation_coords(NEURONS_AP,APERTURE)
 
@@ -706,6 +707,7 @@ params = {
     "PRIOR_PLAN" : PRIOR_PLAN,
     "INDICES" : INDICES,
     "NEURON_GRID_AP" : NEURON_GRID_AP,
+    "ACTION_SPACE_LEN" : ACTION_SPACE_LEN,
     }
 
 weights = {
@@ -741,13 +743,13 @@ weights = {
 }
 
 ###
-(_),(*_,p_weights) = load_('/sc_project/test_data/forward_new_v6_81M_144N_24_08-113913.pkl') #
+(_),(*_,p_weights) = load_('/sc_project/test_data/forward_new_v6_81M_144N_24_08-113913.pkl') # (unused)
 weights['p'] = p_weights
 # *_,r_weights = load_('') #
 # weights['r'] = r_weights
 ###
 startTime = datetime.now()
-losses,stds,other,weights_s = full_loop(SC,weights,params) # (loss_arr,actor_loss_arr,critic_loss_arr,kl_loss_arr,vec_kl_arr,act_kl_arr,r_std_arr,l_sem_arr,plan_rate_arr,avg_tot_r_arr,avg_pol_kl_arr,r_init_arr,r_arr,rt_arr,sample_arr,pos_init_arr,pos_arr,dots,sel)
+losses,stds,other,opt_state,weights_s = full_loop(SC,weights,params) # (loss_arr,actor_loss_arr,critic_loss_arr,kl_loss_arr,vec_kl_arr,act_kl_arr,r_std_arr,l_sem_arr,plan_rate_arr,avg_tot_r_arr,avg_pol_kl_arr,r_init_arr,r_arr,rt_arr,sample_arr,pos_init_arr,pos_arr,dots,sel)
 print("Sim time: ",datetime.now()-startTime,"s/epoch=",((datetime.now()-startTime)/TOT_EPOCHS).total_seconds())
 (loss_arr,actor_loss_arr,critic_loss_arr,vec_kl_arr,act_kl_arr,r_tot_arr,plan_rate_arr) = losses
 (sem_loss_arr,std_actor_arr,std_critic_arr,std_act_kl_arr,std_vec_kl_arr,std_r_arr,std_plan_rate_arr) = stds
@@ -762,7 +764,7 @@ legend_handles = [
 ]
 
 fig,axes = plt.subplots(2,3,figsize=(12,9))
-title__ = f'EPOCHS={TOT_EPOCHS}, VMAPS={VMAPS}, TEST_LENGTH={TEST_LENGTH}, INIT_LENGTH={INIT_LENGTH}, update={LR:.6f}, WD={WD:.5f} \n C_MOVE={C_MOVE:.2f}, C_PLAN={"N_A/A"}, L_CRITIC={LAMBDA_CRITIC}, L_VEC_KL={LAMBDA_VEC_KL}, L_ACT_KL={LAMBDA_ACT_KL}, PRIOR_PLAN={PRIOR_PLAN}, PRIOR_STAT={PRIOR_STAT}, GRAD_CLIP={GRAD_CLIP}'
+title__ = f'EPOCHS={TOT_EPOCHS}, VMAPS={VMAPS}, TEST_LENGTH={TEST_LENGTH}, update={LR:.6f}, WD={WD:.5f}, GRAD_CLIP={GRAD_CLIP}, C_MOVE={C_MOVE:.2f}, C_PLAN={"N_A/A"}, AS_LIM={"true"} \n L_CRITIC={LAMBDA_CRITIC}, L_VEC_KL={LAMBDA_VEC_KL}, L_ACT_KL={LAMBDA_ACT_KL}, PRIOR_PLAN={PRIOR_PLAN}, PRIOR_STAT={PRIOR_STAT}, MAX_DOT_SPEED={MAX_DOT_SPEED:.2f}, ACTION_SPACE={ACTION_SPACE:.2f}, PLAN_SPACE={PLAN_SPACE:.2f}'
 plt.suptitle('outer_loop_pg_new_v1, '+title__,fontsize=10)
 axes[0,0].errorbar(np.arange(TOT_EPOCHS),r_tot_arr,yerr=std_r_arr/2,color='black',ecolor='lightgray',elinewidth=2,capsize=0)
 axes[0,0].set_xlabel('iteration')
@@ -928,5 +930,5 @@ plt.savefig(path_+'outer_loop_pg_new_v1_'+dt+'.png')
 # path_ = str(Path(__file__).resolve().parents[1]) + '/sc_project/figs/'
 # plt.savefig(path_ + 'figs_outer_loop_pg_new_v1_' + dt + '.png') # ctrl_v7_(v,r,h normal, r_tp changed)
 
-save_pkl_sc(weights_s,'outer_loop_pg_new_v1_')
+save_pkl_sc((opt_state,weights_s),'outer_loop_pg_new_v1_')
 save_test_data(other,'outer_loop_pg_new_v1_')
