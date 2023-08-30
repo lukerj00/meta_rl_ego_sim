@@ -191,7 +191,7 @@ def gen_binary_timeseries(keys, N, switch_prob, max_plan_length):
 def gen_timeseries(key, SC, pos_0, dot_0, dot_vec, samples, switch_prob, N, max_plan_length):
     ID_ARR, VEC_ARR, H1VEC_ARR = SC
     keys = rnd.split(key, N)
-    binary_series = gen_binary_timeseries(keys, N + 1, switch_prob, max_plan_length)
+    binary_series = gen_binary_timeseries(keys, N, switch_prob, max_plan_length)
     binary_array = jnp.vstack([binary_series, 1 - binary_series])
     h1vec_arr = H1VEC_ARR[:, samples]
     vec_arr = VEC_ARR[:, samples]
@@ -205,7 +205,7 @@ def gen_timeseries(key, SC, pos_0, dot_0, dot_vec, samples, switch_prob, N, max_
         pos_plan_next, pos_next = jax.lax.cond(binary_series[i] == 0, true_fn, false_fn, None)
         return (pos_plan_next, pos_next, dot_next), (pos_plan_next, pos_next, dot_next)
     init_carry = (jnp.array(pos_0), jnp.array(pos_0), jnp.array(dot_0))
-    _, (pos_plan_stacked, pos_stacked, dot_stacked) = jax.lax.scan(time_step, init_carry, jnp.arange(1,N+1))
+    _, (pos_plan_stacked, pos_stacked, dot_stacked) = jax.lax.scan(time_step, init_carry, jnp.arange(1,N))
     return binary_array.T,jnp.concatenate([jnp.reshape(pos_0,(1,2)),pos_plan_stacked]).T,jnp.concatenate([jnp.reshape(pos_0,(1,2)),pos_stacked]).T,jnp.concatenate([jnp.reshape(dot_0,(1,2)),dot_stacked]).T,h1vec_arr,vec_arr
 
 # def gen_timeseries(keys, SC, pos_0, dot_0, dot_vec, samples, switch_prob, N, max_plan_length):
