@@ -40,55 +40,6 @@ import numpy as np
 import jax.numpy as jnp
 import jax.random as rnd
 
-# For the binary time series generation
-# def gen_binary_timeseries(keys,N,switch_prob,max_plan_length):
-#     ts = [0]  # start with a 0
-#     count_ones = 0
-#     for i in range(1, N):
-#         if ts[i-1] == 0:
-#             ts.append(rnd.bernoulli(keys[i],p=switch_prob))
-#             if ts[i] == 1:
-#                 count_ones = 1
-#         else:
-#             if count_ones > max_plan_length - 1:  # subtract 1 to account for 0-based index
-#                 ts.append(0)
-#                 count_ones = 0
-#             else:
-#                 ts.append(rnd.bernoulli(keys[2*i+1],p=1-switch_prob))
-#                 if ts[i] == 1:
-#                     count_ones += 1
-#                 else:
-#                     count_ones = 0
-#     return jnp.array(ts)
-
-def gen_binary_timeseries(keys, N, switch_prob, max_plan_length):
-    ts_init = jnp.array([0])  # start with a 0
-
-    def body_fn(carry, key):
-        ts, count_ones = carry
-
-        true_fn = lambda _: (jnp.array([jnp.int32(rnd.bernoulli(key, p=switch_prob))]), jnp.array([jnp.squeeze(count_ones) + 1]))
-
-        def false_fn(_):
-            return jax.lax.cond(jnp.squeeze(count_ones) > max_plan_length - 1,
-                                lambda _: (jnp.array([0]), jnp.array([0])),
-                                lambda _: (jnp.array([jnp.int32(rnd.bernoulli(key, p=1-switch_prob))]), jnp.array([jnp.squeeze(count_ones) + 1])),
-                                None)
-
-        next_val, count_ones_next = jax.lax.cond(jnp.squeeze(ts[-1]) == 0, true_fn, false_fn, None)
-
-        # Instead of appending to ts, consider an alternative approach 
-        # like keeping an index of where to write in ts or another method 
-        # to ensure the shape of ts remains consistent.
-        # Here's a simple solution that rotates the array and writes the new value at the end:
-        ts_next = jnp.roll(ts, shift=-1)
-        ts_next = ts_next.at[-1].set(jnp.squeeze(next_val))
-
-        return (ts_next, count_ones_next)
-
-    result, _ = jax.lax.fori_loop(1, N, lambda i, carry: body_fn(carry, keys[i]), (ts_init, jnp.array([0])))
-    return result
-
 # def gen_timeseries(keys_,SC, pos_0, dot_0, dot_vec, samples, switch_prob, N, max_plan_length):
 #     ID_ARR, VEC_ARR, H1VEC_ARR = SC
 #     binary_series = gen_binary_timeseries(keys_,N+1, switch_prob, max_plan_length)
@@ -113,25 +64,62 @@ def gen_binary_timeseries(keys, N, switch_prob, max_plan_length):
 #             pos_plan_arr[:, i] = pos_plan_arr[:, i-1] + vec_arr[:, i-1]
 #     return binary_array,jnp.array(pos_plan_arr),jnp.array(pos_arr),jnp.array(dot_arr),jnp.array(h1vec_arr),jnp.array(vec_arr)
 
+# For the binary time series generation
+# def gen_binary_timeseries(keys,N,switch_prob,max_plan_length):
+#     ts = [0]  # start with a 0
+#     count_ones = 0
+#     for i in range(1, N):
+#         if ts[i-1] == 0:
+#             ts.append(rnd.bernoulli(keys[i],p=switch_prob))
+#             if ts[i] == 1:
+#                 count_ones = 1
+#         else:
+#             if count_ones > max_plan_length - 1:  # subtract 1 to account for 0-based index
+#                 ts.append(0)
+#                 count_ones = 0
+#             else:
+#                 ts.append(rnd.bernoulli(keys[2*i+1],p=1-switch_prob))
+#                 if ts[i] == 1:
+#                     count_ones += 1
+#                 else:
+#                     count_ones = 0
+#     return jnp.array(ts)
+
+def gen_binary_timeseries(keys, N, switch_prob, max_plan_length):
+    ts_init = jnp.zeros(N)  # start with 0s
+    def body_fn(i, carry):
+        ts, count_ones, keys = carry
+        true_fn = lambda _: (jnp.int32(rnd.bernoulli(keys[i], p=switch_prob)), 0)
+        def false_fn(_):
+            return jax.lax.cond(count_ones > max_plan_length - 1,
+                                lambda _: (0, 0), # ts, count_ones
+                                lambda _: (jnp.int32(rnd.bernoulli(keys[i], p=1-switch_prob)), count_ones + 1),
+                                None)
+        next_val, count_ones_next = jax.lax.cond(ts[i] == 0, true_fn, false_fn, None)
+        ts = ts.at[i+1].set(next_val)
+        i += 1
+        return (ts, count_ones_next, keys)
+    result, _, _ = jax.lax.fori_loop(1, N, body_fn, (ts_init, 0, keys))
+    return result
+
 def gen_timeseries(keys_, SC, pos_0, dot_0, dot_vec, samples, switch_prob, N, max_plan_length):
     ID_ARR, VEC_ARR, H1VEC_ARR = SC
     binary_series = gen_binary_timeseries(keys_, N + 1, switch_prob, max_plan_length)
     binary_array = jnp.vstack([binary_series, 1 - binary_series])
     h1vec_arr = H1VEC_ARR[:, samples]
     vec_arr = VEC_ARR[:, samples]
-
-    def time_step(i, carry):
+    def time_step(carry, i):
         pos_plan, pos, dot = carry
-        dot_next = dot + dot_vec
-        pos_plan_next, pos_next = jax.lax.cond(binary_series[i] == 0, 
-                                               lambda _: (pos + vec_arr[:, i-1], pos + vec_arr[:, i-1]), 
-                                               lambda _: (pos_plan + vec_arr[:, i-1], pos))
-        return (pos_plan_next, pos_next, dot_next)
-
-    pos_plan_final, pos_final, dot_final = jax.lax.fori_loop(1, N + 1, time_step, (jnp.array(pos_0), jnp.array(pos_0), jnp.array(dot_0)))
-
-    return binary_array, pos_plan_final, pos_final, dot_final, h1vec_arr, vec_arr
-
+        dot_next = dot + dot_vec  # Assuming dot_vec is a globally available vector
+        def true_fn(_):
+            return pos + vec_arr[:, i-1], pos + vec_arr[:, i-1]
+        def false_fn(_):
+            return pos_plan + vec_arr[:, i-1], pos
+        pos_plan_next, pos_next = jax.lax.cond(binary_series[i] == 0, true_fn, false_fn, None)
+        return (pos_plan_next, pos_next, dot_next), (pos_plan_next, pos_next, dot_next)
+    init_carry = (jnp.array(pos_0), jnp.array(pos_0), jnp.array(dot_0))
+    _, (pos_plan_stacked, pos_stacked, dot_stacked) = jax.lax.scan(time_step, init_carry, jnp.arange(1,N+1))
+    return binary_array,jnp.concatenate([jnp.reshape(pos_0,(1,2)),pos_plan_stacked]),jnp.concatenate([jnp.reshape(pos_0,(1,2)),pos_stacked]),jnp.concatenate([jnp.reshape(dot_0,(1,2)),dot_stacked]),h1vec_arr,vec_arr
 
 def gen_sc(keys,MODULES,ACTION_SPACE,PLAN_SPACE):
     index_range = jnp.arange(MODULES**2)
@@ -154,10 +142,12 @@ def gen_sc(keys,MODULES,ACTION_SPACE,PLAN_SPACE):
 
 # Sample usage
 # Assuming SC, pos_0, dot_0, dot_vec, samples, step_array have been defined elsewhere
+N = 50
 pos_0 = jnp.array([0.0, 0.0])
 dot_0 = jnp.array([0.5, 0.5])
 dot_vec = jnp.array([0.1, 0.1])
-samples = jnp.arange(0,50)
+samples = rnd.choice(rnd.PRNGKey(0), jnp.arange(N), shape=(N,))
+# jnp.arange(0,50)
 step_array = jnp.arange(0,50)
 MODULES = 9
 APERTURE = (1/2)*jnp.pi # (3/5)*jnp.pi # (jnp.sqrt(2)/2)*jnp.pi ### unconstrained
@@ -165,13 +155,13 @@ ACTION_FRAC = 1/2 # unconstrained
 ACTION_SPACE = ACTION_FRAC*APERTURE # 'AGENT_SPEED'
 PLAN_FRAC_REL = 2 # 3/2
 PLAN_SPACE = PLAN_FRAC_REL*ACTION_SPACE
-N = 50
 keys = rnd.split(rnd.PRNGKey(0),2)
-switch_prob = 0.25
-max_plan_length = 4
+switch_prob = 0.1
+max_plan_length = 10
 SC = gen_sc(keys,MODULES,ACTION_SPACE,PLAN_SPACE)
 keys_ = rnd.split(keys[0],2*N+1)
 binary_array,pos_plan_arr,pos_arr,dot_arr,h1vec_arr,vec_arr = gen_timeseries(keys_,SC, pos_0, dot_0, dot_vec, samples, switch_prob, N, max_plan_length)
+print('pos_plan_stack.tyoe=',type(pos_plan_arr),pos_plan_arr.shape)
 
 print('bin_series=',binary_array,'pos_arr=',pos_arr,'\n','pos_plan_arr=',pos_plan_arr) #,'\n','dot_arr=',dot_arr,'\n','h1vec_arr=',h1vec_arr,'\n','vec_arr=',vec_arr,'\n')
 
@@ -181,8 +171,8 @@ import matplotlib.pyplot as plt
 # Assuming you have generated pos_arr, pos_plan_arr, and binary_series using the provided functions
 
 # Calculate the norms
-norm_pos_arr = jnp.linalg.norm(pos_arr, axis=0)
-norm_pos_plan_arr = jnp.linalg.norm(pos_plan_arr, axis=0)
+norm_pos_arr = jnp.linalg.norm(pos_arr, axis=1)
+norm_pos_plan_arr = jnp.linalg.norm(pos_plan_arr, axis=1)
 
 # Create the plot
 plt.figure(figsize=(10, 6))
