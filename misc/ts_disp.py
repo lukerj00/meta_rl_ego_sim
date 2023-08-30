@@ -104,7 +104,7 @@ def gen_binary_timeseries(keys, N, switch_prob, max_plan_length):
 
 def gen_timeseries(keys_, SC, pos_0, dot_0, dot_vec, samples, switch_prob, N, max_plan_length):
     ID_ARR, VEC_ARR, H1VEC_ARR = SC
-    binary_series = gen_binary_timeseries(keys_, N + 1, switch_prob, max_plan_length)
+    binary_series = gen_binary_timeseries(keys_, N, switch_prob, max_plan_length)
     binary_array = jnp.vstack([binary_series, 1 - binary_series])
     h1vec_arr = H1VEC_ARR[:, samples]
     vec_arr = VEC_ARR[:, samples]
@@ -118,7 +118,7 @@ def gen_timeseries(keys_, SC, pos_0, dot_0, dot_vec, samples, switch_prob, N, ma
         pos_plan_next, pos_next = jax.lax.cond(binary_series[i] == 0, true_fn, false_fn, None)
         return (pos_plan_next, pos_next, dot_next), (pos_plan_next, pos_next, dot_next)
     init_carry = (jnp.array(pos_0), jnp.array(pos_0), jnp.array(dot_0))
-    _, (pos_plan_stacked, pos_stacked, dot_stacked) = jax.lax.scan(time_step, init_carry, jnp.arange(1,N+1))
+    _, (pos_plan_stacked, pos_stacked, dot_stacked) = jax.lax.scan(time_step, init_carry, jnp.arange(1,N))
     return binary_array,jnp.concatenate([jnp.reshape(pos_0,(1,2)),pos_plan_stacked]),jnp.concatenate([jnp.reshape(pos_0,(1,2)),pos_stacked]),jnp.concatenate([jnp.reshape(dot_0,(1,2)),dot_stacked]),h1vec_arr,vec_arr
 
 def gen_sc(keys,MODULES,ACTION_SPACE,PLAN_SPACE):
@@ -142,7 +142,7 @@ def gen_sc(keys,MODULES,ACTION_SPACE,PLAN_SPACE):
 
 # Sample usage
 # Assuming SC, pos_0, dot_0, dot_vec, samples, step_array have been defined elsewhere
-N = 50
+N = 30
 pos_0 = jnp.array([0.0, 0.0])
 dot_0 = jnp.array([0.5, 0.5])
 dot_vec = jnp.array([0.1, 0.1])
@@ -156,8 +156,8 @@ ACTION_SPACE = ACTION_FRAC*APERTURE # 'AGENT_SPEED'
 PLAN_FRAC_REL = 2 # 3/2
 PLAN_SPACE = PLAN_FRAC_REL*ACTION_SPACE
 keys = rnd.split(rnd.PRNGKey(0),2)
-switch_prob = 0.1
-max_plan_length = 10
+switch_prob = 0.2
+max_plan_length = 5
 SC = gen_sc(keys,MODULES,ACTION_SPACE,PLAN_SPACE)
 keys_ = rnd.split(keys[0],2*N+1)
 binary_array,pos_plan_arr,pos_arr,dot_arr,h1vec_arr,vec_arr = gen_timeseries(keys_,SC, pos_0, dot_0, dot_vec, samples, switch_prob, N, max_plan_length)

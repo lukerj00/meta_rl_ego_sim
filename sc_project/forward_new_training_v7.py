@@ -325,7 +325,7 @@ def body_fnc(SC,p_weights,params,key,pos_0,dot_0,dot_vec,h_0,samples,e):###
             #     v_pred_arr = v_pred_arr.at[t,:].set(v_pred_pl)
     # loss_tot = tot_loss_v # + params["LAMBDA_D"]*tot_loss_d
     avg_loss = tot_loss_v/(params["TOT_STEPS"]) # params["PRED_STEPS"]
-    return avg_loss,(v_pred_arr,v_t_arr,pos_plan_arr,dot_arr,pm_arr,loss_v_arr,loss_c_arr)
+    return avg_loss,(v_pred_arr,v_t_arr,pos_plan_arr,pos_arr,dot_arr,pm_arr,loss_v_arr,loss_c_arr)
 
 # @partial(jax.jit,static_argnums=())
 def forward_model_loop(SC,weights,params):
@@ -347,7 +347,7 @@ def forward_model_loop(SC,weights,params):
         val_grad = jax.value_and_grad(body_fnc,argnums=1,allow_int=True,has_aux=True)
         val_grad_vmap = jax.vmap(val_grad,in_axes=(None,None,None,0,0,0,0,0,0,None),out_axes=(0,0))
         (loss,aux),grads = val_grad_vmap(SC,p_weights,params,key,pos_0,dot_0,dot_vec,h_0,samples,e) # val_grad_vmap ,,v_0
-        v_pred_arr,v_t_arr,pos_arr,dot_arr,pm_arr,loss_v_arr_,loss_c_arr_ = aux # [VMAPS,STEPS,N]x2,[VMAPS,STEPS,2]x3,[VMAPS,STEPS]x2 (final timestep)
+        v_pred_arr,v_t_arr,pos_plan_arr,pos_arr,dot_arr,pm_arr,loss_v_arr_,loss_c_arr_ = aux # [VMAPS,STEPS,N]x2,[VMAPS,STEPS,2]x3,[VMAPS,STEPS]x2 (final timestep)
         grads_ = jax.tree_util.tree_map(lambda x: jnp.mean(x,axis=0),grads)
         opt_update,opt_state = optimizer.update(grads_,opt_state,p_weights)
         p_weights = optax.apply_updates(p_weights,opt_update)
@@ -374,7 +374,7 @@ def forward_model_loop(SC,weights,params):
         #     print("loss_v_arr.shape=",loss_v_arr.shape)
         #     print("loss_d_arr.shape=",loss_d_arr.shape)
         arrs = (loss_arr,loss_std,loss_v_arr,v_std_arr,loss_c_arr,c_std_arr)
-        aux = (v_pred_arr,v_t_arr,loss_v_arr_,loss_c_arr_,pos_arr,dot_arr,pm_arr,opt_state,p_weights)
+        aux = (v_pred_arr,v_t_arr,loss_v_arr_,loss_c_arr_,pos_plan_arr,pos_arr,dot_arr,pm_arr,opt_state,p_weights)
     return arrs,aux # [VMAPS,STEPS,N]x2,[VMAPS,STEPS,2]x3,[VMAPS,STEPS]x2,..
 
 # hyperparams
@@ -536,7 +536,7 @@ p_weights["W_m"] = W_m0
 startTime = datetime.now()
 arrs,aux = forward_model_loop(SC,weights,params)
 (loss_arr,loss_std,loss_v_arr,v_std_arr,loss_c_arr,c_std_arr) = arrs
-(v_pred_arr,v_t_arr,loss_v_arr_,loss_c_arr_,pos_arr,dot_arr,pm_arr,opt_state,p_weights) = aux
+(v_pred_arr,v_t_arr,loss_v_arr_,loss_c_arr_,pos_plan_arr,pos_arr,dot_arr,pm_arr,opt_state,p_weights) = aux
 print('pm_arr=',pm_arr.shape,pm_arr[0,0,:])
 
 # plot training loss
