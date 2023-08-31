@@ -494,19 +494,19 @@ def pg_obj(SC,hs_0,hp_0,pos_0,dot_0,dot_vec,ind,weights,weights_s,params): # ,se
     return tot_loss,(losses,stds,other)
     # tot_loss,(actor_loss,std_actor,critic_loss,std_critic,avg_vec_kl,std_vec_kl,avg_act_kl,std_act_kl,r_std,l_sem,plan_rate,avg_tot_r,kl_loss,r_init_arr.T,r_arr.T,rt_arr.T,sample_arr.T,pos_init_arr.transpose([1,0,2]),pos_arr.transpose([1,0,2])) # ,t_arr.T
 
-def full_loop(SC,opt_state,weights,params):
+def full_loop(SC,weights,params):
     # r_arr,sample_arr = (jnp.zeros((params["TOT_EPOCHS"],params["TRIAL_LENGTH"])) for _ in range(2)) # ,params["VMAPS"]
     # pos_arr = jnp.zeros((params["TOT_EPOCHS"],params["TRIAL_LENGTH"],2)) # ,params["VMAPS"]
     # dots_arr = jnp.zeros((params["TOT_EPOCHS"],3,2))
     loss_arr,sem_loss_arr,actor_loss_arr,std_actor_arr,critic_loss_arr,std_critic_arr,vec_kl_arr,std_vec_kl_arr,act_kl_arr,std_act_kl_arr,r_tot_arr,std_r_arr,plan_rate_arr,std_plan_rate_arr = (jnp.zeros((params["TOT_EPOCHS"],)) for _ in range(14)) #jnp.zeros((params["TOT_EPOCHS"]))
     weights_s = weights["s"]
     E = params["TOT_EPOCHS"]
-    # optimizer = optax.adamw(learning_rate=params["LR"],weight_decay=params["WD"])
-    # optimizer = optax.chain(
-    # optax.clip_by_global_norm(params["GRAD_CLIP"]),  # Add gradient clipping here
-    # optax.adamw(learning_rate=params["LR"],weight_decay=params["WD"]),
-    # )
-    # opt_state = optimizer.init(weights_s)
+    optimizer = optax.adamw(learning_rate=params["LR"],weight_decay=params["WD"])
+    optimizer = optax.chain(
+    optax.clip_by_global_norm(params["GRAD_CLIP"]),  # Add gradient clipping here
+    optax.adamw(learning_rate=params["LR"],weight_decay=params["WD"]),
+    )
+    opt_state = optimizer.init(weights_s)
     for e in range(E):
         new_params(params,e)
         hs_0 = params["HS_0"]
@@ -563,7 +563,7 @@ def full_loop(SC,opt_state,weights,params):
     return losses,stds,other,opt_state,weights_s #r_arr,pos_arr,sample_arr,dots_arr
 
 # hyperparams ###
-TOT_EPOCHS = 5000 ## 1000
+TOT_EPOCHS = 10000 ## 1000
 # EPOCHS = 1
 PLOTS = 5
 # LOOPS = TOT_EPOCHS//EPOCHS
@@ -599,7 +599,7 @@ ACTION_FRAC = 1/2 # unconstrained
 ACTION_SPACE = ACTION_FRAC*APERTURE # 'AGENT_SPEED'
 PLAN_FRAC_REL = 2 # 3/2
 PLAN_SPACE = PLAN_FRAC_REL*ACTION_SPACE
-MAX_DOT_SPEED_REL_FRAC = 3/2 # 3/2 # 5/4
+MAX_DOT_SPEED_REL_FRAC = 2 # 3/2 # 5/4 ### [CHANGED FROM 3/2]
 MAX_DOT_SPEED = MAX_DOT_SPEED_REL_FRAC*ACTION_SPACE
 NEURONS_FULL = 12
 N_F = (NEURONS_FULL**2)
@@ -751,7 +751,7 @@ weights['s'] = s_weights
 # weights['r'] = r_weights
 ###
 startTime = datetime.now()
-losses,stds,other,opt_state,weights_s = full_loop(SC,opt_state,weights,params) # (loss_arr,actor_loss_arr,critic_loss_arr,kl_loss_arr,vec_kl_arr,act_kl_arr,r_std_arr,l_sem_arr,plan_rate_arr,avg_tot_r_arr,avg_pol_kl_arr,r_init_arr,r_arr,rt_arr,sample_arr,pos_init_arr,pos_arr,dots,sel)
+losses,stds,other,opt_state,weights_s = full_loop(SC,weights,params) # (loss_arr,actor_loss_arr,critic_loss_arr,kl_loss_arr,vec_kl_arr,act_kl_arr,r_std_arr,l_sem_arr,plan_rate_arr,avg_tot_r_arr,avg_pol_kl_arr,r_init_arr,r_arr,rt_arr,sample_arr,pos_init_arr,pos_arr,dots,sel)
 print("Sim time: ",datetime.now()-startTime,"s/epoch=",((datetime.now()-startTime)/TOT_EPOCHS).total_seconds())
 (loss_arr,actor_loss_arr,critic_loss_arr,vec_kl_arr,act_kl_arr,r_tot_arr,plan_rate_arr) = losses
 (sem_loss_arr,std_actor_arr,std_critic_arr,std_act_kl_arr,std_vec_kl_arr,std_r_arr,std_plan_rate_arr) = stds

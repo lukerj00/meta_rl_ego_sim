@@ -173,11 +173,13 @@ def gen_dot_vecs(key,VMAPS,MAX_DOT_SPEED):
 
 def gen_binary_timeseries(keys, N, switch_prob, max_plan_length):
     ts_init = jnp.zeros(N)  # start with 0s
+    if max_plan_length == 0:
+        return ts_init
     def body_fn(i, carry):
         ts, count_ones, keys = carry
         true_fn = lambda _: (jnp.int32(rnd.bernoulli(keys[i], p=switch_prob)), 0)
         def false_fn(_):
-            return jax.lax.cond(count_ones > max_plan_length - 1,
+            return jax.lax.cond(count_ones >= max_plan_length - 1,
                                 lambda _: (0, 0), # ts, count_ones
                                 lambda _: (jnp.int32(rnd.bernoulli(keys[i], p=1-switch_prob)), count_ones + 1),
                                 None)
@@ -420,7 +422,9 @@ SIGMA_A = 0.3 # 0.3,0.5,1,0.3,1,0.5,1,0.1
 # SIGMA_D = 0.5
 SIGMA_N = 0.2 # 0.1,0.05
 SWITCH_PROB = 0.25
-MAX_PLAN_LENGTH = 5 # 1,3,5
+#
+MAX_PLAN_LENGTH = 3 # 1,3,5
+#
 COLORS = jnp.array([[255]]) # ,[255,0,0],[0,255,0],[0,0,255],[100,100,100]])
 N_DOTS = 1 #COLORS.shape[0]
 STEP_ARRAY = jnp.arange(1,TOT_STEPS)
