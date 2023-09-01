@@ -330,13 +330,13 @@ def body_fnc(SC,p_weights,params,key,pos_0,dot_0,dot_vec,h_0,samples,e):###
     return avg_loss,(v_pred_arr,v_t_arr,pos_plan_arr,pos_arr,dot_arr,pm_arr,loss_v_arr,loss_c_arr)
 
 # @partial(jax.jit,static_argnums=())
-def forward_model_loop(SC,weights,params):
+def forward_model_loop(SC,weights,params,opt_state):
     p_weights = weights["p_weights"]
     T = params["TOT_EPOCHS"]
     loss_arr,loss_std = (jnp.empty(params["TOT_EPOCHS"]) for _ in range(2))
     loss_v_arr,v_std_arr,loss_c_arr,c_std_arr = (jnp.empty((params["TOT_EPOCHS"],params["TOT_STEPS"])) for _ in range(4))
     optimizer = optax.adamw(learning_rate=params["LR"],weight_decay=params["WD"])
-    opt_state = optimizer.init(p_weights)
+    # opt_state = optimizer.init(p_weights)
     print("Starting training")
     for e in range(T):
         new_params(params,e) # 'params = new_params(params,e)'
@@ -532,13 +532,13 @@ weights = {
     }
 }
 # opt_state,p_weights
-_,(*_,p_weights) = load_('/sc_project/test_data/forward_new_v6_81M_144N_22_08-082725.pkl') # ...14-06...,opt_state'/sc_project/pkl/forward_v9_225_13_06-0014.pkl','/pkl/forward_v8M_08_06-1857.pkl'
+_,(*_,opt_state,p_weights) = load_('/sc_project/test_data/forward_new_v7_81M_144N_01_09-011400.pkl') # ...14-06...,opt_state'/sc_project/pkl/forward_v9_225_13_06-0014.pkl','/pkl/forward_v8M_08_06-1857.pkl'
 weights["p_weights"] = p_weights
-p_weights["W_p"] = W_p0
-p_weights["W_m"] = W_m0
+# p_weights["W_p"] = W_p0
+# p_weights["W_m"] = W_m0
 ###
 startTime = datetime.now()
-arrs,aux = forward_model_loop(SC,weights,params)
+arrs,aux = forward_model_loop(SC,weights,params,opt_state)
 (loss_arr,loss_std,loss_v_arr,v_std_arr,loss_c_arr,c_std_arr) = arrs
 (v_pred_arr,v_t_arr,loss_v_arr_,loss_c_arr_,pos_plan_arr,pos_arr,dot_arr,pm_arr,opt_state,p_weights) = aux
 print('pm_arr=',pm_arr.shape,pm_arr[0,0,:])

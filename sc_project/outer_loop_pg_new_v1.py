@@ -290,8 +290,8 @@ def sample_policy(policy,SC,ind,ACTION_SPACE_LEN): # (changed to put sm around i
     vectors,actions = policy
     ID_ARR,VEC_ARR,H1VEC_ARR = SC
     keys = rnd.split(rnd.PRNGKey(ind),num=2)
-    vectors_stable = vectors[:ACTION_SPACE_LEN]-jnp.max(vectors[:ACTION_SPACE_LEN]) + 1e-5
-    vec_ind = rnd.choice(key=keys[0],a=jnp.arange(len(vectors[:ACTION_SPACE_LEN])),p=jax.nn.softmax(vectors_stable)) # [:ACTION_SPACE_LEN]
+    vectors_stable = vectors - jnp.max(vectors) + 1e-5 # [:ACTION_SPACE_LEN]
+    vec_ind = rnd.choice(key=keys[0],a=jnp.arange(len(vectors)),p=jax.nn.softmax(vectors_stable)) # [:ACTION_SPACE_LEN]
     h1vec = H1VEC_ARR[:,vec_ind]
     vec = VEC_ARR[:,vec_ind]
     act_ind = rnd.choice(key=keys[1],a=jnp.arange(len(actions)),p=jax.nn.softmax(actions-jnp.max(actions)))
@@ -600,7 +600,7 @@ ACTION_FRAC = 1/2 # unconstrained
 ACTION_SPACE = ACTION_FRAC*APERTURE # 'AGENT_SPEED'
 PLAN_FRAC_REL = 2 # 3/2
 PLAN_SPACE = PLAN_FRAC_REL*ACTION_SPACE
-MAX_DOT_SPEED_REL_FRAC = 3/2 # 1 , 3/2 # 5/4
+MAX_DOT_SPEED_REL_FRAC = 2 # 3/2 1 , 3/2 # 5/4 [changed]
 MAX_DOT_SPEED = MAX_DOT_SPEED_REL_FRAC*ACTION_SPACE
 NEURONS_FULL = 12
 N_F = (NEURONS_FULL**2)

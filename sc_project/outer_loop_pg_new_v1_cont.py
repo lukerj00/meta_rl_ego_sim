@@ -290,7 +290,8 @@ def sample_policy(policy,SC,ind,ACTION_SPACE_LEN): # (changed to put sm around i
     vectors,actions = policy
     ID_ARR,VEC_ARR,H1VEC_ARR = SC
     keys = rnd.split(rnd.PRNGKey(ind),num=2)
-    vec_ind = rnd.choice(key=keys[0],a=jnp.arange(len(vectors)),p=jax.nn.softmax(vectors-jnp.max(vectors))) # [:ACTION_SPACE_LEN]
+    vectors_stable = vectors - jnp.max(vectors) + 1e-5 # [:ACTION_SPACE_LEN]
+    vec_ind = rnd.choice(key=keys[0],a=jnp.arange(len(vectors)),p=jax.nn.softmax(vectors_stable)) # [:ACTION_SPACE_LEN]
     h1vec = H1VEC_ARR[:,vec_ind]
     vec = VEC_ARR[:,vec_ind]
     act_ind = rnd.choice(key=keys[1],a=jnp.arange(len(actions)),p=jax.nn.softmax(actions-jnp.max(actions)))
@@ -563,7 +564,7 @@ def full_loop(SC,weights,params):
     return losses,stds,other,opt_state,weights_s #r_arr,pos_arr,sample_arr,dots_arr
 
 # hyperparams ###
-TOT_EPOCHS = 10000 ## 1000
+TOT_EPOCHS = 5000 ## 1000
 # EPOCHS = 1
 PLOTS = 5
 # LOOPS = TOT_EPOCHS//EPOCHS
