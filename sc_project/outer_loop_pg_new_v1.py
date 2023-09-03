@@ -282,19 +282,19 @@ def get_policy(args_t,weights_s): # hs_t_1,v_t,r_t,rp_t_1,rm_t_1,weights_s,param
     val_t = jnp.matmul(Ws_val,hs_t)
     # jax.debug.print('vec_t={}',vec_t)
     # jax.debug.print('act_t={}',act_t)
-    vectors_t = jax.nn.softmax(vec_t)
-    actions_t = jax.nn.softmax(act_t)
+    vectors_t = jax.nn.softmax(vec_t-jnp.max(vec_t))
+    actions_t = jax.nn.softmax(act_t-jnp.max(act_t))
     return (vectors_t,actions_t),val_t,hs_t
 
 def sample_policy(policy,SC,ind,ACTION_SPACE_LEN): # (changed to put sm around indexed vecs)
     vectors,actions = policy
     ID_ARR,VEC_ARR,H1VEC_ARR = SC
     keys = rnd.split(rnd.PRNGKey(ind),num=2)
-    vectors_stable = vectors - jnp.max(vectors) + 1e-5 # [:ACTION_SPACE_LEN]
-    vec_ind = rnd.choice(key=keys[0],a=jnp.arange(len(vectors)),p=jax.nn.softmax(vectors_stable)) # [:ACTION_SPACE_LEN]
+    # vectors_stable = vectors - jnp.max(vectors) + 1e-5 # [:ACTION_SPACE_LEN] (DONT USE)
+    vec_ind = rnd.choice(key=keys[0],a=jnp.arange(len(vectors)),p=vectors) # [:ACTION_SPACE_LEN] (DONT USE)
     h1vec = H1VEC_ARR[:,vec_ind]
     vec = VEC_ARR[:,vec_ind]
-    act_ind = rnd.choice(key=keys[1],a=jnp.arange(len(actions)),p=jax.nn.softmax(actions-jnp.max(actions)))
+    act_ind = rnd.choice(key=keys[1],a=jnp.arange(len(actions)),p=actions) #-jnp.max(actions)))
     act = jnp.eye(len(actions))[act_ind]
     return h1vec,vec,jnp.log(vectors[vec_ind]),act[0],act[1],jnp.log(actions[act_ind])
 
@@ -564,7 +564,7 @@ def full_loop(SC,weights,params):
     return losses,stds,other,opt_state,weights_s #r_arr,pos_arr,sample_arr,dots_arr
 
 # hyperparams ###
-TOT_EPOCHS = 5000 ## 1000
+TOT_EPOCHS = 10000 ## 1000
 # EPOCHS = 1
 PLOTS = 5
 # LOOPS = TOT_EPOCHS//EPOCHS
@@ -595,12 +595,12 @@ PRIOR_STAT = 0.2 # 1 # 0.2
 PRIOR_PLAN = 0.2
 MODULES = 9 # 10,8
 M = MODULES**2
-APERTURE = (1/2)*jnp.pi # (3/5)*jnp.pi # (jnp.sqrt(2)/2)*jnp.pi ### unconstrained
+APERTURE = (1/2)*jnp.pi # (3/5)*jnp.pi # (jnp.sqrt(2)/2)*jnp.pi # unconstrained
 ACTION_FRAC = 1/2 # unconstrained
 ACTION_SPACE = ACTION_FRAC*APERTURE # 'AGENT_SPEED'
 PLAN_FRAC_REL = 2 # 3/2
 PLAN_SPACE = PLAN_FRAC_REL*ACTION_SPACE
-MAX_DOT_SPEED_REL_FRAC = 2 # 3/2 1 , 3/2 # 5/4 [changed]
+MAX_DOT_SPEED_REL_FRAC = 5/2 # 3/2 1 , 3/2 # 5/4 [changed from 3/2]
 MAX_DOT_SPEED = MAX_DOT_SPEED_REL_FRAC*ACTION_SPACE
 NEURONS_FULL = 12
 N_F = (NEURONS_FULL**2)

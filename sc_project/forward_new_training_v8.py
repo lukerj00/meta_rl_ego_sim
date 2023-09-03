@@ -276,30 +276,22 @@ def plan(h1vec,v_0,h_0,pm_t,p_weights,PLAN_ITS): # self,hp_t_1,pos_t_1,v_t_1,r_t
         return RNN_forward(carry)
     def RNN_forward(carry):
         p_weights,h1vec,v_0,pm_t,h_t_1 = carry
-        # W_h1 = p_weights["W_h1"]
-        # W_v = p_weights["W_v"]
-        # W_p = p_weights["W_p"]
-        # W_m = p_weights["W_m"]
-        # U_vh = p_weights["U_vh"]
-        # b_vh = p_weights["b_vh"]
-        # h_t = jax.nn.sigmoid(W_p*pm_t[0] + W_m*pm_t[1] + jnp.matmul(W_h1,h1vec) + jnp.matmul(W_v,v_0) + jnp.matmul(U_vh,h_t_1) + b_vh)
         W_h1_f = p_weights["W_h1_f"]
         W_h1_hh = p_weights["W_h1_hh"]
         W_p_f = p_weights["W_p_f"]
         W_p_hh = p_weights["W_p_hh"]
         W_m_f = p_weights["W_m_f"]
         W_m_hh = p_weights["W_m_hh"]
+        W_v_f = p_weights["W_v_f"]
+        W_v_hh = p_weights["W_v_hh"]
         U_f = p_weights["U_f"]
         U_hh = p_weights["U_hh"]
         b_f = p_weights["b_f"]
         b_hh = p_weights["b_hh"]
-        f_t = jax.nn.sigmoid(W_p_f*pm_t[0] + W_m_f*pm_t[1] + jnp.matmul(W_h1_f,h1vec) + jnp.matmul(U_f,h_t_1) + b_f)
-        hhat_t = jax.nn.tanh(W_p_hh*pm_t[0] + W_m_hh*pm_t[1] + jnp.matmul(W_h1_hh,h1vec) + jnp.matmul(U_hh,jnp.multiply(f_t,h_t_1)) + b_hh)
+        f_t = jax.nn.sigmoid(W_p_f*pm_t[0] + W_m_f*pm_t[1] + jnp.matmul(W_h1_f,h1vec) + jnp.matmul(W_v_f,v_0) + jnp.matmul(U_f,h_t_1) + b_f)
+        hhat_t = jax.nn.tanh(W_p_hh*pm_t[0] + W_m_hh*pm_t[1] + jnp.matmul(W_h1_hh,h1vec) + jnp.matmul(W_v_hh,v_0) + jnp.matmul(U_hh,jnp.multiply(f_t,h_t_1)) + b_hh)
         h_t = jnp.multiply((1-f_t),h_t_1) + jnp.multiply(f_t,hhat_t)
         return (p_weights,h1vec,v_0,pm_t,h_t),None
-    # W_r_f = p_weights["W_r_f"]
-    # W_r_a = p_weights["W_r_a"]
-    # W_r_full = p_weights["W_r_full"]
     W_full = p_weights["W_full"]
     W_ap = p_weights["W_ap"]
     carry_0 = (p_weights,h1vec,v_0,pm_t,h_0)
@@ -345,16 +337,16 @@ def plan(h1vec,v_0,h_0,pm_t,p_weights,PLAN_ITS): # self,hp_t_1,pos_t_1,v_t_1,r_t
 #     return avg_loss,(v_pred_arr,v_t_arr,pos_plan_arr,pos_arr,dot_arr,pm_arr,loss_v_arr,loss_c_arr)
 
 def loop_body(carry, current_input):
-    h_t_1, v_t_1_ap, tot_loss_v = carry
+    h_t_1, v_t_1_ap, tot_loss_v, p_weights = carry
     t, sample, h1vec_t, pm_t, dot_t, pos_plan_t = current_input
     v_pred_ap, v_pred_full, h_t = plan(h1vec_t, v_t_1_ap, h_t_1, pm_t, p_weights, params["PLAN_ITS"])
     v_t_ap = neuron_act_noise(sample, params["THETA_AP"], params["SIGMA_A"], params["SIGMA_N"], dot_t, pos_plan_t)
     v_t_full = neuron_act_noise(sample, params["THETA_FULL"], params["SIGMA_A"], params["SIGMA_N"], dot_t, pos_plan_t)
     loss_v = jnp.sum((v_pred_full - v_t_full) ** 2)
     loss_c = cosine_similarity(v_pred_full, v_t_full)
-    tot_loss_v += loss_v
+    tot_loss_v = tot_loss_v + loss_v
     v_t_1_ap = jax.lax.cond(pm_t[0] == 1, lambda _: v_pred_ap, lambda _: v_t_ap, None)
-    return (h_t, v_t_1_ap, tot_loss_v), (v_pred_full, v_t_full, loss_v, loss_c)
+    return (h_t, v_t_1_ap, tot_loss_v, p_weights), (v_pred_full, v_t_full, loss_v, loss_c)
 
 def body_fnc(SC, p_weights, params, key, pos_0, dot_0, dot_vec, h_0, samples, e):
     pm_arr, pos_plan_arr, pos_arr, dot_arr, h1vec_arr, vec_arr = gen_timeseries(key, SC, pos_0, dot_0, dot_vec, samples, params["SWITCH_PROB"], params["TOT_STEPS"], params["MAX_PLAN_LENGTH"])
@@ -362,17 +354,20 @@ def body_fnc(SC, p_weights, params, key, pos_0, dot_0, dot_vec, h_0, samples, e)
     v_0_ap = neuron_act_noise(samples[0], params["THETA_AP"], params["SIGMA_A"], params["SIGMA_N"], dot_arr[:, 0], pos_plan_arr[:, 0])
     tot_loss_v = 0
     v_t_1_full = neuron_act_noise(samples[0], params["THETA_FULL"], params["SIGMA_A"], params["SIGMA_N"], dot_arr[:, 0], pos_plan_arr[:, 0])
-    initial_carry = (h_0, v_0_ap, tot_loss_v)
-    sequence_inputs = (jnp.arange(1, params["TOT_STEPS"]), samples[1: params["TOT_STEPS"]], h1vec_arr[:, :-1].T, pm_arr[1:], dot_arr[:, 1:].T, pos_plan_arr[:, 1:].T)
-    # Perform the scan
+    initial_carry = (h_0, v_0_ap, tot_loss_v, p_weights)
+    sequence_inputs = (jnp.arange(1, params["TOT_STEPS"]), samples[1: params["TOT_STEPS"]], h1vec_arr[:, :-1].T, pm_arr[1:,:], dot_arr[:, 1:].T, pos_plan_arr[:, 1:].T)
+    
     final_carry, outputs = jax.lax.scan(loop_body, initial_carry, sequence_inputs)
+    h_t, v_t_1_ap, tot_loss_v, p_weights = final_carry
     v_pred_full_stacked, v_t_full_stacked, loss_v_stacked, loss_c_stacked = outputs 
+    # jax.debug.print('**** tot_loss_v={}', tot_loss_v)
+    # jax.debug.print('**** sum(loss_v_stacked)={}', jnp.sum(loss_v_stacked))
     v_pred_full_stacked = jnp.concatenate([jnp.expand_dims(jnp.zeros(params["N_F"]),axis=0), v_pred_full_stacked])
     v_t_full_stacked = jnp.concatenate([jnp.expand_dims(v_t_1_full,axis=0), v_t_full_stacked])
     loss_v_stacked = jnp.concatenate([jnp.zeros(1), loss_v_stacked])
     loss_c_stacked = jnp.concatenate([jnp.zeros(1), loss_c_stacked])
-    # Calculate the average loss
-    avg_loss = jnp.sum(loss_v_stacked) / params["TOT_STEPS"]
+
+    avg_loss = jnp.sum(tot_loss_v) / params["TOT_STEPS"] ## loss_v_stacked
     return avg_loss, (v_pred_full_stacked, v_t_full_stacked, pos_plan_arr, pos_arr, dot_arr, pm_arr, loss_v_stacked, loss_c_stacked)
 
 # @partial(jax.jit,static_argnums=())
@@ -413,7 +408,9 @@ def forward_model_loop(SC,weights,params):
         # print("std_v={}",jnp.std(loss_v_arr)/jnp.sqrt(params["VMAPS"]))
         # print("loss_d={}",jnp.mean(loss_d_arr_,axis=0))
         # print("std_d={}",jnp.std(loss_d_arr)/jnp.sqrt(params["VMAPS"]))
-        # if e == T-1:
+        if e>0 and (e % 50) == 0:
+            print("*clearing cache*")
+            jax.clear_caches()
         #     print("v_pred_arr.shape=",v_pred_arr.shape)
         #     print("v_t_arr.shape=",v_t_arr.shape)
         #     print("pos_arr.shape=",pos_arr.shape)
@@ -469,7 +466,7 @@ SIGMA_A = 0.3 # 0.3,0.5,1,0.3,1,0.5,1,0.1
 SIGMA_N = 0.2 # 0.1,0.05
 SWITCH_PROB = 0.25
 # 
-MAX_PLAN_LENGTH = 1 # 1,3,5
+MAX_PLAN_LENGTH = 5 # 1,3,5
 # 
 COLORS = jnp.array([[255]]) # ,[255,0,0],[0,255,0],[0,0,255],[100,100,100]])
 N_DOTS = 1 #COLORS.shape[0]
@@ -509,12 +506,14 @@ W_p_f0 = jnp.sqrt(INIT/(H))*rnd.normal(ki[2],(H,))
 W_p_hh0 = jnp.sqrt(INIT/(H))*rnd.normal(ki[3],(H,))
 W_m_f0 = jnp.sqrt(INIT/(H))*rnd.normal(ki[4],(H,))
 W_m_hh0 = jnp.sqrt(INIT/(H))*rnd.normal(ki[5],(H,))
-U_f0,_ = jnp.linalg.qr(jnp.sqrt(INIT/(H+H))*rnd.normal(ki[6],(H,H)))
-U_hh0,_ = jnp.linalg.qr(jnp.sqrt(INIT/(H+H))*rnd.normal(ki[7],(H,H)))
-b_f0 = jnp.sqrt(INIT/(H))*rnd.normal(ki[8],(H,))
-b_hh0 = jnp.sqrt(INIT/(H))*rnd.normal(ki[9],(H,))
-W_ap0 = jnp.sqrt(INIT/(N_A+H))*rnd.normal(ki[10],(N_A,H))
-W_full0 = jnp.sqrt(INIT/(N_F+H))*rnd.normal(ki[11],(N_F,H))
+W_v_f0 = jnp.sqrt(INIT/(H+N_A))*rnd.normal(ki[6],(H,N_A))
+W_v_hh0 = jnp.sqrt(INIT/(H+N_A))*rnd.normal(ki[7],(H,N_A))
+U_f0,_ = jnp.linalg.qr(jnp.sqrt(INIT/(H+H))*rnd.normal(ki[8],(H,H)))
+U_hh0,_ = jnp.linalg.qr(jnp.sqrt(INIT/(H+H))*rnd.normal(ki[9],(H,H)))
+b_f0 = jnp.sqrt(INIT/(H))*rnd.normal(ki[10],(H,))
+b_hh0 = jnp.sqrt(INIT/(H))*rnd.normal(ki[11],(H,))
+W_ap0 = jnp.sqrt(INIT/(N_A+H))*rnd.normal(ki[12],(N_A,H))
+W_full0 = jnp.sqrt(INIT/(N_F+H))*rnd.normal(ki[13],(N_F,H))
 
 params = {
     "TOT_EPOCHS" : TOT_EPOCHS,
@@ -589,6 +588,8 @@ weights = {
         "W_p_hh" : W_p_hh0,
         "W_m_f" : W_m_f0,
         "W_m_hh" : W_m_hh0,
+        "W_v_f" : W_v_f0,
+        "W_v_hh" : W_v_hh0,
         "U_f" : U_f0,
         "U_hh" : U_hh0,
         "b_f" : b_f0,

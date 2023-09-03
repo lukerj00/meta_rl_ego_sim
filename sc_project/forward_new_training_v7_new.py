@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# move/plan timeseries
+# move/plan timeseries, new CF
 """
 Created on Wed May 10 2023
 
@@ -294,16 +294,16 @@ def plan(h1vec,v_0,h_0,pm_t,p_weights,PLAN_ITS): # self,hp_t_1,pos_t_1,v_t_1,r_t
     return v_pred_ap,v_pred_full,h_t # dot_hat_t,
 
 def loop_body(carry, current_input):
-    h_t_1, v_t_1_ap, tot_loss_v = carry
+    h_t_1, v_t_1_ap, tot_loss_v, p_weights = carry
     t, sample, h1vec_t, pm_t, dot_t, pos_plan_t = current_input
     v_pred_ap, v_pred_full, h_t = plan(h1vec_t, v_t_1_ap, h_t_1, pm_t, p_weights, params["PLAN_ITS"])
     v_t_ap = neuron_act_noise(sample, params["THETA_AP"], params["SIGMA_A"], params["SIGMA_N"], dot_t, pos_plan_t)
     v_t_full = neuron_act_noise(sample, params["THETA_FULL"], params["SIGMA_A"], params["SIGMA_N"], dot_t, pos_plan_t)
     loss_v = jnp.sum((v_pred_full - v_t_full) ** 2)
     loss_c = cosine_similarity(v_pred_full, v_t_full)
-    tot_loss_v += loss_v
+    tot_loss_v = tot_loss_v + loss_v
     v_t_1_ap = jax.lax.cond(pm_t[0] == 1, lambda _: v_pred_ap, lambda _: v_t_ap, None)
-    return (h_t, v_t_1_ap, tot_loss_v), (v_pred_full, v_t_full, loss_v, loss_c)
+    return (h_t, v_t_1_ap, tot_loss_v, p_weights), (v_pred_full, v_t_full, loss_v, loss_c)
 
 def body_fnc(SC, p_weights, params, key, pos_0, dot_0, dot_vec, h_0, samples, e):
     pm_arr, pos_plan_arr, pos_arr, dot_arr, h1vec_arr, vec_arr = gen_timeseries(key, SC, pos_0, dot_0, dot_vec, samples, params["SWITCH_PROB"], params["TOT_STEPS"], params["MAX_PLAN_LENGTH"])
@@ -311,17 +311,20 @@ def body_fnc(SC, p_weights, params, key, pos_0, dot_0, dot_vec, h_0, samples, e)
     v_0_ap = neuron_act_noise(samples[0], params["THETA_AP"], params["SIGMA_A"], params["SIGMA_N"], dot_arr[:, 0], pos_plan_arr[:, 0])
     tot_loss_v = 0
     v_t_1_full = neuron_act_noise(samples[0], params["THETA_FULL"], params["SIGMA_A"], params["SIGMA_N"], dot_arr[:, 0], pos_plan_arr[:, 0])
-    initial_carry = (h_0, v_0_ap, tot_loss_v)
-    sequence_inputs = (jnp.arange(1, params["TOT_STEPS"]), samples[1: params["TOT_STEPS"]], h1vec_arr[:, :-1].T, pm_arr[1:], dot_arr[:, 1:].T, pos_plan_arr[:, 1:].T)
-    # Perform the scan
+    initial_carry = (h_0, v_0_ap, tot_loss_v, p_weights)
+    sequence_inputs = (jnp.arange(1, params["TOT_STEPS"]), samples[1: params["TOT_STEPS"]], h1vec_arr[:, :-1].T, pm_arr[1:,:], dot_arr[:, 1:].T, pos_plan_arr[:, 1:].T)
+    
     final_carry, outputs = jax.lax.scan(loop_body, initial_carry, sequence_inputs)
+    h_t, v_t_1_ap, tot_loss_v, p_weights = final_carry
     v_pred_full_stacked, v_t_full_stacked, loss_v_stacked, loss_c_stacked = outputs 
+    # jax.debug.print('**** tot_loss_v={}', tot_loss_v)
+    # jax.debug.print('**** sum(loss_v_stacked)={}', jnp.sum(loss_v_stacked))
     v_pred_full_stacked = jnp.concatenate([jnp.expand_dims(jnp.zeros(params["N_F"]),axis=0), v_pred_full_stacked])
     v_t_full_stacked = jnp.concatenate([jnp.expand_dims(v_t_1_full,axis=0), v_t_full_stacked])
     loss_v_stacked = jnp.concatenate([jnp.zeros(1), loss_v_stacked])
     loss_c_stacked = jnp.concatenate([jnp.zeros(1), loss_c_stacked])
-    # Calculate the average loss
-    avg_loss = jnp.sum(loss_v_stacked) / params["TOT_STEPS"]
+
+    avg_loss = jnp.sum(tot_loss_v) / params["TOT_STEPS"] ## loss_v_stacked
     return avg_loss, (v_pred_full_stacked, v_t_full_stacked, pos_plan_arr, pos_arr, dot_arr, pm_arr, loss_v_stacked, loss_c_stacked)
 
 # @partial(jax.jit,static_argnums=())
@@ -380,12 +383,12 @@ EPOCHS = 1
 INIT_TRAIN_EPOCHS = 500000 ### epochs until phase 2
 PLOTS = 3
 # LOOPS = TOT_EPOCHS//EPOCHS
-VMAPS = 800 # 800,500
+VMAPS = 500 # 800,500
 PLAN_ITS = 10 # 10,8,5
 INIT_STEPS = 0 # (taking loss over all steps so doesnt matter)
 TOT_STEPS = 30
 PRED_STEPS = TOT_STEPS-INIT_STEPS
-LR = 0.0001 # 0.003,,0.0001
+LR = 0.005 # 0.003,,0.0001
 WD = 0.0001 # 0.0001
 H = 400 # 500,300
 INIT = 2 # 0.5,0.1
@@ -418,7 +421,7 @@ SIGMA_A = 0.3 # 0.3,0.5,1,0.3,1,0.5,1,0.1
 SIGMA_N = 0.2 # 0.1,0.05
 SWITCH_PROB = 0.25
 #
-MAX_PLAN_LENGTH = 0 # 1,3,5
+MAX_PLAN_LENGTH = 3 # 1,3,5
 #
 COLORS = jnp.array([[255]]) # ,[255,0,0],[0,255,0],[0,0,255],[100,100,100]])
 N_DOTS = 1 #COLORS.shape[0]
@@ -527,10 +530,10 @@ weights = {
     }
 }
 # opt_state,p_weights
-_,(*_,p_weights) = load_('/sc_project/test_data/forward_new_v6_81M_144N_22_08-082725.pkl') # ...14-06...,opt_state'/sc_project/pkl/forward_v9_225_13_06-0014.pkl','/pkl/forward_v8M_08_06-1857.pkl'
-weights["p_weights"] = p_weights
-p_weights["W_p"] = W_p0
-p_weights["W_m"] = W_m0
+# _,(*_,p_weights) = load_('/sc_project/test_data/forward_new_v6_81M_144N_22_08-082725.pkl') # ...14-06...,opt_state'/sc_project/pkl/forward_v9_225_13_06-0014.pkl','/pkl/forward_v8M_08_06-1857.pkl'
+# weights["p_weights"] = p_weights
+# p_weights["W_p"] = W_p0
+# p_weights["W_m"] = W_m0
 ###
 startTime = datetime.now()
 arrs,aux = forward_model_loop(SC,weights,params)
