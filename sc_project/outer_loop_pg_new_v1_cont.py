@@ -63,22 +63,23 @@ def gen_vectors(MODULES,APERTURE):
 
 def gen_sc(keys,MODULES,ACTION_SPACE,PLAN_SPACE):
     index_range = jnp.arange(MODULES**2)
-    x = jnp.linspace(-PLAN_SPACE,PLAN_SPACE,MODULES)
-    y = jnp.linspace(-PLAN_SPACE,PLAN_SPACE,MODULES)[::-1]
+    x = jnp.linspace(-ACTION_SPACE,ACTION_SPACE,MODULES) ## (finer resolution)
+    y = jnp.linspace(-ACTION_SPACE,ACTION_SPACE,MODULES)[::-1]
     xv,yv = jnp.meshgrid(x,y)
     A_full = jnp.vstack([xv.flatten(),yv.flatten()])
 
-    inner_mask = (jnp.abs(xv) <= ACTION_SPACE) & (jnp.abs(yv) <= ACTION_SPACE)
-    A_inner_ind = index_range[inner_mask.flatten()]
-    A_outer_ind = index_range[~inner_mask.flatten()]
-    A_inner_perm = rnd.permutation(keys[0],A_inner_ind)
-    A_outer_perm = rnd.permutation(keys[1],A_outer_ind)
-    ID_ARR = jnp.concatenate((A_inner_perm,A_outer_perm),axis=0)
+    # inner_mask = (jnp.abs(xv) <= ACTION_SPACE) & (jnp.abs(yv) <= ACTION_SPACE)
+    # A_inner_ind = index_range[inner_mask.flatten()]
+    # A_outer_ind = index_range[~inner_mask.flatten()]
+    # A_inner_perm = rnd.permutation(keys[0],A_inner_ind)
+    # A_outer_perm = rnd.permutation(keys[1],A_outer_ind)
+    # ID_ARR = jnp.concatenate((A_inner_perm,A_outer_perm),axis=0)
+    ID_ARR = rnd.permutation(keys[0],index_range) ## (different permutation)
 
     VEC_ARR = A_full[:,ID_ARR]
     H1VEC_ARR = jnp.eye(MODULES**2) # [:,ID_ARR]
     SC = (ID_ARR,VEC_ARR,H1VEC_ARR)
-    return SC,len(A_inner_ind)
+    return SC
 
 # @partial(jax.jit,static_argnums=(1,2,3))
 # def gen_dots(key,VMAPS,N_DOTS,APERTURE):
@@ -90,9 +91,9 @@ def gen_sc(keys,MODULES,ACTION_SPACE,PLAN_SPACE):
 #     # DOTS = rnd.uniform(key,shape=(EPOCHS,VMAPS,N_DOTS,2),minval=-APERTURE,maxval=APERTURE)
 #     return dots_tot[:,:N_DOTS,:]
 
-def gen_dot(key,VMAPS,N_DOTS,APERTURE):
+def gen_dot(key,VMAPS,N_DOTS,ACTION_SPACE):
     keys = rnd.split(key,N_DOTS)
-    dot_0 = rnd.uniform(keys[0],shape=(VMAPS,2),minval=-APERTURE,maxval=APERTURE)#minval=jnp.array([APERTURE/4,APERTURE/4]),maxval=jnp.array([3*APERTURE/4,3*APERTURE/4]))
+    dot_0 = rnd.uniform(keys[0],shape=(VMAPS,2),minval=-ACTION_SPACE,maxval=ACTION_SPACE)#minval=jnp.array([APERTURE/4,APERTURE/4]),maxval=jnp.array([3*APERTURE/4,3*APERTURE/4]))
     # dot_1 = rnd.uniform(keys[1],shape=(VMAPS,1,2),minval=-jnp.pi,maxval=jnp.pi)#minval=jnp.array([APERTURE/4,-APERTURE/4]),maxval=jnp.array([3*APERTURE/4,-3*APERTURE/4]))
     # dot_2 = rnd.uniform(keys[2],shape=(VMAPS,1,2),minval=-jnp.pi,maxval=jnp.pi)#minval=jnp.array([-3*APERTURE/4,-APERTURE]),maxval=jnp.array([-APERTURE/4,APERTURE]))
     # dot_tot = jnp.concatenate((dot_0,dot_1,dot_2),axis=1)
@@ -109,7 +110,7 @@ def gen_dot_vecs(key,VMAPS,MAX_DOT_SPEED): # rejection sampling
     #     mask = jnp.all((-APERTURE/2 <= dot_vecs)&(dot_vecs <= APERTURE/2),axis=1)
     return dot_vecs
 
-def gen_samples(key,MODULES,ACTION_SPACE,PLANNING_SPACE,INIT_STEPS,TOT_STEPS):###
+def gen_samples(key,MODULES,ACTION_SPACE,PLANNING_SPACE,INIT_STEPS,TOT_STEPS):## (not used)
     M_P = (MODULES-1)//2 # (1/ACTION_FRAC)
     M_A = jnp.int32(M_P*(ACTION_SPACE/PLANNING_SPACE)) ### FIX (AS/PS=2/3)
     init_vals = jnp.arange((2*M_A+1)**2)
@@ -226,12 +227,13 @@ def new_params(params, e): # Modify in place
     M = params["M"]
     T = params["TRIAL_LENGTH"]
     N_DOTS = params["N_DOTS"]
+    ACTION_SPACE = params["ACTION_SPACE"]
     ki = rnd.split(rnd.PRNGKey(e), num=10)
     params["HS_0"] = jnp.sqrt(INIT_S/(H_S))*rnd.normal(ki[0],(VMAPS,H_S))
     # params["HR_0"] = jnp.zeros((VMAPS,H_R))
     params["HP_0"] = jnp.sqrt(INIT_P/(H_P))*rnd.normal(ki[1],(VMAPS,H_P))
     params["POS_0"] = rnd.uniform(ki[0],shape=(VMAPS,2),minval=-jnp.pi,maxval=jnp.pi) # rnd.choice(ke[2],jnp.arange(-APERTURE,APERTURE,0.01),(VMAPS,2))
-    params["DOT_0"] = params["POS_0"] + gen_dot(ki[3],VMAPS,N_DOTS,APERTURE)
+    params["DOT_0"] = params["POS_0"] + gen_dot(ki[3],VMAPS,N_DOTS,ACTION_SPACE)
     params["DOT_VEC"] = gen_dot_vecs(ki[4],VMAPS,MAX_DOT_SPEED)
     # params["SELECT"] = jnp.eye(N_DOTS)[rnd.choice(ki[4],N_DOTS,(VMAPS,))]
     params["IND"] = rnd.randint(ki[5],(VMAPS,T),minval=0,maxval=M,dtype=jnp.int32)
@@ -282,19 +284,19 @@ def get_policy(args_t,weights_s): # hs_t_1,v_t,r_t,rp_t_1,rm_t_1,weights_s,param
     val_t = jnp.matmul(Ws_val,hs_t)
     # jax.debug.print('vec_t={}',vec_t)
     # jax.debug.print('act_t={}',act_t)
-    vectors_t = jax.nn.softmax(vec_t)
-    actions_t = jax.nn.softmax(act_t)
+    vectors_t = jax.nn.softmax(vec_t-jnp.max(vec_t))
+    actions_t = jax.nn.softmax(act_t-jnp.max(act_t))
     return (vectors_t,actions_t),val_t,hs_t
 
-def sample_policy(policy,SC,ind,ACTION_SPACE_LEN): # (changed to put sm around indexed vecs)
+def sample_policy(policy,SC,ind): # (changed to put sm around indexed vecs)
     vectors,actions = policy
     ID_ARR,VEC_ARR,H1VEC_ARR = SC
     keys = rnd.split(rnd.PRNGKey(ind),num=2)
-    vectors_stable = vectors - jnp.max(vectors) + 1e-5 # [:ACTION_SPACE_LEN]
-    vec_ind = rnd.choice(key=keys[0],a=jnp.arange(len(vectors)),p=jax.nn.softmax(vectors_stable)) # [:ACTION_SPACE_LEN]
+    # vectors_stable = vectors - jnp.max(vectors) + 1e-5 # [:ACTION_SPACE_LEN] (DONT USE)
+    vec_ind = rnd.choice(key=keys[0],a=jnp.arange(len(vectors)),p=vectors) # [:ACTION_SPACE_LEN] (DONT USE)
     h1vec = H1VEC_ARR[:,vec_ind]
     vec = VEC_ARR[:,vec_ind]
-    act_ind = rnd.choice(key=keys[1],a=jnp.arange(len(actions)),p=jax.nn.softmax(actions-jnp.max(actions)))
+    act_ind = rnd.choice(key=keys[1],a=jnp.arange(len(actions)),p=actions) #-jnp.max(actions)))
     act = jnp.eye(len(actions))[act_ind]
     return h1vec,vec,jnp.log(vectors[vec_ind]),act[0],act[1],jnp.log(actions[act_ind])
 
@@ -373,8 +375,8 @@ def plan(h1vec_t,vec_t,v_t_1,hv_t_1,r_t_1,pos_t_1,dot_t_1,dot_vec,val,weights,co
     dot_t = dot_t_1 + dot_vec
 
     v_pred_t,v_full_t,hv_t = v_predict(h1vec_t,v_t_1,hv_t_1,weights["p"],NONE_PLAN)### #(hr_t_1,v_t_1,pos_t_1,weights["v"],params)
-    r_pred_t,r_fit_t = r_predict(v_full_t,pos_t,MODULES,APERTURE,SIGMA_R,NEURON_GRID_AP)# (using true pos)
-    return r_pred_t,v_pred_t,hv_t,pos_t_1,dot_t # ,r_tp,v_tp #,hv_t # predictions
+    r_pred_t,r_fit_t = r_predict(v_full_t,pos_t,MODULES,APERTURE,SIGMA_R,NEURON_GRID_AP)# (using true pos--change for v2)
+    return jnp.float32(0),v_pred_t,hv_t,pos_t_1,dot_t # ,r_tp,v_tp #,hv_t # (0 reward)
 
 def move(h1vec_t,vec_t,v_t_1,hv_t_1,r_t_1,pos_t_1,dot_t_1,dot_vec,val,weights,consts): # sel, shouldnt be random; should take action dictated by plan...
     INIT_LENGTH,TEST_LENGTH,NONE_PLAN,MODULES,APERTURE,SIGMA_R,SIGMA_A,SIGMA_N,COLORS,THETA_AP,NEURON_GRID_AP,PRIOR_STAT,PRIOR_PLAN,C_MOVE,C_PLAN = consts
@@ -397,12 +399,12 @@ def dynamic_scan(carry_0):
 
         policy_t,val_t,hs_t = get_policy(args_t_1,weights_s) # hs_t_1,v_t_1,r_t_1,rp_t_1,rm_t_1,weights_s,params
         vec_kl,act_kl = kl_loss(policy_t,consts) #-jnp.dot(policy_t[1],jnp.log(policy_t[1]))
-        h1vec_t,vec_t,lp_vec,rp_t,rm_t,lp_rpm = sample_policy(policy_t,SC,ind[t],params["ACTION_SPACE_LEN"])
+        h1vec_t,vec_t,lp_vec,rp_t,rm_t,lp_rpm = sample_policy(policy_t,SC,ind[t])
         lp_t = lp_vec + lp_rpm # lp_arr = lp_arr.at[t].set(lp_vec+lp_rpm) # lp_arr[t] = lp_vec+lp_rpm # lp_arr = lp_arr.at[t].set(lp_vec+lp_rpm) # jnp.append(arrs[0],lp_vec+lp_rpm)
 
         args_t = (hs_t,hv_t_1,pos_t_1,dot_t_1,dot_vec,ind,rp_t,rm_t,v_t_1,r_t_1,r_tot_1) # sel,hr update rp/rm
         carry_args = (t,args_t,h1vec_t,vec_t,lp_t,theta,vec_kl,act_kl,val_t) # (lp_arr,r_arr,sample_arr) assemble carry with sampled vecs and updated args
-        t,args_t,arrs_t = jax.lax.cond(rp_t == 2,plan_fnc,move_fnc,(carry_args))###DEBUG;CHANGE
+        t,args_t,arrs_t = jax.lax.cond(rp_t == 2,plan_fnc,move_fnc,(carry_args))###MOVE ONLY
         return (t,args_t,theta),arrs_t
     def plan_fnc(carry_args):
         (t,args_t,h1vec_t,vec_t,lp_t,theta,vec_kl,act_kl,val_t) = carry_args
@@ -495,19 +497,18 @@ def pg_obj(SC,hs_0,hp_0,pos_0,dot_0,dot_vec,ind,weights,weights_s,params): # ,se
     return tot_loss,(losses,stds,other)
     # tot_loss,(actor_loss,std_actor,critic_loss,std_critic,avg_vec_kl,std_vec_kl,avg_act_kl,std_act_kl,r_std,l_sem,plan_rate,avg_tot_r,kl_loss,r_init_arr.T,r_arr.T,rt_arr.T,sample_arr.T,pos_init_arr.transpose([1,0,2]),pos_arr.transpose([1,0,2])) # ,t_arr.T
 
-def full_loop(SC,weights,params):
+def full_loop(SC,weights,params,opt_state):
     # r_arr,sample_arr = (jnp.zeros((params["TOT_EPOCHS"],params["TRIAL_LENGTH"])) for _ in range(2)) # ,params["VMAPS"]
     # pos_arr = jnp.zeros((params["TOT_EPOCHS"],params["TRIAL_LENGTH"],2)) # ,params["VMAPS"]
     # dots_arr = jnp.zeros((params["TOT_EPOCHS"],3,2))
     loss_arr,sem_loss_arr,actor_loss_arr,std_actor_arr,critic_loss_arr,std_critic_arr,vec_kl_arr,std_vec_kl_arr,act_kl_arr,std_act_kl_arr,r_tot_arr,std_r_arr,plan_rate_arr,std_plan_rate_arr = (jnp.zeros((params["TOT_EPOCHS"],)) for _ in range(14)) #jnp.zeros((params["TOT_EPOCHS"]))
     weights_s = weights["s"]
     E = params["TOT_EPOCHS"]
-    optimizer = optax.adamw(learning_rate=params["LR"],weight_decay=params["WD"])
-    optimizer = optax.chain(
-    optax.clip_by_global_norm(params["GRAD_CLIP"]),  # Add gradient clipping here
-    optax.adamw(learning_rate=params["LR"],weight_decay=params["WD"]),
-    )
-    opt_state = optimizer.init(weights_s)
+    # optimizer = optax.chain(
+    # optax.clip_by_global_norm(params["GRAD_CLIP"]),  # Add gradient clipping here
+    # optax.adamw(learning_rate=params["LR"],weight_decay=params["WD"]),
+    # )
+    # opt_state = optimizer.init(weights_s)
     for e in range(E):
         new_params(params,e)
         hs_0 = params["HS_0"]
@@ -584,7 +585,7 @@ INIT_LENGTH = 0
 TRIAL_LENGTH = 30 ## 90 120 100
 TEST_LENGTH = TRIAL_LENGTH - INIT_LENGTH
 LAMBDA_CRITIC = 5 # 0.01
-LAMBDA_VEC_KL = 0.5 #0.5
+LAMBDA_VEC_KL = 1 #0.5
 LAMBDA_ACT_KL = 0.5
 
 # ENV/sc params
@@ -595,12 +596,12 @@ PRIOR_STAT = 0.2 # 1 # 0.2
 PRIOR_PLAN = 0.2
 MODULES = 9 # 10,8
 M = MODULES**2
-APERTURE = (1/2)*jnp.pi # (3/5)*jnp.pi # (jnp.sqrt(2)/2)*jnp.pi ### unconstrained
+APERTURE = (1/2)*jnp.pi # (3/5)*jnp.pi # (jnp.sqrt(2)/2)*jnp.pi # unconstrained
 ACTION_FRAC = 1/2 # unconstrained
 ACTION_SPACE = ACTION_FRAC*APERTURE # 'AGENT_SPEED'
-PLAN_FRAC_REL = 2 # 3/2
+PLAN_FRAC_REL = 1 # 2,3/2
 PLAN_SPACE = PLAN_FRAC_REL*ACTION_SPACE
-MAX_DOT_SPEED_REL_FRAC = 2 # 3/2 # 5/4 ### [CHANGED FROM 3/2]
+MAX_DOT_SPEED_REL_FRAC = 1 # 5/2, 2, 3/2 1 , 3/2 # 5/4 [changed from 3/2]
 MAX_DOT_SPEED = MAX_DOT_SPEED_REL_FRAC*ACTION_SPACE
 NEURONS_FULL = 12
 N_F = (NEURONS_FULL**2)
@@ -626,7 +627,7 @@ IND = None
 # ID_ARR = rnd.permutation(ke[5],jnp.arange(0,M),independent=True)
 # VEC_ARR = gen_vectors(MODULES,APERTURE)
 # H1VEC_ARR = jnp.diag(jnp.ones(M))[:,ID_ARR]
-SC,ACTION_SPACE_LEN = gen_sc(ke,MODULES,ACTION_SPACE,PLAN_SPACE) # (ID_ARR,VEC_ARR,H1VEC_ARR)
+SC = gen_sc(ke,MODULES,ACTION_SPACE,PLAN_SPACE) # (ID_ARR,VEC_ARR,H1VEC_ARR)
 INDICES = get_inner_activation_indices(NEURONS_FULL,NEURONS_AP)
 NEURON_GRID_AP = get_inner_activation_coords(NEURONS_AP,APERTURE)
 
@@ -707,7 +708,7 @@ params = {
     "PRIOR_PLAN" : PRIOR_PLAN,
     "INDICES" : INDICES,
     "NEURON_GRID_AP" : NEURON_GRID_AP,
-    "ACTION_SPACE_LEN" : ACTION_SPACE_LEN,
+    "ACTION_SPACE" : ACTION_SPACE,
     }
 
 weights = {
@@ -745,11 +746,9 @@ weights = {
 ###
 (_),(*_,p_weights) = load_('/sc_project/test_data/forward_new_v6_81M_144N_24_08-113913.pkl') #
 weights['p'] = p_weights
-(_,s_weights) = load_('/sc_project/test_data/outer_loop_pg_new_v1__27_08-15_S39.pkl') # (old return args)
-# (opt_state,s_weights) = load_('/sc_project/pkl_sc/'') # (old return args)
+# (_,s_weights) = load_('/sc_project/test_data/outer_loop_pg_new_v1__27_08-15_S39.pkl') # (old return args)
+(opt_state,s_weights) = load_('/sc_project/pkl_sc/'') # (old return args)
 weights['s'] = s_weights
-# *_,r_weights = load_('') #
-# weights['r'] = r_weights
 ###
 startTime = datetime.now()
 losses,stds,other,opt_state,weights_s = full_loop(SC,weights,params) # (loss_arr,actor_loss_arr,critic_loss_arr,kl_loss_arr,vec_kl_arr,act_kl_arr,r_std_arr,l_sem_arr,plan_rate_arr,avg_tot_r_arr,avg_pol_kl_arr,r_init_arr,r_arr,rt_arr,sample_arr,pos_init_arr,pos_arr,dots,sel)
