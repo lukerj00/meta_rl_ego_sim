@@ -430,7 +430,7 @@ SIGMA_A = 0.3 # 0.3,0.5,1,0.3,1,0.5,1,0.1
 SIGMA_N = 0.2 # 0.1,0.05
 SWITCH_PROB = 0.25
 # 
-MAX_PLAN_LENGTH = 3 # 1,3,5
+MAX_PLAN_LENGTH = 5 # 1,3,5
 # 
 COLORS = jnp.array([[255]]) # ,[255,0,0],[0,255,0],[0,0,255],[100,100,100]])
 N_DOTS = 1 #COLORS.shape[0]
@@ -544,7 +544,7 @@ weights = {
     }
 }
 # opt_state,p_weights
-_,(*_,opt_state,p_weights) = load_('/sc_project/test_data/forward_new_v8_81M_144N_03_09-033512.pkl') # /sc_project/test_data/forward_new_v8_81M_144N_01_09-204023.pkl') # '/sc_project/test_data/forward_new_v8_81M_144N_31_08-003706.pkl') # ...14-06...,opt_state'/sc_project/pkl/forward_v9_225_13_06-0014.pkl','/pkl/forward_v8M_08_06-1857.pkl'
+_,(*_,opt_state,p_weights) = load_('/sc_project/test_data/forward_new_v8_81M_144N_03_09-214415.pkl') # /sc_project/test_data/forward_new_v8_81M_144N_01_09-204023.pkl') # '/sc_project/test_data/forward_new_v8_81M_144N_31_08-003706.pkl') # ...14-06...,opt_state'/sc_project/pkl/forward_v9_225_13_06-0014.pkl','/pkl/forward_v8M_08_06-1857.pkl'
 weights["p_weights"] = p_weights
 ###
 startTime = datetime.now()
