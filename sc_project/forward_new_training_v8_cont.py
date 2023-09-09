@@ -372,7 +372,7 @@ def forward_model_loop(SC,weights,params,opt_state):
         # print("std_v={}",jnp.std(loss_v_arr)/jnp.sqrt(params["VMAPS"]))
         # print("loss_d={}",jnp.mean(loss_d_arr_,axis=0))
         # print("std_d={}",jnp.std(loss_d_arr)/jnp.sqrt(params["VMAPS"]))
-        if e>0 and (e % 50) == 0:
+        if e>0 and (e % 20) == 0:
             print("*clearing cache*")
             jax.clear_caches()
         #     print("v_pred_arr.shape=",v_pred_arr.shape)
@@ -392,12 +392,12 @@ EPOCHS = 1
 INIT_TRAIN_EPOCHS = 500000 # (epochs until phase 2)
 PLOTS = 3
 # LOOPS = TOT_EPOCHS//EPOCHS
-VMAPS = 500 # 800,500
+VMAPS = 600 # 800,500
 PLAN_ITS = 10 # 10,8,5
 INIT_STEPS = 0 # (taking loss over all steps so doesnt matter)
 TOT_STEPS = 30
 PRED_STEPS = TOT_STEPS-INIT_STEPS
-LR = 0.0005 # 0.003,,0.0001
+LR = 0.001 # 0.003,,0.0001
 WD = 0.0001 # 0.0001
 H = 300 # 500,300
 INIT = 2 # 0.5,0.1
@@ -430,7 +430,7 @@ SIGMA_A = 0.3 # 0.3,0.5,1,0.3,1,0.5,1,0.1
 SIGMA_N = 0.2 # 0.1,0.05
 SWITCH_PROB = 0.25
 # 
-MAX_PLAN_LENGTH = 5 # 1,3,5
+MAX_PLAN_LENGTH = 0 # 1,3,5
 # 
 COLORS = jnp.array([[255]]) # ,[255,0,0],[0,255,0],[0,0,255],[100,100,100]])
 N_DOTS = 1 #COLORS.shape[0]
@@ -544,7 +544,7 @@ weights = {
     }
 }
 # opt_state,p_weights
-_,(*_,opt_state,p_weights) = load_('/sc_project/test_data/forward_new_v8_81M_144N_03_09-214415.pkl') # /sc_project/test_data/forward_new_v8_81M_144N_01_09-204023.pkl') # '/sc_project/test_data/forward_new_v8_81M_144N_31_08-003706.pkl') # ...14-06...,opt_state'/sc_project/pkl/forward_v9_225_13_06-0014.pkl','/pkl/forward_v8M_08_06-1857.pkl'
+_,(*_,opt_state,p_weights) = load_('/sc_project/test_data/forward_new_v8_81M_144N_04_09-204555.pkl') # /sc_project/test_data/forward_new_v8_81M_144N_01_09-204023.pkl') # '/sc_project/test_data/forward_new_v8_81M_144N_31_08-003706.pkl') # ...14-06...,opt_state'/sc_project/pkl/forward_v9_225_13_06-0014.pkl','/pkl/forward_v8M_08_06-1857.pkl'
 weights["p_weights"] = p_weights
 ###
 startTime = datetime.now()
