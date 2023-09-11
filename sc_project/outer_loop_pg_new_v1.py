@@ -478,8 +478,8 @@ def pg_obj(SC,hs_0,hp_0,pos_0,dot_0,dot_vec,ind,weights,weights_s,params): # ,se
     actor_loss_arr = -(jnp.multiply(lp_arr.T,adv_norm)) # negative for adam
     actor_loss = jnp.mean(jnp.sum(actor_loss_arr,axis=1))
     std_actor = jnp.std(actor_loss_arr)
-    critic_loss = jnp.mean(0.5*jnp.square(adv_arr),axis=None)
-    std_critic = jnp.std(0.5*jnp.square(adv_arr),axis=None)
+    critic_loss = jnp.mean(jnp.square(adv_arr),axis=None) # 0.5*
+    std_critic = jnp.std(jnp.square(adv_arr),axis=None) # 0.5*
     vec_kl_loss = jnp.mean(vec_kl_arr,axis=None)
     std_vec_kl = jnp.std(vec_kl_arr,axis=None)
     act_kl_loss = jnp.mean(act_kl_arr,axis=None)
@@ -565,12 +565,12 @@ def full_loop(SC,weights,params):
     return losses,stds,other,opt_state,weights_s #r_arr,pos_arr,sample_arr,dots_arr
 
 # hyperparams ###
-TOT_EPOCHS = 8000 ## 1000
+TOT_EPOCHS = 5000 ## 1000
 # EPOCHS = 1
 PLOTS = 5
 # LOOPS = TOT_EPOCHS//EPOCHS
 VMAPS = 1000 ## 2000,500,1100,1000,800,500
-LR = 0.001 # 0.001,0.0008,0.0005,0.001,0.000001,0.0001
+LR = 0.0005 # 0.001,0.0008,0.0005,0.001,0.000001,0.0001
 WD = 0.0001 # 0.0001
 GRAD_CLIP = 0.3 ###0.5 1.0
 INIT_S = 2
@@ -585,7 +585,7 @@ INIT_LENGTH = 0
 TRIAL_LENGTH = 30 ## 90 120 100
 TEST_LENGTH = TRIAL_LENGTH - INIT_LENGTH
 LAMBDA_CRITIC = 5 # 0.01
-LAMBDA_VEC_KL = 1 #0.5
+LAMBDA_VEC_KL = 2 #0.5
 LAMBDA_ACT_KL = 0.5
 
 # ENV/sc params

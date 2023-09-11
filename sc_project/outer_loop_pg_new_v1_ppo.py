@@ -237,7 +237,7 @@ def new_params(params, e): # Modify in place
     N_DOTS = params["N_DOTS"]
     ACTION_SPACE = params["ACTION_SPACE"]
     ki = rnd.split(rnd.PRNGKey(e), num=10)
-    params["HS_0"] = jnp.sqrt(INIT_S/(H_S))*rnd.normal(ki[0],(VMAPS,H_S))
+    params["HS_0"] = jnp.zeros((VMAPS,H_S)) # jnp.sqrt(INIT_S/(H_S))*rnd.normal(ki[0],(VMAPS,H_S))
     # params["HR_0"] = jnp.zeros((VMAPS,H_R))
     params["HP_0"] = jnp.sqrt(INIT_P/(H_P))*rnd.normal(ki[1],(VMAPS,H_P))
     params["POS_0"] = rnd.uniform(ki[0],shape=(VMAPS,2),minval=-jnp.pi,maxval=jnp.pi) # rnd.choice(ke[2],jnp.arange(-APERTURE,APERTURE,0.01),(VMAPS,2))
@@ -495,17 +495,20 @@ def get_new_trajectories(SC,hs_0,hp_0,pos_0,dot_0,dot_vec,ind,vec_ind_arr,act_in
     return trajectories,losses
 
 def ppo_loss(old_traj_vals,SC,hs_0_,hp_0_,pos_0_,dot_0_,dot_vec_,ind_,weights_v,new_weights_s,params,e):
-    (vec_ind_arr,act_ind_arr,lp_arr_old,r_arr_old,val_arr_old) = old_traj_vals
+    (vec_ind_arr_old,act_ind_arr_old,lp_arr_old,r_arr_old,val_arr_old) = old_traj_vals
     # (lp_arr_old,r_arr_old,val_arr_old,rt_arr_old,vec_kl_arr_old,act_kl_arr_old) = old_losses
     # pos_arr_ = jnp.concatenate((pos_0_,pos_arr))
     # dot_arr_ = jnp.concatenate((dot_0_,dot_arr))
     # pos_0,dot_0 = pos_arr[0,:],dot_arr[0,:]
-    new_trajectories_,new_losses = get_new_trajectories(SC,hs_0_,hp_0_,pos_0_,dot_0_,dot_vec_,ind_,vec_ind_arr,act_ind_arr,weights_v,new_weights_s,params,e)
-    # (vec_ind_arr,act_ind_arr) = new_trajectories # just need lp_arr but return rest for comparison
+    new_trajectories_,new_losses = get_new_trajectories(SC,hs_0_,hp_0_,pos_0_,dot_0_,dot_vec_,ind_,vec_ind_arr_old,act_ind_arr_old,weights_v,new_weights_s,params,e)
+    (vec_ind_arr_new,act_ind_arr_new) = new_trajectories_ # just need lp_arr but return rest for comparison
     (lp_arr_new,val_arr_new,vec_kl_arr_new,act_kl_arr_new) = new_losses
+
+    jax.debug.print("lp_ratio={}",jnp.mean(lp_arr_new/lp_arr_old))
+
     return_arr,adv_arr,adv_norm = get_advantage(r_arr_old,val_arr_old,params["GAMMA"])
 
-    actor_loss,actor_std = compute_actor_loss(adv_arr,lp_arr_old,lp_arr_new,params["EPSILON"])
+    actor_loss,actor_std = compute_actor_loss(adv_norm,lp_arr_old,lp_arr_new,params["EPSILON"]) # adv_arr...
     critic_loss = jnp.mean(jnp.square(adv_arr),axis=None)
     critic_std = jnp.std(jnp.square(adv_arr),axis=None)
     vec_kl_loss = jnp.mean(vec_kl_arr_new,axis=None)
@@ -517,8 +520,8 @@ def ppo_loss(old_traj_vals,SC,hs_0_,hp_0_,pos_0_,dot_0_,dot_vec_,ind_,weights_v,
     sem_loss = std_loss/(params["VMAPS"]**0.5)
     r_tot = jnp.mean(return_arr[:,0])
     r_std = jnp.std(return_arr[:,0])
-    plan_rate = jnp.mean(act_ind_arr[0,:])
-    plan_rate_std = jnp.std(act_ind_arr[0,:])
+    plan_rate = 1-jnp.mean(act_ind_arr_old)
+    plan_rate_std = jnp.std(act_ind_arr_old)
     aux_losses = (actor_loss,critic_loss,vec_kl_loss,act_kl_loss,r_tot,plan_rate)
     stds = (sem_loss,actor_std,critic_std,vec_kl_std,act_kl_std,r_std,plan_rate_std)
     # other = (r_arr,rt_arr,pos_arr_,dot_arr_)
@@ -542,6 +545,8 @@ def get_advantage(r_arr,val_arr,gamma):
     adv_norm = (adv_arr-jnp.mean(adv_arr,axis=None))/jnp.std(adv_arr,axis=None) ###
     # critic_loss = jnp.mean(jnp.square(advantages),axis=None)
     # critic_std = jnp.std(jnp.square(advantages),axis=None)
+    jax.debug.print("adv_mean={}",jnp.mean(adv_arr,axis=None))
+    jax.debug.print("adv_n_mean={}",jnp.mean(adv_norm,axis=None))
     return return_arr,adv_arr,adv_norm #,critic_loss,critic_std
 
 @jit
@@ -590,6 +595,11 @@ def full_loop(SC,weights,params):
             opt_update,opt_state = optimizer.update(grads,opt_state,new_weights_s)
             new_weights_s = optax.apply_updates(new_weights_s,opt_update)
 
+            jax.debug.print('e={}',e)
+            jax.debug.print('i={}',i)
+            # jax.debug.print('new_weights_s[Ws_vt_z0]={}',new_weights_s["Ws_vt_z"][0][5])
+            # jax.debug.print('old_weights_s[Ws_vt_z0]={}',old_weights_s["Ws_vt_z"][0][5])
+
             (actor_loss,critic_loss,vec_kl_loss,act_kl_loss,r_tot,plan_rate) = aux_losses
             (sem_loss,actor_std,critic_std,vec_kl_std,act_kl_std,r_std,plan_rate_std) = stds
             r_arr,rt_arr,pos_arr_,dot_arr_ = r_arr_old,rt_arr_old,pos_arr,dot_arr
@@ -615,7 +625,7 @@ def full_loop(SC,weights,params):
             
             ### loss.block_until_ready()
             ### jax.profiler.save_device_memory_profile(f"memory{e}.prof")
-            if k>0 and (k % 60) == 0: # 50
+            if k>0 and (k % 50) == 0: # 50
                 print("*clearing cache*")
                 jax.clear_caches()
 
@@ -633,9 +643,9 @@ PLOTS = 5
 # LOOPS = TOT_EPOCHS//EPOCHS
 VMAPS = 2500 ## 2000,500,1100,1000,800,500
 BATCH = 500
-LR = 0.0001 # 0.001,0.0008,0.0005,0.001,0.000001,0.0001
+LR = 0.03 # 0.001,0.0008,0.0005,0.001,0.000001,0.0001
 WD = 0.0001 # 0.0001
-GRAD_CLIP = 0.5 ###0.5 1.0
+GRAD_CLIP = 0.5 ### 0.5 1.0
 EPSILON = 0.2
 GAMMA = 0.99
 INIT_S = 2
@@ -649,9 +659,9 @@ NONE_PLAN = jnp.zeros((PLAN_ITS,)) #[None] * PLAN_ITS
 INIT_LENGTH = 0
 TRIAL_LENGTH = 30 ## 90 120 100
 TEST_LENGTH = TRIAL_LENGTH - INIT_LENGTH
-LAMBDA_CRITIC = 2 # 5 0.01
-LAMBDA_VEC_KL = 1 #0.5
-LAMBDA_ACT_KL = 0.5
+LAMBDA_CRITIC = 0.1 # 5 0.01
+LAMBDA_VEC_KL = 2 #0.5
+LAMBDA_ACT_KL = 0.1 # 0.5
 
 # ENV/sc params
 ke = rnd.split(rnd.PRNGKey(0),10)
@@ -667,7 +677,7 @@ ACTION_SPACE = ACTION_FRAC*APERTURE # 'AGENT_SPEED'
 PLAN_FRAC_REL = 1 # 3/2
 PLAN_SPACE = PLAN_FRAC_REL*ACTION_SPACE
 MAX_DOT_SPEED_REL_FRAC = 1 # 3/2 # 5/4
-MAX_DOT_SPEED = MAX_DOT_SPEED_REL_FRAC*ACTION_SPACE
+MAX_DOT_SPEED = ACTION_SPACE*MAX_DOT_SPEED_REL_FRAC
 NEURONS_FULL = 12
 N_F = (NEURONS_FULL**2)
 NEURONS_AP = jnp.int32(jnp.floor(NEURONS_FULL*(APERTURE/jnp.pi))) # 6 # 10
@@ -702,27 +712,37 @@ NEURON_GRID_AP = get_inner_activation_coords(NEURONS_AP,APERTURE)
 
 # INITIALIZATION
 ki = rnd.split(rnd.PRNGKey(1),num=20)
-Ws_vt_z0 = jnp.sqrt(INIT_S/(H_S+N_A))*rnd.normal(ki[0],(H_S,N_A))
-Ws_vt_f0 = jnp.sqrt(INIT_S/(H_S+N_A))*rnd.normal(ki[1],(H_S,N_A))
-Ws_vt_h0 = jnp.sqrt(INIT_S/(H_S+N_A))*rnd.normal(ki[2],(H_S,N_A))
-Ws_rt_z0 = jnp.sqrt(INIT_S/(H_S))*rnd.normal(ki[3],(H_S,))
-Ws_rt_f0 = jnp.sqrt(INIT_S/(H_S))*rnd.normal(ki[4],(H_S,))
-Ws_rt_h0 = jnp.sqrt(INIT_S/(H_S))*rnd.normal(ki[5],(H_S,))
-Ws_pt_1z0 = jnp.sqrt(INIT_S/(H_S))*rnd.normal(ki[6],(H_S,))
-Ws_pt_1f0 = jnp.sqrt(INIT_S/(H_S))*rnd.normal(ki[7],(H_S,))
-Ws_pt_1h0 = jnp.sqrt(INIT_S/(H_S))*rnd.normal(ki[8],(H_S,))
-Ws_mt_1z0 = jnp.sqrt(INIT_S/(H_S))*rnd.normal(ki[9],(H_S,))
-Ws_mt_1f0 = jnp.sqrt(INIT_S/(H_S))*rnd.normal(ki[10],(H_S,))
-Ws_mt_1h0 = jnp.sqrt(INIT_S/(H_S))*rnd.normal(ki[11],(H_S,))
-Us_z0,_ = jnp.linalg.qr(jnp.sqrt(INIT_S/(H_S+H_S))*rnd.normal(ki[12],(H_S,H_S)))
-Us_f0,_ = jnp.linalg.qr(jnp.sqrt(INIT_S/(H_S+H_S))*rnd.normal(ki[13],(H_S,H_S)))
-Us_h0,_ = jnp.linalg.qr(jnp.sqrt(INIT_S/(H_S+H_S))*rnd.normal(ki[14],(H_S,H_S)))
-bs_z0 = jnp.sqrt(INIT_S/(H_S))*rnd.normal(ki[15],(H_S,))
-bs_f0 = jnp.sqrt(INIT_S/(H_S))*rnd.normal(ki[16],(H_S,))
-bs_h0 = jnp.sqrt(INIT_S/(H_S))*rnd.normal(ki[17],(H_S,))
-Ws_vec0 = jnp.sqrt(INIT_S/(M+H_S))*rnd.normal(ki[18],(M,H_S))
-Ws_act0 = jnp.sqrt(INIT_S/(2+H_S))*rnd.normal(ki[19],(2,H_S))
-Ws_val0 = jnp.sqrt(INIT_S/(H_S))*rnd.normal(ki[19],(1,H_S))
+Ws_vt_z0,_ = jnp.linalg.qr(rnd.normal(ki[0],(H_S,N_A)))# jnp.sqrt(INIT_S/(H_S+N_A))*rnd.normal(ki[0],(H_S,N_A))
+Ws_vt_f0,_ = jnp.linalg.qr(rnd.normal(ki[1],(H_S,N_A)))# jnp.sqrt(INIT_S/(H_S+N_A))*rnd.normal(ki[1],(H_S,N_A))
+Ws_vt_h0,_ = jnp.linalg.qr(rnd.normal(ki[2],(H_S,N_A)))# jnp.sqrt(INIT_S/(H_S+N_A))*rnd.normal(ki[2],(H_S,N_A))
+Ws_rt_z0 = (rnd.normal(ki[3],(H_S,)))# jnp.sqrt(INIT_S/(H_S))*rnd.normal(ki[3],(H_S,))
+Ws_rt_f0 = (rnd.normal(ki[4],(H_S,)))# jnp.sqrt(INIT_S/(H_S))*rnd.normal(ki[4],(H_S,))
+Ws_rt_h0 = (rnd.normal(ki[5],(H_S,)))# jnp.sqrt(INIT_S/(H_S))*rnd.normal(ki[5],(H_S,))
+Ws_pt_1z0 = (rnd.normal(ki[6],(H_S,)))# jnp.sqrt(INIT_S/(H_S))*rnd.normal(ki[6],(H_S,))
+Ws_pt_1f0 = (rnd.normal(ki[7],(H_S,)))# jnp.sqrt(INIT_S/(H_S))*rnd.normal(ki[7],(H_S,))
+Ws_pt_1h0 = (rnd.normal(ki[8],(H_S,)))# jnp.sqrt(INIT_S/(H_S))*rnd.normal(ki[8],(H_S,))
+Ws_mt_1z0 = (rnd.normal(ki[9],(H_S,)))# jnp.sqrt(INIT_S/(H_S))*rnd.normal(ki[9],(H_S,))
+Ws_mt_1f0 = (rnd.normal(ki[10],(H_S,)))# jnp.sqrt(INIT_S/(H_S))*rnd.normal(ki[10],(H_S,))
+Ws_mt_1h0 = (rnd.normal(ki[11],(H_S,)))# jnp.sqrt(INIT_S/(H_S))*rnd.normal(ki[11],(H_S,))
+# Ws_vt_h0 = jnp.sqrt(INIT_S/(H_S+N_A))*rnd.normal(ki[2],(H_S,N_A))
+# Ws_rt_z0 = jnp.sqrt(INIT_S/(H_S))*rnd.normal(ki[3],(H_S,))
+# Ws_rt_f0 = jnp.sqrt(INIT_S/(H_S))*rnd.normal(ki[4],(H_S,))
+# Ws_rt_h0 = jnp.sqrt(INIT_S/(H_S))*rnd.normal(ki[5],(H_S,))
+# Ws_pt_1z0 = jnp.sqrt(INIT_S/(H_S))*rnd.normal(ki[6],(H_S,))
+# Ws_pt_1f0 = jnp.sqrt(INIT_S/(H_S))*rnd.normal(ki[7],(H_S,))
+# Ws_pt_1h0 = jnp.sqrt(INIT_S/(H_S))*rnd.normal(ki[8],(H_S,))
+# Ws_mt_1z0 = jnp.sqrt(INIT_S/(H_S))*rnd.normal(ki[9],(H_S,))
+# Ws_mt_1f0 = jnp.sqrt(INIT_S/(H_S))*rnd.normal(ki[10],(H_S,))
+# Ws_mt_1h0 = jnp.sqrt(INIT_S/(H_S))*rnd.normal(ki[11],(H_S,))
+Us_z0,_ = jnp.linalg.qr(rnd.normal(ki[12],(H_S,H_S))) # jnp.sqrt(INIT_S/(H_S+H_S))*rnd.normal(ki[12],(H_S,H_S)))
+Us_f0,_ = jnp.linalg.qr(rnd.normal(ki[13],(H_S,H_S))) # jnp.sqrt(INIT_S/(H_S+H_S))*rnd.normal(ki[12],(H_S,H_S)))
+Us_h0,_ = jnp.linalg.qr(rnd.normal(ki[14],(H_S,H_S))) # jnp.sqrt(INIT_S/(H_S+H_S))*rnd.normal(ki[12],(H_S,H_S)))
+bs_z0 = jnp.zeros((H_S,)) #jnp.sqrt(INIT_S/(H_S))*rnd.normal(ki[15],(H_S,))
+bs_f0 = jnp.zeros((H_S,)) #jnp.sqrt(INIT_S/(H_S))*rnd.normal(ki[16],(H_S,))
+bs_h0 = jnp.zeros((H_S,)) #jnp.sqrt(INIT_S/(H_S))*rnd.normal(ki[17],(H_S,))
+Ws_vec0 = (0.01)*rnd.normal(ki[18],(M,H_S)) ###
+Ws_act0 = (0.01)*rnd.normal(ki[19],(2,H_S)) ###
+Ws_val0 = (1)*rnd.normal(ki[19],(1,H_S)) ###
 
 params = {
     "TOT_EPOCHS" : TOT_EPOCHS,
@@ -842,7 +862,7 @@ legend_handles = [
 
 fig,axes = plt.subplots(2,3,figsize=(12,9))
 title__ = f'EPOCHS={TOT_EPOCHS}, VMAPS={VMAPS}, TEST_LENGTH={TEST_LENGTH}, update={LR:.6f}, WD={WD:.5f}, GRAD_CLIP={GRAD_CLIP}, C_MOVE={C_MOVE:.2f}, C_PLAN={"N_A/A"}, GAMMA={GAMMA}, EPSILON={EPSILON} \n L_CRITIC={LAMBDA_CRITIC}, L_VEC_KL={LAMBDA_VEC_KL}, L_ACT_KL={LAMBDA_ACT_KL}, PRIOR_PLAN={PRIOR_PLAN}, PRIOR_STAT={PRIOR_STAT}, MAX_DOT_SPEED={MAX_DOT_SPEED:.2f}, ACTION_SPACE={ACTION_SPACE:.2f}, PLAN_SPACE={PLAN_SPACE:.2f}'
-plt.suptitle('outer_loop_pg_new_v1_ppo, '+title__,fontsize=10)
+plt.suptitle('outer_loop_pg_new_v1_ppo, '+title__,fontsize=9)
 axes[0,0].errorbar(np.arange(TOT_EPOCHS),r_tot_arr,yerr=std_r_arr/2,color='black',ecolor='lightgray',elinewidth=2,capsize=0)
 axes[0,0].set_xlabel('iteration')
 axes[0,0].set_ylabel('R_tot')
