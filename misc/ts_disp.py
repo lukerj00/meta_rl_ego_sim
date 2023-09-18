@@ -87,11 +87,13 @@ import jax.random as rnd
 
 def gen_binary_timeseries(keys, N, switch_prob, max_plan_length):
     ts_init = jnp.zeros(N)  # start with 0s
+    if max_plan_length == 0:
+        return ts_init
     def body_fn(i, carry):
         ts, count_ones, keys = carry
         true_fn = lambda _: (jnp.int32(rnd.bernoulli(keys[i], p=switch_prob)), 0)
         def false_fn(_):
-            return jax.lax.cond(count_ones > max_plan_length - 1,
+            return jax.lax.cond(count_ones >= max_plan_length - 1,
                                 lambda _: (0, 0), # ts, count_ones
                                 lambda _: (jnp.int32(rnd.bernoulli(keys[i], p=1-switch_prob)), count_ones + 1),
                                 None)
@@ -142,7 +144,7 @@ def gen_sc(keys,MODULES,ACTION_SPACE,PLAN_SPACE):
 
 # Sample usage
 # Assuming SC, pos_0, dot_0, dot_vec, samples, step_array have been defined elsewhere
-N = 30
+N = 50
 pos_0 = jnp.array([0.0, 0.0])
 dot_0 = jnp.array([0.5, 0.5])
 dot_vec = jnp.array([0.1, 0.1])
@@ -157,7 +159,7 @@ PLAN_FRAC_REL = 2 # 3/2
 PLAN_SPACE = PLAN_FRAC_REL*ACTION_SPACE
 keys = rnd.split(rnd.PRNGKey(0),2)
 switch_prob = 0.2
-max_plan_length = 5
+max_plan_length = 4
 SC = gen_sc(keys,MODULES,ACTION_SPACE,PLAN_SPACE)
 keys_ = rnd.split(keys[0],2*N+1)
 binary_array,pos_plan_arr,pos_arr,dot_arr,h1vec_arr,vec_arr = gen_timeseries(keys_,SC, pos_0, dot_0, dot_vec, samples, switch_prob, N, max_plan_length)
