@@ -503,7 +503,7 @@ def ppo_loss(old_traj_vals,SC,hs_0_,hp_0_,pos_0_,dot_0_,dot_vec_,ind_,weights_v,
     # dot_arr_ = jnp.concatenate((dot_0_,dot_arr))
     # pos_0,dot_0 = pos_arr[0,:],dot_arr[0,:]
     new_trajectories_,new_losses = get_new_trajectories(SC,hs_0_,hp_0_,pos_0_,dot_0_,dot_vec_,ind_,vec_ind_arr_old,act_ind_arr_old,weights_v,new_weights_s,params,e)
-    (vec_ind_arr_new,act_ind_arr_new) = new_trajectories_ # just need lp_arr but return rest for comparison
+    (vec_ind_arr_new,act_ind_arr_new) = new_trajectories_ # return for debugging
     (lp_arr_new,val_arr_new,vec_kl_arr_new,act_kl_arr_new) = new_losses
 
     jax.debug.print("lp_ratio={}",jnp.mean(lp_arr_new/lp_arr_old))
@@ -523,7 +523,7 @@ def ppo_loss(old_traj_vals,SC,hs_0_,hp_0_,pos_0_,dot_0_,dot_vec_,ind_,weights_v,
     # tot_loss = actor_loss + params["LAMBDA_CRITIC"]*critic_loss + params["LAMBDA_VEC_KL"]*vec_kl_loss #+ params["LAMBDA_ACT_KL"]*act_kl_loss
     std_loss = (actor_std**2+(params["LAMBDA_VEC_KL"]**2)*(vec_kl_std**2+act_kl_std**2))**0.5
     sem_loss = std_loss/(params["VMAPS"]**0.5)
-    r_tot = jnp.mean(return_arr[:,0])
+    r_tot = jnp.mean(r_arr_old)/r_arr.shape[0] # jnp.mean(return_arr[:,0])
     r_std = jnp.std(return_arr[:,0])
     plan_rate = 1-jnp.mean(act_ind_arr_old)
     plan_rate_std = jnp.std(act_ind_arr_old)
