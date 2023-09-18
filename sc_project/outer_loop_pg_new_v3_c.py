@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# move/plan with frozen env, consts->params
+# move/plan with time ratio(/frozen env), consts->params
 """
 Created on Wed May 10 2023
 
@@ -242,7 +242,7 @@ def new_params(params, e): # Modify in place
 def kl_loss(policy,params):
     # *_,PRIOR_STAT,PRIOR_PLAN,_,_ = consts
     len_ = len(policy[0])
-    val_ = (1-params["PRIOR_STAT"])/(len_-1)
+    # val_ = (1-params["PRIOR_STAT"])/(len_-1)
     vec_prior = jnp.full(len_,1/len_)
     # vec_prior = jnp.full(len_,val_).at[len_//2].set(PRIOR_STAT)
     vec_prior = vec_prior/jnp.sum(vec_prior)
@@ -415,8 +415,15 @@ def env_fnc(carry_args):
     jax.debug.print('env; move_flag={}',move_flag)
     r_t,r_tot = jnp.float32(0),jnp.float32(0)
 
-    args_t = (hs_t,hv_t_1,pos_plan_t_1,pos_t_1,dot_t,dot_vec,ind,rp_t,rm_t,v_t_1,r_t,r_tot,move_flag) # sel,hr update v,r;dont update h
-    return (t,args_t,jnp.concatenate([jnp.array([lp_t]),jnp.array([r_tot]),jnp.array([r_t]),val_t,jnp.array([0]),jnp.array([vec_kl]),jnp.array([act_kl]),pos_plan_t_1,pos_t_1,dot_t]))
+    r_t = jax.lax.stop_gradient(jnp.float32(0)) # no grads through no-op
+    r_tot = jax.lax.stop_gradient(jnp.float32(0))
+    lp_t = jax.lax.stop_gradient(jnp.float32(0))
+    val_t = jax.lax.stop_gradient(val_t)
+    vec_kl = jax.lax.stop_gradient(vec_kl)
+    act_kl = jax.lax.stop_gradient(act_kl)
+
+    args_t = (hs_t,hv_t_1,pos_plan_t_1,pos_t_1, dot_t ,dot_vec,ind,rp_t,rm_t,v_t_1, r_t,r_tot, move_flag) # sel,hr update v,r;dont update h
+    return (t,args_t,jnp.concatenate([jnp.array([lp_t]),jnp.array([r_tot]),jnp.array([r_t]), val_t ,jnp.array([0]),jnp.array([vec_kl]),jnp.array([act_kl]),pos_plan_t_1,pos_t_1,dot_t]))
 
 # control flow fncs
 # def dynamic_scan(carry_0):
@@ -522,7 +529,7 @@ def pg_obj(SC,hs_0,hp_0,pos_0,dot_0,dot_vec,ind,weights,weights_s,params): # ,se
     act_kl_loss = jnp.mean(act_kl_arr,axis=None)
     std_act_kl = jnp.std(act_kl_arr,axis=None)
 
-    actor_losses = actor_loss + params["LAMBDA_VEC_KL"]*vec_kl_loss #+ params["LAMBDA_ACT_KL"]*act_kl_loss
+    actor_losses = actor_loss + params["LAMBDA_VEC_KL"]*vec_kl_loss + params["LAMBDA_ACT_KL"]*act_kl_loss
     std_actor_loss = (std_actor**2+(params["LAMBDA_VEC_KL"]**2)*(std_vec_kl**2))**0.5
     sem_loss = std_actor_loss/(params["VMAPS"]**0.5)
 
@@ -544,17 +551,19 @@ def pg_obj(SC,hs_0,hp_0,pos_0,dot_0,dot_vec,ind,weights,weights_s,params): # ,se
     # tot_loss,(actor_loss,std_actor,critic_loss,std_critic,avg_vec_kl,std_vec_kl,avg_act_kl,std_act_kl,r_std,l_sem,plan_rate,avg_tot_r,kl_loss,r_init_arr.T,r_arr.T,rt_arr.T,sample_arr.T,pos_init_arr.transpose([1,0,2]),pos_arr.transpose([1,0,2])) # ,t_arr.T
 
 def full_loop(SC,weights,params):
+# def full_loop(SC,weights,params,actor_opt_state,critic_opt_state,weights_s):
     # r_arr,sample_arr = (jnp.zeros((params["TOT_EPOCHS"],params["TRIAL_LENGTH"])) for _ in range(2)) # ,params["VMAPS"]
     # pos_arr = jnp.zeros((params["TOT_EPOCHS"],params["TRIAL_LENGTH"],2)) # ,params["VMAPS"]
     # dots_arr = jnp.zeros((params["TOT_EPOCHS"],3,2))
     loss_arr,sem_loss_arr,actor_loss_arr,std_actor_arr,critic_loss_arr,std_critic_arr,vec_kl_arr,std_vec_kl_arr,act_kl_arr,std_act_kl_arr,r_tot_arr,std_r_arr,plan_rate_arr,std_plan_rate_arr = (jnp.zeros((params["TOT_EPOCHS"],)) for _ in range(14)) #jnp.zeros((params["TOT_EPOCHS"]))
-    weights_s = weights["s"]
     E = params["TOT_EPOCHS"]
-    actor_optimizer = optax.chain(optax.clip_by_global_norm(params["GRAD_CLIP"]), optax.adam(learning_rate=params["ACTOR_LR"],eps=1e-7))# optax.adamw(learning_rate=params["LR"],weight_decay=params["WD"]),
-    actor_opt_state = actor_optimizer.init(weights_s)
+    weights_s = weights["s"] 
 
+    actor_optimizer = optax.chain(optax.clip_by_global_norm(params["GRAD_CLIP"]), optax.adam(learning_rate=params["ACTOR_LR"],eps=1e-7))# optax.adamw(learning_rate=params["LR"],weight_decay=params["WD"]),
     critic_optimizer = optax.chain(
     optax.clip_by_global_norm(params["GRAD_CLIP"]),optax.adam(learning_rate=params["CRITIC_LR"],eps=1e-7))# optax.adamw(learning_rate=params["LR"],weight_decay=params["WD"]),
+    
+    actor_opt_state = actor_optimizer.init(weights_s) # re-initialise as opt_state not compatible with diff optimiser
     critic_opt_state = critic_optimizer.init(weights_s)
     for e in range(E):
         new_params(params,e)
@@ -624,16 +633,16 @@ def full_loop(SC,weights,params):
     return losses,stds,other,actor_opt_state,critic_opt_state,weights_s #r_arr,pos_arr,sample_arr,dots_arr
 
 # hyperparams ###
-TOT_EPOCHS = 3000 ## 1000
+TOT_EPOCHS = 5000 ## 1000
 # EPOCHS = 1
 PLOTS = 5
-CRITIC_UPDATES = 5
+CRITIC_UPDATES = 10 # 8 5
 # LOOPS = TOT_EPOCHS//EPOCHS
 VMAPS = 1000 ## 2000,500,1100,1000,800,500
-ACTOR_LR = 0.005
-CRITIC_LR = 0.0005 # 0.001,0.0008,0.0005,0.001,0.000001,0.0001
+ACTOR_LR = 0.0005 # 0.0002 # 0.001 # 0.0005
+CRITIC_LR = 0.001 # 0.0005 # 0.0001 # 0.0005   0.001,0.0008,0.0005,0.001,0.000001,0.0001
 WD = 0.0001 # 0.0001
-GRAD_CLIP = 0.5 ###0.5 1.0
+GRAD_CLIP = 0.3 ##0.5 1.0
 INIT_S = 2
 INIT_P = 2 # 0.5
 # INIT_R = 3 # 5,2
@@ -647,7 +656,7 @@ TRIAL_LENGTH = 50 ## 90 120 100
 TEST_LENGTH = TRIAL_LENGTH - INIT_LENGTH
 LAMBDA_CRITIC = 5 # 0.01
 LAMBDA_VEC_KL = 1 #0.5
-LAMBDA_ACT_KL = 0.5
+LAMBDA_ACT_KL = 10
 
 # ENV/sc params
 ke = rnd.split(rnd.PRNGKey(0),10)
@@ -815,11 +824,16 @@ weights = {
 ###
 (_),(*_,p_weights) = load_('/sc_project/test_data/forward_new_v8_81M_144N_06_09-211442.pkl') #
 weights['p'] = p_weights
+(actor_opt_state,critic_opt_state,weights_s) = load_('/sc_project/pkl_sc/outer_loop_pg_new_v3_c__14_09-183952.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v3_c__13_09-174514.pkl', '/sc_project/test_data/outer_loop_pg_new_v3_c__13_09-174514.pkl')
+# weights['s'] = weights_s
+# actor_opt_state = opt_state
+# critic_opt_state = opt_state
 # *_,r_weights = load_('') #
 # weights['r'] = r_weights
 ###
+# full_loop(); opt_state init; weights['s'] = weights_s; full_loop() call
 startTime = datetime.now()
-losses,stds,other,actor_opt_state,critic_opt_state,weights_s = full_loop(SC,weights,params) # (loss_arr,actor_loss_arr,critic_loss_arr,kl_loss_arr,vec_kl_arr,act_kl_arr,r_std_arr,l_sem_arr,plan_rate_arr,avg_tot_r_arr,avg_pol_kl_arr,r_init_arr,r_arr,rt_arr,sample_arr,pos_init_arr,pos_arr,dots,sel)
+losses,stds,other,actor_opt_state,critic_opt_state,weights_s = full_loop(SC,weights,params) #,actor_opt_state,critic_opt_state,weights_s) # full_loop(SC,weights,params) (loss_arr,actor_loss_arr,critic_loss_arr,kl_loss_arr,vec_kl_arr,act_kl_arr,r_std_arr,l_sem_arr,plan_rate_arr,avg_tot_r_arr,avg_pol_kl_arr,r_init_arr,r_arr,rt_arr,sample_arr,pos_init_arr,pos_arr,dots,sel)
 print("Sim time: ",datetime.now()-startTime,"s/epoch=",((datetime.now()-startTime)/TOT_EPOCHS).total_seconds())
 (loss_arr,actor_loss_arr,critic_loss_arr,vec_kl_arr,act_kl_arr,r_tot_arr,plan_rate_arr) = losses
 (sem_loss_arr,std_actor_arr,std_critic_arr,std_act_kl_arr,std_vec_kl_arr,std_r_arr,std_plan_rate_arr) = stds
@@ -851,17 +865,31 @@ axes[1,0].set_ylabel('actor loss')
 axes[1,1].errorbar(np.arange(TOT_EPOCHS),critic_loss_arr,yerr=std_critic_arr/2,color='black',ecolor='lightgray',elinewidth=2,capsize=0)
 axes[1,1].set_xlabel('iteration')
 axes[1,1].set_ylabel('critic loss')
-line1,*_ = axes[1,2].errorbar(np.arange(TOT_EPOCHS),vec_kl_arr,yerr=std_vec_kl_arr/2,color='blue',ecolor='lightgray',elinewidth=2,capsize=0)
+# line1,*_ = axes[1,2].errorbar(np.arange(TOT_EPOCHS),vec_kl_arr,yerr=std_vec_kl_arr/2,color='blue',ecolor='lightgray',elinewidth=2,capsize=0,alpha=0.1)
+# axes[1,2].set_xlabel('iteration')
+# axes[1,2].set_ylabel('vector kl')
+# ax12_2 = axes[1,2].twinx()
+# line2,*_ = ax12_2.errorbar(np.arange(TOT_EPOCHS),act_kl_arr,yerr=std_act_kl_arr/2,color='red',ecolor='lightgray',elinewidth=2,capsize=0,alpha=0.1)
+# ax12_2.set_ylabel('action kl')
+# plt.legend([line1,line2],['vector kl','action kl'])
+line1, caplines1, barlinecols1 = axes[1,2].errorbar(np.arange(TOT_EPOCHS), vec_kl_arr, yerr=std_vec_kl_arr/2, color='blue', ecolor='lightgray', elinewidth=2, capsize=0)
+line1.set_alpha(0.8)
+for barlinecol in barlinecols1:
+    barlinecol.set_alpha(0.3)
+
 axes[1,2].set_xlabel('iteration')
 axes[1,2].set_ylabel('vector kl')
 ax12_2 = axes[1,2].twinx()
-line2,*_ = ax12_2.errorbar(np.arange(TOT_EPOCHS),act_kl_arr,yerr=std_act_kl_arr/2,color='red',ecolor='lightgray',elinewidth=2,capsize=0)
+line2, caplines2, barlinecols2 = ax12_2.errorbar(np.arange(TOT_EPOCHS), act_kl_arr, yerr=std_act_kl_arr/2, color='red', ecolor='lightgray', elinewidth=2, capsize=0)
+
+line2.set_alpha(0.8)
+for barlinecol in barlinecols2:
+    barlinecol.set_alpha(0.3)
 ax12_2.set_ylabel('action kl')
-plt.legend([line1,line2],['vector kl','action kl'])
+plt.legend([line1, line2], ['vector kl', 'action kl'])
 
 for ax in axes.flatten():
     ax.ticklabel_format(style='plain', useOffset=False)
-
 plt.tight_layout()
 plt.subplots_adjust(top=0.9)
 

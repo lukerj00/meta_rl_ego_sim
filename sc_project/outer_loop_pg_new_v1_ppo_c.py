@@ -29,6 +29,8 @@ from jax.scipy.optimize import minimize
 import gc
 import copy
 
+import faulthandler; faulthandler.enable()
+
 def load_(str_):
     path_ = str(Path(__file__).resolve().parents[1]) # .../meta_rl_ego_sim/
     with open(path_+str_,'rb') as file_:
