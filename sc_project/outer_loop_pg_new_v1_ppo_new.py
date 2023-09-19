@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# (same changes as v4 apart from time ratio)
+# ppo; same changes as v4 apart from time ratio
 """
 Created on Wed May 10 2023
 
@@ -96,7 +96,7 @@ def gen_sc(keys,MODULES,ACTION_SPACE,PLAN_SPACE):
 
 def gen_dot(key,VMAPS,N_DOTS,ACTION_SPACE):
     keys = rnd.split(key,N_DOTS)
-    dot_0 = rnd.uniform(keys[0],shape=(VMAPS,2),minval=-ACTION_SPACE,maxval=ACTION_SPACE) #minval=jnp.array([APERTURE/4,APERTURE/4]),maxval=jnp.array([3*APERTURE/4,3*APERTURE/4]))
+    dot_0 = rnd.uniform(keys[0],shape=(VMAPS,2),minval=-ACTION_SPACE,maxval=ACTION_SPACE)#minval=jnp.array([APERTURE/4,APERTURE/4]),maxval=jnp.array([3*APERTURE/4,3*APERTURE/4]))
     # dot_1 = rnd.uniform(keys[1],shape=(VMAPS,1,2),minval=-jnp.pi,maxval=jnp.pi)#minval=jnp.array([APERTURE/4,-APERTURE/4]),maxval=jnp.array([3*APERTURE/4,-3*APERTURE/4]))
     # dot_2 = rnd.uniform(keys[2],shape=(VMAPS,1,2),minval=-jnp.pi,maxval=jnp.pi)#minval=jnp.array([-3*APERTURE/4,-APERTURE]),maxval=jnp.array([-APERTURE/4,APERTURE]))
     # dot_tot = jnp.concatenate((dot_0,dot_1,dot_2),axis=1)
@@ -104,7 +104,7 @@ def gen_dot(key,VMAPS,N_DOTS,ACTION_SPACE):
     return dot_0 #dot_tot[:,:N_dot,:]
 
 def gen_dot_vecs(key,VMAPS,MAX_DOT_SPEED,ACTION_SPACE): # rejection sampling
-    dot_vecs = rnd.uniform(key,shape=(VMAPS,2),minval=-(MAX_DOT_SPEED-ACTION_SPACE),maxval=(MAX_DOT_SPEED-ACTION_SPACE)) # / 2
+    dot_vecs = rnd.uniform(key,shape=(VMAPS,2),minval=-ACTION_SPACE,maxval=ACTION_SPACE) # / 2
     # mask = jnp.all((-APERTURE/2 <= dot_vecs)&(dot_vecs <= APERTURE/2),axis=1)
     # while mask.any():
     #     key = rnd.split(key)[0]
@@ -245,7 +245,7 @@ def new_params(params, e): # Modify in place
     params["POS_0"] = rnd.uniform(ki[0],shape=(VMAPS,2),minval=-jnp.pi,maxval=jnp.pi) # rnd.choice(ke[2],jnp.arange(-APERTURE,APERTURE,0.01),(VMAPS,2))
     dot_0_vecs = gen_dot(ki[3],VMAPS,N_DOTS,ACTION_SPACE)
     params["DOT_0"] = params["POS_0"] + dot_0_vecs
-    params["DOT_VEC"] = -dot_0_vecs + gen_dot_vecs(ki[4],VMAPS,MAX_DOT_SPEED,ACTION_SPACE)
+    params["DOT_VEC"] = (-dot_0_vecs + gen_dot_vecs(ki[4],VMAPS,MAX_DOT_SPEED,ACTION_SPACE))*(MAX_DOT_SPEED/PLAN_RATIO)
     # params["SELECT"] = jnp.eye(N_DOTS)[rnd.choice(ki[4],N_DOTS,(VMAPS,))]
     params["IND"] = rnd.randint(ki[5],(VMAPS,T),minval=0,maxval=M,dtype=jnp.int32)
 
@@ -504,7 +504,7 @@ def ppo_loss(old_traj_vals,SC,hs_0_,hp_0_,pos_0_,dot_0_,dot_vec_,ind_,weights_v,
     # dot_arr_ = jnp.concatenate((dot_0_,dot_arr))
     # pos_0,dot_0 = pos_arr[0,:],dot_arr[0,:]
     new_trajectories_,new_losses = get_new_trajectories(SC,hs_0_,hp_0_,pos_0_,dot_0_,dot_vec_,ind_,vec_ind_arr_old,act_ind_arr_old,weights_v,new_weights_s,params,e)
-    (vec_ind_arr_new,act_ind_arr_new) = new_trajectories_ # just need lp_arr but return rest for comparison
+    (vec_ind_arr_new,act_ind_arr_new) = new_trajectories_ # return for debugging
     (lp_arr_new,val_arr_new,vec_kl_arr_new,act_kl_arr_new) = new_losses
 
     jax.debug.print("lp_ratio={}",jnp.mean(lp_arr_new/lp_arr_old))
@@ -525,6 +525,9 @@ def ppo_loss(old_traj_vals,SC,hs_0_,hp_0_,pos_0_,dot_0_,dot_vec_,ind_,weights_v,
     std_loss = (actor_std**2+(params["LAMBDA_VEC_KL"]**2)*(vec_kl_std**2+act_kl_std**2))**0.5
     sem_loss = std_loss/(params["VMAPS"]**0.5)
     r_tot = jnp.mean(return_arr[:,0])
+    # jax.debug.print("\n r_arr_old.shape={}",r_arr_old.shape)
+    # jax.debug.print("\n return_arr.shape={}",return_arr.shape)
+    # jax.debug.print("\n return_arr={}",return_arr[0,:])
     r_std = jnp.std(return_arr[:,0])
     plan_rate = 1-jnp.mean(act_ind_arr_old)
     plan_rate_std = jnp.std(act_ind_arr_old)
@@ -546,7 +549,8 @@ def get_advantage(r_arr,val_arr,gamma):
     return_arr = jnp.zeros_like(r_arr)
     return_arr = return_arr.at[:, -1].set(r_arr[:, -1])
     for t in reversed(range(T - 1)):
-        return_arr = return_arr.at[:, t].set(r_arr[:, t] + gamma * r_arr[:, t + 1])
+        return_arr = return_arr.at[:, t].set(r_arr[:, t] + gamma * return_arr[:, t + 1])
+        # return_arr = return_arr.at[:, t].set(r_arr[:, t] + gamma * r_arr[:, t + 1])
     adv_arr = return_arr - val_arr
     adv_norm = (adv_arr-jnp.mean(adv_arr,axis=None))/jnp.std(adv_arr,axis=None) ###
     # critic_loss = jnp.mean(jnp.square(advantages),axis=None)
@@ -564,20 +568,20 @@ def compute_actor_loss(adv_arr,lp_arr_old,lp_arr_new,epsilon):
     actor_std = jnp.std(actor_loss_arr)
     return actor_loss,actor_std
 
-# def full_loop(SC,weights,params):
-def full_loop(SC,weights,params,actor_opt_state,critic_opt_state,weights_s):
+def full_loop(SC,weights,params):
+# def full_loop(SC,weights,params,actor_opt_state,critic_opt_state,weights_s):
     loss_arr,sem_loss_arr,actor_loss_arr,std_actor_arr,critic_loss_arr,std_critic_arr,vec_kl_arr,std_vec_kl_arr,act_kl_arr,std_act_kl_arr,r_tot_arr,std_r_arr,plan_rate_arr,std_plan_rate_arr = (jnp.zeros((params["TOT_EPOCHS"],)) for _ in range(14)) #jnp.zeros((params["TOT_EPOCHS"]))
-    new_weights_s = weights_s ##weights["s"]
+    new_weights_s = weights["s"]
     E = params["TOT_EPOCHS"]
     B = params["BATCH"]
     actor_optimizer = optax.chain(
     optax.clip_by_global_norm(params["GRAD_CLIP"]),
     optax.adam(learning_rate=params["ACTOR_LR"])) #,weight_decay=params["WD"]))
-    ##actor_opt_state = actor_optimizer.init(new_weights_s)
+    actor_opt_state = actor_optimizer.init(new_weights_s)
     critic_optimizer = optax.chain(
     optax.clip_by_global_norm(params["GRAD_CLIP"]),
     optax.adamw(learning_rate=params["CRITIC_LR"],weight_decay=params["WD"]))
-    ##critic_opt_state = critic_optimizer.init(new_weights_s)
+    critic_opt_state = critic_optimizer.init(new_weights_s)
 
     old_weights_s = copy.deepcopy(new_weights_s)
     for e in range(E):
@@ -669,7 +673,7 @@ def full_loop(SC,weights,params,actor_opt_state,critic_opt_state,weights_s):
     return losses,stds,other,actor_opt_state,critic_opt_state,new_weights_s #r_arr,pos_arr,sample_arr,dots_arr
 
 # hyperparams ###
-TOT_EPOCHS = 8000 ## 1000
+TOT_EPOCHS = 3000 ## 1000
 # EPOCHS = 1
 PLOTS = 5
 # LOOPS = TOT_EPOCHS//EPOCHS
@@ -677,9 +681,9 @@ CRITIC_UPDATES = 5
 VMAPS = 2500 ## 2000,500,1100,1000,800,500
 BATCH = 500
 ACTOR_LR = 0.001 # 0.001,0.0008,0.0005,0.001,0.000001,0.0001
-CRITIC_LR = 0.0005 # 0.001,0.0008,0.0005,0.001,0.000001,0.0001
+CRITIC_LR = 0.001 # 0.001,0.0008,0.0005,0.001,0.000001,0.0001
 WD = 0.0001 # 0.0001
-GRAD_CLIP = 0.2 ### 0.5 1.0
+GRAD_CLIP = 0.3 ### 0.5 1.0
 EPSILON = 0.2
 GAMMA = 0.99
 INIT_S = 2
@@ -703,6 +707,7 @@ C_MOVE = 0.0 #0.30 #0.28 0.30
 C_PLAN = 0.0 # 0.05 # 0.0
 PRIOR_STAT = 0.2 # 1 # 0.2
 PRIOR_PLAN = 0.2
+PLAN_RATIO = 1
 MODULES = 9 # 10,8
 M = MODULES**2
 APERTURE = (1/2)*jnp.pi # (3/5)*jnp.pi # (jnp.sqrt(2)/2)*jnp.pi ### unconstrained
@@ -853,6 +858,7 @@ params = {
     "GAMMA" : GAMMA,
     "BATCH" : BATCH,
     "CRITIC_UPDATES" : CRITIC_UPDATES,
+    "PLAN_RATIO" : PLAN_RATIO,
     }
 
 weights = {
@@ -890,13 +896,14 @@ weights = {
 ###
 (_),(*_,weights_v) = load_('/sc_project/test_data/forward_new_v8_81M_144N_06_09-211442.pkl') #
 weights['v'] = weights_v
-(actor_opt_state,critic_opt_state,weights_s) = load_('/sc_project/pkl_sc/outer_loop_pg_new_v1_ppo__13_09-235540.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v3_c__13_09-174514.pkl', '/sc_project/test_data/outer_loop_pg_new_v3_c__13_09-174514.pkl')
-weights['s'] = weights_s
+# (actor_opt_state,critic_opt_state,weights_s) = load_('/sc_project/pkl_sc/outer_loop_pg_new_v1_ppo__13_09-235540.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v3_c__13_09-174514.pkl', '/sc_project/test_data/outer_loop_pg_new_v3_c__13_09-174514.pkl')
+# weights['s'] = weights_s
 # *_,r_weights = load_('') #
 # weights['r'] = r_weights
 ###
+# full_loop(); new_weights_s=; opt_state init; weights['s'] = weights_s; full_loop() call;
 startTime = datetime.now()
-losses,stds,other,actor_opt_state,critic_opt_state,weights_s = full_loop(SC,weights,params,actor_opt_state,critic_opt_state,weights_s) #full_loop(SC,weights,params) (loss_arr,actor_loss_arr,critic_loss_arr,kl_loss_arr,vec_kl_arr,act_kl_arr,r_std_arr,l_sem_arr,plan_rate_arr,avg_tot_r_arr,avg_pol_kl_arr,r_init_arr,r_arr,rt_arr,sample_arr,pos_init_arr,pos_arr,dots,sel)
+losses,stds,other,actor_opt_state,critic_opt_state,weights_s = full_loop(SC,weights,params) #,actor_opt_state,critic_opt_state,weights_s) #full_loop(SC,weights,params) (loss_arr,actor_loss_arr,critic_loss_arr,kl_loss_arr,vec_kl_arr,act_kl_arr,r_std_arr,l_sem_arr,plan_rate_arr,avg_tot_r_arr,avg_pol_kl_arr,r_init_arr,r_arr,rt_arr,sample_arr,pos_init_arr,pos_arr,dots,sel)
 print("Sim time: ",datetime.now()-startTime,"s/epoch=",((datetime.now()-startTime)/TOT_EPOCHS).total_seconds())
 (loss_arr,actor_loss_arr,critic_loss_arr,vec_kl_arr,act_kl_arr,r_tot_arr,plan_rate_arr) = losses
 (sem_loss_arr,std_actor_arr,std_critic_arr,std_act_kl_arr,std_vec_kl_arr,std_r_arr,std_plan_rate_arr) = stds

@@ -101,7 +101,7 @@ def gen_dot(key,VMAPS,N_DOTS,ACTION_SPACE):
     return dot_0 #dot_tot[:,:N_dot,:]
 
 def gen_dot_vecs(key,VMAPS,MAX_DOT_SPEED,ACTION_SPACE): # rejection sampling
-    dot_vecs = rnd.uniform(key,shape=(VMAPS,2),minval=-(MAX_DOT_SPEED-ACTION_SPACE),maxval=(MAX_DOT_SPEED-ACTION_SPACE)) # / 2
+    dot_vecs = rnd.uniform(key,shape=(VMAPS,2),minval=-ACTION_SPACE,maxval=ACTION_SPACE) # / 2
     # mask = jnp.all((-APERTURE/2 <= dot_vecs)&(dot_vecs <= APERTURE/2),axis=1)
     # while mask.any():
     #     key = rnd.split(key)[0]
@@ -235,7 +235,7 @@ def new_params(params, e): # Modify in place
     params["POS_0"] = rnd.uniform(ki[0],shape=(VMAPS,2),minval=-jnp.pi,maxval=jnp.pi) # rnd.choice(ke[2],jnp.arange(-APERTURE,APERTURE,0.01),(VMAPS,2))
     dot_0_vecs = gen_dot(ki[3],VMAPS,N_DOTS,ACTION_SPACE)
     params["DOT_0"] = params["POS_0"] + dot_0_vecs
-    params["DOT_VEC"] = -dot_0_vecs + gen_dot_vecs(ki[4],VMAPS,MAX_DOT_SPEED,ACTION_SPACE)
+    params["DOT_VEC"] = (-dot_0_vecs + gen_dot_vecs(ki[4],VMAPS,MAX_DOT_SPEED,ACTION_SPACE))*(MAX_DOT_SPEED/PLAN_RATIO)
     # params["SELECT"] = jnp.eye(N_DOTS)[rnd.choice(ki[4],N_DOTS,(VMAPS,))]
     params["IND"] = rnd.randint(ki[5],(VMAPS,T),minval=0,maxval=M,dtype=jnp.int32)
 
@@ -298,7 +298,18 @@ def sample_policy(policy,SC,ind):
     vec = VEC_ARR[:,vec_ind]
     act_ind = rnd.choice(key=keys[1],a=jnp.arange(len(actions)),p=actions)
     act = jnp.eye(len(actions))[act_ind]
-    return h1vec,vec,jnp.log(vectors[vec_ind]),act[0],act[1],jnp.log(actions[act_ind])
+    logit_t = jnp.log(vectors[vec_ind]) + jnp.log(actions[act_ind])
+    return h1vec,vec,vec_ind,act_ind,act[0],act[1],logit_t
+
+def get_vectors(policy,SC,vec_ind,act_ind):
+    vectors,actions = policy
+    ID_ARR,VEC_ARR,H1VEC_ARR = SC
+    h1vec = H1VEC_ARR[:,vec_ind]
+    vec = VEC_ARR[:,vec_ind]
+    logit_t = jnp.log(vectors[vec_ind]) + jnp.log(actions[act_ind])
+    rp_t = jnp.int32(act_ind == 0)
+    rm_t = jnp.int32(act_ind == 1)
+    return h1vec,vec,rp_t,rm_t,logit_t
 
 # @jit
 # def r_predict(v_t,v_t_1,r_t_1,hr_t_1,r_weights):
@@ -327,9 +338,9 @@ def sample_policy(policy,SC,ind):
 #     return r_hat_t,hr_t
 
 # @jit
-def r_predict(v_t,dot_t,MODULES,APERTURE,SIGMA_R,NEURON_GRID_AP): # v_t,v_t_1,r_t_1,hr_t_1,r_weights): #PLACEHOLDER
+def r_predict(v_t,dot_t,MODULES,APERTURE,SIGMA_R,NEURON_GRID_AP,e): # v_t,v_t_1,r_t_1,hr_t_1,r_weights): #PLACEHOLDER
     mean,var,r_fit_t = gaussian_fit(v_t,MODULES,APERTURE,NEURON_GRID_AP)
-    r_pred_t = loss_obj(mean,dot_t,SIGMA_R)
+    r_pred_t = loss_obj(mean,dot_t,params,e) #,e? (unused; idea was to schedule sigma with e...)
     return r_pred_t,r_fit_t
 
 # @jit
@@ -440,7 +451,7 @@ def scan_body(carry_t_1,x):
 
     args_t = (hs_t,hv_t_1,pos_plan_t_1,pos_t_1,dot_t_1,dot_vec,ind,rp_t,rm_t,v_t_1,r_t_1,r_tot_1,move_flag) # sel,hr update rp/rm
     carry_args = (t,args_t,theta,h1vec_t,vec_t,lp_t,vec_kl,act_kl,val_t,rp_t,rm_t) # (lp_arr,r_arr,sample_arr) assemble carry with sampled vecs and updated args
-    t,args_t,arrs_t = jax.lax.cond((move_flag > 0)&(move_flag <= params["MOVE_DELAY"]),env_fnc,continue_fnc,(carry_args))
+    t,args_t,arrs_t = jax.lax.cond((move_flag > 0)&(move_flag < params["PLAN_RATIO"]),env_fnc,continue_fnc,(carry_args))
     # t,args_t,arrs_t = jax.lax.cond(rp_t == 1,plan_fnc,move_fnc,(carry_args))###DEBUG;CHANGE
     return (t,args_t,theta),arrs_t
 def plan_fnc(carry_args):
@@ -636,7 +647,7 @@ def full_loop(SC,weights,params):
     return losses,stds,other,actor_opt_state,critic_opt_state,weights_s #r_arr,pos_arr,sample_arr,dots_arr
 
 # hyperparams ###
-TOT_EPOCHS = 3000 ## 1000
+TOT_EPOCHS = 2150 ## 1000
 # EPOCHS = 1
 PLOTS = 5
 CRITIC_UPDATES = 10 # 8 5
@@ -664,8 +675,8 @@ LAMBDA_ACT_KL = 10
 # ENV/sc params
 ke = rnd.split(rnd.PRNGKey(0),10)
 C_MOVE = 0.0 #0.30 #0.28 0.30
-MOVE_DELAY = 9 # 3, M/P ratio = (M_D+1)/1
 C_PLAN = 0.0 # 0.05 # 0.0
+PLAN_RATIO = 10 # 3, M/P ratio = (M_D+1)/1
 PRIOR_STAT = 0.2 # 1 # 0.2
 PRIOR_PLAN = 0.2
 MODULES = 9 # 10,8
@@ -676,7 +687,7 @@ ACTION_SPACE = ACTION_FRAC*APERTURE # 'AGENT_SPEED'
 PLAN_FRAC_REL = 1 # 3/2
 PLAN_SPACE = PLAN_FRAC_REL*ACTION_SPACE
 MAX_DOT_SPEED_REL_FRAC = 1.2 # 1.5, 3/2 # 5/4
-MAX_DOT_SPEED = MAX_DOT_SPEED_REL_FRAC*ACTION_SPACE/(MOVE_DELAY + 1)
+MAX_DOT_SPEED = MAX_DOT_SPEED_REL_FRAC*ACTION_SPACE
 NEURONS_FULL = 12
 N_F = (NEURONS_FULL**2)
 NEURONS_AP = jnp.int32(jnp.floor(NEURONS_FULL*(APERTURE/jnp.pi))) # 6 # 10
@@ -782,7 +793,7 @@ params = {
     "LAMBDA_ACT_KL" : LAMBDA_ACT_KL,
     # "ALPHA" : ALPHA,
     "C_MOVE" : C_MOVE,
-    "MOVE_DELAY" : MOVE_DELAY,
+    "PLAN_RATIO" : PLAN_RATIO,
     "C_PLAN" : C_PLAN,
     "PRIOR_STAT" : PRIOR_STAT,
     "PRIOR_PLAN" : PRIOR_PLAN,
@@ -851,7 +862,7 @@ legend_handles = [
 ]
 
 fig,axes = plt.subplots(2,3,figsize=(12,9))
-title__ = f'EPOCHS={TOT_EPOCHS}, VMAPS={VMAPS}, TEST_LENGTH={TEST_LENGTH}, CTC_UP={CRITIC_UPDATES}, actor_lr={ACTOR_LR:.6f}, critic_lr={CRITIC_LR:.6f}, GRAD_CLIP={GRAD_CLIP}, MOVE_DELAY={MOVE_DELAY} \n L_CRITIC={LAMBDA_CRITIC}, L_VEC_KL={LAMBDA_VEC_KL}, L_ACT_KL={LAMBDA_ACT_KL}, SIGMA_R={SIGMA_R}, PRIOR_PLAN={PRIOR_PLAN}, MAX_DOT_SPEED={MAX_DOT_SPEED:.2f}, ACTION_SPACE={ACTION_SPACE:.2f}, PLAN_SPACE={PLAN_SPACE:.2f}'
+title__ = f'EPOCHS={TOT_EPOCHS}, VMAPS={VMAPS}, TEST_LENGTH={TEST_LENGTH}, CTC_UP={CRITIC_UPDATES}, actor_lr={ACTOR_LR:.6f}, critic_lr={CRITIC_LR:.6f}, GRAD_CLIP={GRAD_CLIP}, PLAN_RATIO={PLAN_RATIO} \n L_CRITIC={LAMBDA_CRITIC}, L_VEC_KL={LAMBDA_VEC_KL}, L_ACT_KL={LAMBDA_ACT_KL}, SIGMA_R={SIGMA_R}, PRIOR_PLAN={PRIOR_PLAN}, MAX_DOT_SPEED={MAX_DOT_SPEED:.2f}, ACTION_SPACE={ACTION_SPACE:.2f}, PLAN_SPACE={PLAN_SPACE:.2f}'
 plt.suptitle('outer_loop_pg_new_v4, '+title__,fontsize=10)
 axes[0,0].errorbar(np.arange(TOT_EPOCHS),r_tot_arr,yerr=std_r_arr/2,color='black',ecolor='lightgray',elinewidth=2,capsize=0)
 axes[0,0].set_xlabel('iteration')
