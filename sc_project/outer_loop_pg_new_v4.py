@@ -289,6 +289,18 @@ def get_policy(args_t,weights_s,params): # hs_t_1,v_t,r_t,rp_t_1,rm_t_1,weights_
     actions_t = jax.nn.softmax(act_t-jnp.max(act_t)) # (act_t/params["SIGMA_AS"]) - jnp.max(act_t/params["SIGMA_AS"]) + 1e-5) # stable
     return (vectors_t,actions_t),val_t,hs_t
 
+# def sample_policy(policy,SC,ind): INCORRECT
+#     vectors,actions = policy
+#     ID_ARR,VEC_ARR,H1VEC_ARR = SC
+#     keys = rnd.split(rnd.PRNGKey(ind),num=2)
+#     vec_ind = rnd.choice(key=keys[0],a=jnp.arange(len(vectors)),p=vectors)
+#     h1vec = H1VEC_ARR[:,vec_ind]
+#     vec = VEC_ARR[:,vec_ind]
+#     act_ind = rnd.choice(key=keys[1],a=jnp.arange(len(actions)),p=actions)
+#     act = jnp.eye(len(actions))[act_ind]
+#     logit_t = jnp.log(vectors[vec_ind]) + jnp.log(actions[act_ind])
+#     return h1vec,vec,vec_ind,act_ind,act[0],act[1],logit_t
+
 def sample_policy(policy,SC,ind):
     vectors,actions = policy
     ID_ARR,VEC_ARR,H1VEC_ARR = SC
@@ -298,8 +310,7 @@ def sample_policy(policy,SC,ind):
     vec = VEC_ARR[:,vec_ind]
     act_ind = rnd.choice(key=keys[1],a=jnp.arange(len(actions)),p=actions)
     act = jnp.eye(len(actions))[act_ind]
-    logit_t = jnp.log(vectors[vec_ind]) + jnp.log(actions[act_ind])
-    return h1vec,vec,vec_ind,act_ind,act[0],act[1],logit_t
+    return h1vec,vec,jnp.log(vectors[vec_ind]),act[0],act[1],jnp.log(actions[act_ind])
 
 def get_vectors(policy,SC,vec_ind,act_ind):
     vectors,actions = policy
@@ -647,14 +658,14 @@ def full_loop(SC,weights,params):
     return losses,stds,other,actor_opt_state,critic_opt_state,weights_s #r_arr,pos_arr,sample_arr,dots_arr
 
 # hyperparams ###
-TOT_EPOCHS = 2150 ## 1000
+TOT_EPOCHS = 2000 ## 1000
 # EPOCHS = 1
 PLOTS = 5
 CRITIC_UPDATES = 10 # 8 5
 # LOOPS = TOT_EPOCHS//EPOCHS
 VMAPS = 1000 ## 2000,500,1100,1000,800,500
-ACTOR_LR = 0.001 # 0.0002 # 0.001 # 0.0005
-CRITIC_LR = 0.003 # 0.0005 # 0.0001 # 0.0005   0.001,0.0008,0.0005,0.001,0.000001,0.0001
+ACTOR_LR = 0.0005 # 0.0002 # 0.001 # 0.0005
+CRITIC_LR = 0.001 # 0.0005 # 0.0001 # 0.0005   0.001,0.0008,0.0005,0.001,0.000001,0.0001
 WD = 0.0001 # 0.0001
 GRAD_CLIP = 0.3 ##0.5 1.0
 INIT_S = 2
@@ -676,7 +687,7 @@ LAMBDA_ACT_KL = 10
 ke = rnd.split(rnd.PRNGKey(0),10)
 C_MOVE = 0.0 #0.30 #0.28 0.30
 C_PLAN = 0.0 # 0.05 # 0.0
-PLAN_RATIO = 10 # 3, M/P ratio = (M_D+1)/1
+PLAN_RATIO = 5 # 3, M/P ratio = (M_D+1)/1
 PRIOR_STAT = 0.2 # 1 # 0.2
 PRIOR_PLAN = 0.2
 MODULES = 9 # 10,8
@@ -886,7 +897,7 @@ axes[1,1].set_ylabel('critic loss')
 # line2,*_ = ax12_2.errorbar(np.arange(TOT_EPOCHS),act_kl_arr,yerr=std_act_kl_arr/2,color='red',ecolor='lightgray',elinewidth=2,capsize=0,alpha=0.1)
 # ax12_2.set_ylabel('action kl')
 # plt.legend([line1,line2],['vector kl','action kl'])
-line1, caplines1, barlinecols1 = axes[1,2].errorbar(np.arange(TOT_EPOCHS), vec_kl_arr, yerr=std_vec_kl_arr/2, color='blue', ecolor='lightgray', elinewidth=2, capsize=0)
+line1, caplines1, barlinecols1 = axes[1,2].errorbar(np.arange(TOT_EPOCHS), vec_kl_arr, yerr=std_vec_kl_arr/2, color='blue', ecolor='lightgray', elinewidth=2, capsize=0, alpha=0.1)
 line1.set_alpha(0.8)
 for barlinecol in barlinecols1:
     barlinecol.set_alpha(0.3)

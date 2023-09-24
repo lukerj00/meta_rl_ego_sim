@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# v4_ppo with cached v/hv
+# ppo; same changes as v4 apart from time ratio
 """
 Created on Wed May 10 2023
 
@@ -264,7 +264,7 @@ def kl_loss(policy,params):
 
 @jit
 def get_policy(args_t,weights_s,params): # hs_t_1,v_t,r_t,rp_t_1,rm_t_1,weights_s,params
-    (hs_t_1,*_,rp_t_1,rm_t_1,v_t,r_t,move_flag,e) = args_t
+    (hs_t_1,*_,rp_t_1,rm_t_1,v_t,r_t,r_tot,val_t_1,vec_kl_t_1,act_kl_t_1,h1vec_t_1,vec_t_1,vec_ind_t_1,act_ind_t_1,move_flag,e) = args_t
     Ws_vt_z = weights_s["Ws_vt_z"]
     Ws_vt_f = weights_s["Ws_vt_f"]
     Ws_vt_h = weights_s["Ws_vt_h"]
@@ -290,13 +290,13 @@ def get_policy(args_t,weights_s,params): # hs_t_1,v_t,r_t,rp_t_1,rm_t_1,weights_
     f_t = jax.nn.sigmoid(jnp.matmul(Ws_vt_f,v_t) + Ws_rt_f*r_t + Ws_pt_1f*rp_t_1 + Ws_mt_1f*rm_t_1 + jnp.matmul(Us_f,hs_t_1) + bs_f)
     hhat_t = jax.nn.tanh(jnp.matmul(Ws_vt_h,v_t) + Ws_rt_h*r_t + Ws_pt_1h*rp_t_1 + Ws_mt_1h*rm_t_1 + jnp.matmul(Us_h,jnp.multiply(f_t,hs_t_1)) + bs_h)
     hs_t = jnp.multiply(1-z_t,hs_t_1) + jnp.multiply(z_t,hhat_t) #
-    vec_logits = jnp.matmul(Ws_vec,hs_t)
-    act_logits = jnp.matmul(Ws_act,hs_t)
+    vec_t = jnp.matmul(Ws_vec,hs_t)
+    act_t = jnp.matmul(Ws_act,hs_t)
     val_t = jnp.squeeze(jnp.matmul(Ws_val,hs_t))
     # jax.debug.print('vec_t={}',vec_t)
     # jax.debug.print('act_t={}',act_t)
-    vectors_t = jax.nn.softmax((vec_logits/params["SIGMA_VS"]) - jnp.max(vec_logits/params["SIGMA_VS"]) + 1e-5) # stable
-    actions_t = jax.nn.softmax((act_logits/params["SIGMA_AS"]) - jnp.max(act_logits/params["SIGMA_AS"]) + 1e-5) # stable
+    vectors_t = jax.nn.softmax((vec_t/params["SIGMA_VS"]) - jnp.max(vec_t/params["SIGMA_VS"]) + 1e-5) # stable
+    actions_t = jax.nn.softmax((act_t/params["SIGMA_AS"]) - jnp.max(act_t/params["SIGMA_AS"]) + 1e-5) # stable
     return (vectors_t,actions_t),val_t,hs_t
 
 def sample_policy(policy,SC,ind):
@@ -307,7 +307,7 @@ def sample_policy(policy,SC,ind):
     h1vec = H1VEC_ARR[:,vec_ind]
     vec = VEC_ARR[:,vec_ind]
     act_ind = rnd.choice(key=keys[1],a=jnp.arange(len(actions)),p=actions)
-    act = jnp.eye(len(actions))[act_ind]
+    act = jnp.eye(len(actions),dtype=jnp.int32)[act_ind]
     logit_t = jnp.log(vectors[vec_ind]) + jnp.log(actions[act_ind])
     return h1vec,vec,vec_ind,act_ind,act[0],act[1],logit_t
 
@@ -392,7 +392,8 @@ def plan(h1vec_t,vec_t,v_t_1,hv_t_1,r_t_1,pos_plan_t_1,pos_t_1,dot_t_1,dot_vec,r
 
     v_pred_t,v_full_t,hv_t = v_predict(h1vec_t,v_t_1,hv_t_1,rp_t,rm_t,weights_v,params["NONE_PLAN"])### #(hr_t_1,v_t_1,pos_t_1,weights["v"],params)
     ### r_pred_t,r_fit_t = r_predict(v_full_t,dot_t,params["MODULES"],params["APERTURE"],params["SIGMA_R"],params["NEURON_GRID_AP"])# (using true pos)
-    return jnp.float32(0),v_pred_t,hv_t,pos_plan_t,pos_t,dot_t #dot_t# ,r_tp,v_tp #,hv_t # predictions
+    r_t = jnp.float32(0)
+    return r_t,v_pred_t,hv_t,pos_plan_t,pos_t,dot_t #dot_t# ,r_tp,v_tp #,hv_t # predictions
 
 def move(h1vec_t,vec_t,v_t_1,hv_t_1,r_t_1,pos_plan_t_1,pos_t_1,dot_t_1,dot_vec,rp_t,rm_t,val,weights_v,params,e): # sel, shouldnt be random; should take action dictated by plan...
     # INIT_LENGTH,TEST_LENGTH,NONE_PLAN,MODULES,APERTURE,SIGMA_R,SIGMA_A,SIGMA_N,COLORS,THETA_AP,NEURON_GRID_AP,PRIOR_STAT,PRIOR_PLAN,C_MOVE,C_PLAN = consts
@@ -406,150 +407,119 @@ def move(h1vec_t,vec_t,v_t_1,hv_t_1,r_t_1,pos_plan_t_1,pos_t_1,dot_t_1,dot_vec,r
     r_t = loss_obj(dot_t,pos_t,params,e)###
     return r_t,v_t,hv_t,pos_plan_t,pos_t,dot_t #,rhat_t_,vhat_t_ # hv_t, true
 
-def continue_fnc_old(carry_args):
-    (t,args_t,logit_t,val_t,vec_kl,act_kl,theta,h1vec_t,vec_t,rp_t,rm_t) = carry_args
-    return jax.lax.cond(rp_t == 1,plan_fnc_old,move_fnc_old,(carry_args))
-
-def continue_fnc_new(carry_args):
-    (t,args_t,logit_t,val_t,vec_kl,act_kl,theta,h1vec_t,vec_t,rp_t,rm_t) = carry_args
-    return jax.lax.cond(rp_t == 1,plan_fnc_new,move_fnc_new,(carry_args))
-
-def env_fnc_old(carry_args):
-    (t,args_t,logit_t,val_t,vec_kl,act_kl,theta,h1vec_t,vec_t,rp_t,rm_t) = carry_args
-    (hs_t,hv_t_1,pos_plan_t_1,pos_t_1,dot_t_1,dot_vec,ind,rp_t,rm_t,v_t_1,r_t_1,move_flag,e) = args_t
+def continue_fnc_old(carry_t_1):
+    t,args_t_1,theta = carry_t_1
+    (hs_t_1,hv_t_1,pos_plan_t_1,pos_t_1,dot_t_1,dot_vec,ind,rp_t_1,rm_t_1,v_t_1,r_t_1,r_tot_1,val_t_1,vec_kl_t_1,act_kl_t_1,h1vec_t_1,vec_t_1,vec_ind_t_1,act_ind_t_1,move_flag,e) = args_t_1
     (SC,weights,weights_s,params) = theta
 
-    # r_t,v_t,hv_t,pos_t,dot_t = move(h1vec_t,vec_t,v_t_1,hv_t_1,r_t_1,pos_t_1,dot_t_1,dot_vec,rp_t,rm_t,val_t,weights,params) # sel,hr update v,r;dont update h
+    policy_t,val_t,hs_t = get_policy(args_t_1,weights_s,params) # hs_t_1,v_t_1,r_t_1,rp_t_1,rm_t_1,weights_s,params
+    vec_kl_t,act_kl_t = kl_loss(policy_t,params) #-jnp.dot(policy_t[1],jnp.log(policy_t[1]))
+    h1vec_t,vec_t,vec_ind_t,act_ind_t,rp_t,rm_t,logit_t = sample_policy(policy_t,SC,ind[t])
+
+    args_t = (hs_t,hv_t_1,pos_plan_t_1,pos_t_1,dot_t_1,dot_vec,ind,rp_t,rm_t,v_t_1,r_t_1,r_tot_1,val_t,vec_kl_t,act_kl_t,h1vec_t,vec_t,vec_ind_t,act_ind_t,move_flag,e)
+    carry_t = (t,args_t,theta,logit_t)
+
+    return jax.lax.cond(rp_t == 1,plan_fnc,move_fnc,(carry_t))
+
+def continue_fnc_new(carry_t_1):
+    t,args_t_1,theta = carry_t_1
+    (hs_t_1,hv_t_1,pos_plan_t_1,pos_t_1,dot_t_1,dot_vec,ind,rp_t_1,rm_t_1,v_t_1,r_t_1,r_tot_1,val_t_1,vec_kl_t_1,act_kl_t_1,h1vec_t_1,vec_t_1,vec_ind_t,act_ind_t,move_flag,e) = args_t_1
+    (SC,weights,weights_s,params) = theta
+
+    policy_t,val_t,hs_t = get_policy(args_t_1,weights_s,params) # hs_t_1,v_t_1,r_t_1,rp_t_1,rm_t_1,weights_s,params
+    vec_kl_t,act_kl_t = kl_loss(policy_t,params) #-jnp.dot(policy_t[1],jnp.log(policy_t[1]))
+    h1vec_t,vec_t,rp_t,rm_t,logit_t = get_vectors(policy_t,SC,vec_ind_t,act_ind_t) # sample_policy(policy_t,SC,ind[t])
+
+    args_t = (hs_t,hv_t_1,pos_plan_t_1,pos_t_1,dot_t_1,dot_vec,ind,rp_t,rm_t,v_t_1,r_t_1,r_tot_1,val_t,vec_kl_t,act_kl_t,h1vec_t,vec_t,vec_ind_t,act_ind_t,move_flag,e)
+    carry_t = (t,args_t,theta,logit_t)
+
+    return jax.lax.cond(rp_t == 1,plan_fnc,move_fnc,(carry_t))
+
+def env_fnc(carry_t_1):
+    t,args_t_1,theta = carry_t_1
+    (hs_t_1,hv_t_1,pos_plan_t_1,pos_t_1,dot_t_1,dot_vec,ind,rp_t_1,rm_t_1,v_t_1,r_t_1,r_tot_1,val_t_1,vec_kl_t_1,act_kl_t_1,h1vec_t_1,vec_t_1,vec_ind_t_1,act_ind_t_1,move_flag,e) = args_t_1
+    (SC,weights,weights_s,params) = theta
+
     dot_t = dot_t_1 + dot_vec
     t += 1 # params["T_MOVE"]
     move_flag += 1
-    # jax.debug.print('env; move_flag={}',move_flag)
 
     r_t = jax.lax.stop_gradient(jnp.float32(0)) # no grads through no-op
-    # r_tot = jax.lax.stop_gradient(jnp.float32(0))
-    lp_t = jax.lax.stop_gradient(jnp.float32(0))
-    val_t = jax.lax.stop_gradient(val_t)
-    vec_kl = jax.lax.stop_gradient(vec_kl)
-    act_kl = jax.lax.stop_gradient(act_kl)
+    r_tot = jax.lax.stop_gradient(jnp.float32(0))
+    logit_t = jax.lax.stop_gradient(jnp.float32(0))
+    val_t = jax.lax.stop_gradient(val_t_1) # dont stop grad ?
+    vec_kl_t = jax.lax.stop_gradient(vec_kl_t_1)
+    act_kl_t = jax.lax.stop_gradient(act_kl_t_1)
 
-    args_t = (hs_t,hv_t_1,pos_plan_t_1,pos_t_1,dot_t,dot_vec,ind,rp_t,rm_t,v_t_1,r_t,move_flag,e) #(hs_t,hv_t_1,pos_plan_t_1,pos_t_1, dot_t ,dot_vec,ind,rp_t,rm_t,v_t_1, r_t,r_tot, move_flag) # sel,hr update v,r;dont update h
-    return (t,args_t,(r_t,pos_plan_t_1,pos_t_1,dot_t,logit_t,val_t,vec_kl,act_kl,v_t_1)) #jnp.array([lp_t]),jnp.array([r_tot]),jnp.array([r_t]), val_t ,jnp.array([0]),jnp.array([vec_kl]),jnp.array([act_kl]),pos_plan_t_1,pos_t_1,dot_t]))
+    args_t = (hs_t_1,hv_t_1,pos_plan_t_1,pos_t_1,dot_t,dot_vec,ind,rp_t_1,rm_t_1,v_t_1,r_t,r_tot,val_t,vec_kl_t,act_kl_t,h1vec_t_1,vec_t_1,vec_ind_t_1,act_ind_t_1,move_flag,e) #(hs_t,hv_t_1,pos_plan_t_1,pos_t_1, dot_t ,dot_vec,ind,rp_t,rm_t,v_t_1, r_t,r_tot, move_flag) # sel,hr update v,r;dont update h
+    return (t,args_t,(r_tot,r_t,pos_plan_t_1,pos_t_1,dot_t,logit_t,val_t,jnp.float32(0),vec_kl_t,act_kl_t,vec_ind_t_1,act_ind_t_1)) #jnp.array([lp_t]),jnp.array([r_tot]),jnp.array([r_t]), val_t ,jnp.array([0]),jnp.array([vec_kl]),jnp.array([act_kl]),pos_plan_t_1,pos_t_1,dot_t]))
 
-def env_fnc_new(carry_args):
-    (t,args_t,logit_t,val_t,vec_kl,act_kl,theta,h1vec_t,vec_t,rp_t,rm_t) = carry_args
-    (hs_t,hv_t_1,pos_plan_t_1,pos_t_1,dot_t_1,dot_vec,ind,rp_t,rm_t,v_t_1,r_t_1,move_flag,e) = args_t
+def plan_fnc(carry_t):
+    t,args_t,theta,logit_t = carry_t
+    (hs_t,hv_t_1,pos_plan_t_1,pos_t_1,dot_t_1,dot_vec,ind,rp_t,rm_t,v_t_1,r_t_1,r_tot_1,val_t,vec_kl_t,act_kl_t,h1vec_t,vec_t,vec_ind_t,act_ind_t,move_flag,e) = args_t
     (SC,weights,weights_s,params) = theta
-
-    # r_t,v_t,hv_t,pos_t,dot_t = move(h1vec_t,vec_t,v_t_1,hv_t_1,r_t_1,pos_t_1,dot_t_1,dot_vec,rp_t,rm_t,val_t,weights,params) # sel,hr update v,r;dont update h
-    dot_t = dot_t_1 + dot_vec
-    t += 1 # params["T_MOVE"]
-    move_flag += 1
-    # jax.debug.print('env; move_flag={}',move_flag)
-
-    r_t = jax.lax.stop_gradient(jnp.float32(0)) # 0/r_t_1? no grads through no-op
-    # r_tot = jax.lax.stop_gradient(jnp.float32(0))
-    lp_t = jax.lax.stop_gradient(jnp.float32(0))
-    val_t = jax.lax.stop_gradient(val_t)
-    vec_kl = jax.lax.stop_gradient(vec_kl)
-    act_kl = jax.lax.stop_gradient(act_kl)
-
-    args_t = (hs_t,hv_t_1,pos_plan_t_1,pos_t_1,dot_t,dot_vec,ind,rp_t,rm_t,v_t_1, r_t ,move_flag,e) #(hs_t,hv_t_1,pos_plan_t_1,pos_t_1, dot_t ,dot_vec,ind,rp_t,rm_t,v_t_1, r_t,r_tot, move_flag) # sel,hr update v,r;dont update h
-    return (t,args_t,(logit_t,val_t,vec_kl,act_kl)) #jnp.array([lp_t]),jnp.array([r_tot]),jnp.array([r_t]), val_t ,jnp.array([0]),jnp.array([vec_kl]),jnp.array([act_kl]),pos_plan_t_1,pos_t_1,dot_t]))
-
-def plan_fnc_old(carry_args):
-    (t,args_t,logit_t,val_t,vec_kl,act_kl,theta,h1vec_t,vec_t,rp_t,rm_t) = carry_args # (add rp,rm)
-    (hs_t,hv_t_1,pos_plan_t_1,pos_t_1,dot_t_1,dot_vec,ind,rp_t,rm_t,v_t_1,r_t_1,move_flag,e) = args_t # sel,hr
-    (SC,weights_v,weights_s,params) = theta
+    # (t,args_t,logit_t,val_t,vec_kl,act_kl,theta,h1vec_t,vec_t,rp_t,rm_t) = carry_args # (add rp,rm)
+    # (hs_t,hv_t_1,pos_plan_t_1,pos_t_1,dot_t_1,dot_vec,ind,rp_t,rm_t,v_t_1,r_t_1,r_tot_1,move_flag,e) = args_t # sel,hr
+    # (SC,weights_v,weights_s,params) = theta
 
     r_t,v_t,hv_t,pos_plan_t,pos_t,dot_t = plan(h1vec_t,vec_t,v_t_1,hv_t_1,r_t_1,pos_plan_t_1,pos_t_1,dot_t_1,dot_vec,rp_t,rm_t,ind[t],weights_v,params,e)
-    # r_tot = 0 - params["C_PLAN"] ### # r_t
+    r_tot = 0 - params["C_PLAN"] ### # r_t
     t += 1 # params["T_PLAN"]
     move_flag = 0
 
-    args_t = (hs_t,hv_t,pos_plan_t,pos_t,dot_t,dot_vec,ind,rp_t,rm_t,v_t,r_t,move_flag,e) # sel,hr update v,r;dont update h
-    return (t,args_t,(r_t,pos_plan_t,pos_t,dot_t,logit_t,val_t,vec_kl,act_kl,v_t_1))
+    args_t = (hs_t,hv_t,pos_plan_t,pos_t,dot_t,dot_vec,ind,rp_t,rm_t,v_t,r_t,r_tot,val_t,vec_kl_t,act_kl_t,h1vec_t,vec_t,vec_ind_t,act_ind_t,move_flag,e) # sel,hr update v,r;dont update h
+    return (t,args_t,(r_tot,r_t,pos_plan_t,pos_t,dot_t,logit_t,val_t,jnp.float32(1),vec_kl_t,act_kl_t,vec_ind_t,act_ind_t))
 
-def plan_fnc_new(carry_args):
-    (t,args_t,logit_t,val_t,vec_kl,act_kl,theta,h1vec_t,vec_t,rp_t,rm_t) = carry_args # (add rp,rm)
-    (hs_t,hv_t_1,pos_plan_t_1,pos_t_1,dot_t_1,dot_vec,ind,rp_t,rm_t,v_t_1,r_t_1,move_flag,e) = args_t # sel,hr
-    (SC,weights_v,weights_s,params) = theta
-
-    # r_t,v_t,hv_t,pos_plan_t,pos_t,dot_t = plan(h1vec_t,vec_t,v_t_1,hv_t_1,r_t_1,pos_plan_t_1,pos_t_1,dot_t_1,dot_vec,rp_t,rm_t,ind[t],weights_v,params,e)
-    # r/v accounted for; hv doesnt matter; update pos_plan_t,pos_t,dot_t:
-    pos_plan_t = pos_t_1 + vec_t
-    pos_t = pos_t_1
-    dot_t = dot_t_1 + dot_vec
-
-    # r_tot = 0 - params["C_PLAN"] ### # r_t
-    t += 1 # params["T_PLAN"]
-    move_flag = 0
-
-    args_t = (hs_t,hv_t_1,pos_plan_t,pos_t,dot_t,dot_vec,ind,rp_t,rm_t,v_t_1,r_t_1,move_flag,e) # sel,hr update v,r;dont update h
-    return (t,args_t,(logit_t,val_t,vec_kl,act_kl))
-
-def move_fnc_old(carry_args):
-    (t,args_t,logit_t,val_t,vec_kl,act_kl,theta,h1vec_t,vec_t,rp_t,rm_t) = carry_args
-    (hs_t,hv_t_1,pos_plan_t_1,pos_t_1,dot_t_1,dot_vec,ind,rp_t,rm_t,v_t_1,r_t_1,move_flag,e) = args_t # ,sel,hr
-    (SC,weights_v,weights_s,params) = theta
+def move_fnc(carry_t):
+    t,args_t,theta,logit_t = carry_t
+    (hs_t,hv_t_1,pos_plan_t_1,pos_t_1,dot_t_1,dot_vec,ind,rp_t,rm_t,v_t_1,r_t_1,r_tot_1,val_t,vec_kl_t,act_kl_t,h1vec_t,vec_t,vec_ind_t,act_ind_t,move_flag,e) = args_t
+    (SC,weights,weights_s,params) = theta
+    # (t,args_t,logit_t,val_t,vec_kl,act_kl,theta,h1vec_t,vec_t,rp_t,rm_t) = carry_args
+    # (hs_t,hv_t_1,pos_plan_t_1,pos_t_1,dot_t_1,dot_vec,ind,rp_t,rm_t,v_t_1,r_t_1,r_tot_1,move_flag,e) = args_t # ,sel,hr
+    # (SC,weights_v,weights_s,params) = theta
 
     r_t,v_t,hv_t,pos_plan_t,pos_t,dot_t = move(h1vec_t,vec_t,v_t_1,hv_t_1,r_t_1,pos_plan_t_1,pos_t_1,dot_t_1,dot_vec,rp_t,rm_t,ind[t],weights_v,params,e) # ,sel,hr
-    # r_tot = r_t - params["C_MOVE"] ###
+    r_tot = r_t - params["C_MOVE"] ###
     t += 1 # params["T_MOVE"]
     move_flag = 1
 
-    args_t = (hs_t,hv_t,pos_plan_t,pos_t,dot_t,dot_vec,ind,rp_t,rm_t,v_t,r_t,move_flag,e) # ,sel,hr update v,r,hr,pos
-    return (t,args_t,(r_t,pos_plan_t,pos_t,dot_t,logit_t,val_t,vec_kl,act_kl,v_t_1))
-
-def move_fnc_new(carry_args):
-    (t,args_t,logit_t,val_t,vec_kl,act_kl,theta,h1vec_t,vec_t,rp_t,rm_t) = carry_args
-    (hs_t,hv_t_1,pos_plan_t_1,pos_t_1,dot_t_1,dot_vec,ind,rp_t,rm_t,v_t_1,r_t_1,move_flag,e) = args_t # ,sel,hr
-    (SC,weights_v,weights_s,params) = theta
-
-    # r_t,v_t,hv_t,pos_plan_t,pos_t,dot_t = move(h1vec_t,vec_t,v_t_1,hv_t_1,r_t_1,pos_plan_t_1,pos_t_1,dot_t_1,dot_vec,rp_t,rm_t,ind[t],weights_v,params,e) # ,sel,hr
-    # r/v accounted for; hv doesnt matter; update pos_plan_t,pos_t,dot_t:
-    pos_plan_t = pos_t_1 + vec_t
-    pos_t = pos_t_1 + vec_t
-    dot_t = dot_t_1 + dot_vec
-
-    # r_tot = r_t_1 - params["C_MOVE"] ###
-    t += 1 # params["T_MOVE"]
-    move_flag = 1
-
-    args_t = (hs_t,hv_t_1,pos_plan_t,pos_t,dot_t,dot_vec,ind,rp_t,rm_t,v_t_1,r_t_1,move_flag,e) # ,sel,hr update v,r,hr,pos
-    return (t,args_t,(logit_t,val_t,vec_kl,act_kl))
+    args_t = (hs_t,hv_t,pos_plan_t,pos_t,dot_t,dot_vec,ind,rp_t,rm_t,v_t,r_t,r_tot,val_t,vec_kl_t,act_kl_t,h1vec_t,vec_t,vec_ind_t,act_ind_t,move_flag,e) # ,sel,hr update v,r,hr,pos
+    return (t,args_t,(r_tot,r_t,pos_plan_t,pos_t,dot_t,logit_t,val_t,jnp.float32(0),vec_kl_t,act_kl_t,vec_ind_t,act_ind_t))
 
 @jit
 def scan_body_old(carry_t_1,x):
     t,args_t_1,theta = carry_t_1
-    (hs_t_1,hv_t_1,pos_plan_t_1,pos_t_1,dot_t_1,dot_vec,ind,rp_t_1,rm_t_1,v_t_1,r_t_1,move_flag,e) = args_t_1 # sel,hr
+    (hs_t_1,hv_t_1,pos_plan_t_1,pos_t_1,dot_t_1,dot_vec,ind,rp_t_1,rm_t_1,v_t_1,r_t_1,r_tot_1,val_t_1,vec_kl_t_1,act_kl_t_1,h1vec_t_1,vec_t_1,vec_ind_t_1,act_ind_t_1,move_flag,e) = args_t_1 # sel,hr
     (SC,weights_v,weights_s,params) = theta
 
-    policy_t,val_t,hs_t = get_policy(args_t_1,weights_s,params) # hs_t_1,v_t_1,r_t_1,rp_t_1,rm_t_1,weights_s,params
-    vec_kl,act_kl = kl_loss(policy_t,params) #-jnp.dot(policy_t[1],jnp.log(policy_t[1]))
-    h1vec_t,vec_t,vec_ind,act_ind,rp_t,rm_t,logit_t = sample_policy(policy_t,SC,ind[t])
+    # policy_t,val_t,hs_t = get_policy(args_t_1,weights_s,params) # hs_t_1,v_t_1,r_t_1,rp_t_1,rm_t_1,weights_s,params
+    # vec_kl,act_kl = kl_loss(policy_t,params) #-jnp.dot(policy_t[1],jnp.log(policy_t[1]))
+    # h1vec_t,vec_t,vec_ind,act_ind,rp_t,rm_t,logit_t = sample_policy(policy_t,SC,ind[t])
 
-    args_t = (hs_t,hv_t_1,pos_plan_t_1,pos_t_1,dot_t_1,dot_vec,ind,rp_t,rm_t,v_t_1,r_t_1,move_flag,e) # sel,hr update rp/rm
-    carry_args = (t,args_t,logit_t,val_t,vec_kl,act_kl,theta,h1vec_t,vec_t,rp_t,rm_t) # (lp_arr,r_arr,sample_arr) assemble carry with sampled vecs and updated args
-    t,args_t,arrs_t = jax.lax.cond((move_flag > 0)&(move_flag < params["PLAN_RATIO"]),env_fnc_old,continue_fnc_old,(carry_args))
+    # args_t = (hs_t,hv_t_1,pos_plan_t_1,pos_t_1,dot_t_1,dot_vec,ind,rp_t,rm_t,v_t_1,r_t_1,r_tot_1,move_flag,e) # sel,hr update rp/rm
+    # carry_args = (t,args_t,logit_t,val_t,vec_kl,act_kl,theta,h1vec_t,vec_t,rp_t,rm_t) # (lp_arr,r_arr,sample_arr) assemble carry with sampled vecs and updated args
+    
+    t,args_t,arrs_t = jax.lax.cond((move_flag > 0)&(move_flag < params["PLAN_RATIO"]),env_fnc,continue_fnc_old,(carry_t_1))
     # t,args_t,arrs_t = jax.lax.cond(rp_t == 1,plan_fnc,move_fnc,(carry_args))###DEBUG;CHANGE
-    return (t,args_t,theta),(vec_ind,act_ind,arrs_t)
+    return (t,args_t,theta),arrs_t
 
 @jit
-def scan_body_new(carry_t_1,scan_vals):
+def scan_body_new(carry_t_1,vec_act_ind_t):
     t,args_t_1,theta = carry_t_1
-    (hs_t_1,hv_t_1,pos_plan_t_1,pos_t_1,dot_t_1,dot_vec,ind,rp_t_1,rm_t_1,v_t_1,r_t_1,move_flag,e) = args_t_1 # sel,hr
+    vec_ind_t,act_ind_t = vec_act_ind_t
+    (hs_t_1,hv_t_1,pos_plan_t_1,pos_t_1,dot_t_1,dot_vec,ind,rp_t_1,rm_t_1,v_t_1,r_t_1,r_tot_1,val_t_1,vec_kl_t_1,act_kl_t_1,h1vec_t_1,vec_t_1,vec_ind_t_1,act_ind_t_1,move_flag,e) = args_t_1 # sel,hr
     (SC,weights_v,weights_s,params) = theta
-    vec_ind,act_ind,_v_t,_r_t = scan_vals
-    args_t_1 = (hs_t_1,hv_t_1,pos_plan_t_1,pos_t_1,dot_t_1,dot_vec,ind,rp_t_1,rm_t_1,_v_t,_r_t,move_flag,e)
+    args_t_1 = (hs_t_1,hv_t_1,pos_plan_t_1,pos_t_1,dot_t_1,dot_vec,ind,rp_t_1,rm_t_1,v_t_1,r_t_1,r_tot_1,val_t_1,vec_kl_t_1,act_kl_t_1,h1vec_t_1,vec_t_1,vec_ind_t,act_ind_t,move_flag,e) # sel,hr
+    carry_t_1 = (t,args_t_1,theta)
 
-    policy_t,val_t,hs_t = get_policy(args_t_1,weights_s,params) # hs_t_1,v_t_1,r_t_1,rp_t_1,rm_t_1,weights_s,params
-    vec_kl,act_kl = kl_loss(policy_t,params) #-jnp.dot(policy_t[1],jnp.log(policy_t[1]))
-    h1vec_t,vec_t,rp_t,rm_t,logit_t = get_vectors(policy_t,SC,vec_ind,act_ind) # sample_policy(policy_t,SC,ind[t])
+    # policy_t,val_t,hs_t = get_policy(args_t_1,weights_s,params) # hs_t_1,v_t_1,r_t_1,rp_t_1,rm_t_1,weights_s,params
+    # vec_kl,act_kl = kl_loss(policy_t,params) #-jnp.dot(policy_t[1],jnp.log(policy_t[1]))
+    # h1vec_t,vec_t,rp_t,rm_t,logit_t = get_vectors(policy_t,SC,vec_ind,act_ind) # sample_policy(policy_t,SC,ind[t])
 
-    args_t = (hs_t,hv_t_1,pos_plan_t_1,pos_t_1,dot_t_1,dot_vec,ind,rp_t,rm_t,_v_t,_r_t,move_flag,e) # sel,hr update rp/rm
-    carry_args = (t,args_t,logit_t,val_t,vec_kl,act_kl,theta,h1vec_t,vec_t,rp_t,rm_t) # (lp_arr,r_arr,sample_arr) assemble carry with sampled vecs and updated args
-    t,args_t,arrs_t = jax.lax.cond((move_flag > 0)&(move_flag < params["PLAN_RATIO"]),env_fnc_new,continue_fnc_new,(carry_args))
-    return (t,args_t,theta),(vec_ind,act_ind,arrs_t)
+    # args_t = (hs_t,hv_t_1,pos_plan_t_1,pos_t_1,dot_t_1,dot_vec,ind,rp_t,rm_t,v_t_1,r_t_1,r_tot_1,val_t_1,vec_kl_t_1,act_kl_t_1,h1vec_t_1,vec_t_1,vec_ind_t_1,act_ind_t_1,move_flag,e) # sel,hr update rp/rm
+    # carry_args = (t,args_t,logit_t,val_t,vec_kl,act_kl,theta,h1vec_t,vec_t,rp_t,rm_t) # (lp_arr,r_arr,sample_arr) assemble carry with sampled vecs and updated args
+    t,args_t,arrs_t = jax.lax.cond((move_flag > 0)&(move_flag < params["PLAN_RATIO"]),env_fnc,continue_fnc_old,(carry_t_1)) #new
+    return (t,args_t,theta),arrs_t
 
 def body_fnc_old(SC,hs_0,hv_0,pos_0,dot_0,dot_vec,ind,weights_v,weights_s,params,e): # # ,sel,hr PLAN_ITS
     v_0 = neuron_act_noise(ind[-1],params["THETA_AP"],params["SIGMA_A"],params["SIGMA_N"],dot_0,pos_0)
@@ -557,62 +527,72 @@ def body_fnc_old(SC,hs_0,hv_0,pos_0,dot_0,dot_vec,ind,weights_v,weights_s,params
     t = 0
     rp_0 = 0
     rm_0 = 1
-    # r_tot_0 = 0
+    r_tot_0 = 0
     pos_plan_0 = pos_0
     move_flag = 0
-    args_0 = (hs_0,hv_0,pos_plan_0,pos_0,dot_0,dot_vec,ind,rp_0,rm_0,v_0,r_0,move_flag,e) # sel,hr rp_0,rm_0,r_tot_0 = 0,1,0
+    val_0 = jnp.float32(0)
+    vec_kl_0 = jnp.float32(0)
+    act_kl_0 = jnp.float32(0)
+    h1vec_0 = jnp.zeros(params["M"],dtype=jnp.float32)
+    vec_0 = jnp.array([0,0],dtype=jnp.float32)
+    vec_ind_0 = 0
+    act_ind_0 = 0
+    args_0 = (hs_0,hv_0,pos_plan_0,pos_0,dot_0,dot_vec,ind,rp_0,rm_0,v_0,r_0,r_tot_0,val_0,vec_kl_0,act_kl_0,h1vec_0,vec_0,vec_ind_0,act_ind_0,move_flag,e) # sel,hr rp_0,rm_0,r_tot_0 = 0,1,0
     theta = (SC,weights_v,weights_s,params)
-    (_,args_final,_),arrs_stack = jax.lax.scan(scan_body_old,(0,args_0,theta),None,params["TEST_LENGTH"])# t=0,dynamic_scan((t,args_0,theta)) # arrs_0
-    vec_ind_arr,act_ind_arr,(r_arr,pos_plan_arr,pos_arr,dot_arr,lp_arr,val_arr,vec_kl_arr,act_kl_arr,v_arr) = arrs_stack #,t_arr
-    # prepend_value = lambda arr, val=0.: jnp.insert(arr, 0, val)
-    # r_arr, rt_arr = (jnp.insert(arr, 0, 0.) for arr in (r_arr, rt_arr))
-    # pos_arr = jnp.insert(pos_arr, 0, pos_0)
-    # dot_arr = jnp.insert(dot_arr, 0, dot_0)
-    return lp_arr,r_arr,val_arr,vec_ind_arr,vec_kl_arr,act_ind_arr,act_kl_arr,pos_plan_arr,pos_arr,dot_arr,v_arr #,t_arr #
+    (_,args_final,_),arrs_stack = jax.lax.scan(scan_body_old,(t,args_0,theta),None,params["TEST_LENGTH"])# t=0,dynamic_scan((t,args_0,theta)) # arrs_0
+    (r_arr,rt_arr,pos_plan_arr,pos_arr,dot_arr,lp_arr,val_arr,sample_arr,vec_kl_arr,act_kl_arr,vec_ind_arr,act_ind_arr) = arrs_stack #,t_arr
+    return lp_arr,r_arr,rt_arr,val_arr,sample_arr,vec_ind_arr,vec_kl_arr,act_ind_arr,act_kl_arr,pos_plan_arr,pos_arr,dot_arr #,t_arr #
 
-def body_fnc_new(SC,hs_0,hv_0,pos_0,dot_0,dot_vec,ind,vec_ind,act_ind,v_arr,r_arr,weights_v,weights_s,params,e): # pos_arr,dot_arr # ,sel,hr PLAN_ITS
+def body_fnc_new(SC,hs_0,hv_0,pos_0,dot_0,dot_vec,ind,vec_ind,act_ind,weights_v,weights_s,params,e): # pos_arr,dot_arr # ,sel,hr PLAN_ITS
     # dot_0,pos_0 = dot_arr[0,:],pos_arr[0,:]
     v_0 = neuron_act_noise(ind[-1],params["THETA_AP"],params["SIGMA_A"],params["SIGMA_N"],dot_0,pos_0)
     r_0 = loss_obj(dot_0,pos_0,params,e)### ,sel
     t = 0
     rp_0 = 0
     rm_0 = 1
-    # r_tot_0 = 0
+    r_tot_0 = 0
     pos_plan_0 = pos_0
     move_flag = 0
-    args_0 = (hs_0,hv_0,pos_plan_0,pos_0,dot_0,dot_vec,ind,rp_0,rm_0,v_0,r_0,move_flag,e) # sel,hr rp_0,rm_0,r_tot_0 = 0,1,0
+    val_0 = jnp.float32(0)
+    vec_kl_0 = jnp.float32(0)
+    act_kl_0 = jnp.float32(0)
+    h1vec_0 = jnp.zeros(params["M"],dtype=jnp.float32)
+    vec_0 = jnp.array([0,0],dtype=jnp.float32)
+    vec_ind_0 = 0
+    act_ind_0 = 0
+    args_0 = (hs_0,hv_0,pos_plan_0,pos_0,dot_0,dot_vec,ind,rp_0,rm_0,v_0,r_0,r_tot_0,val_0,vec_kl_0,act_kl_0,h1vec_0,vec_0,vec_ind_0,act_ind_0,move_flag,e) # sel,hr rp_0,rm_0,r_tot_0 = 0,1,0
     theta = (SC,weights_v,weights_s,params)
-    scan_vals = (vec_ind,act_ind,v_arr,r_arr) # jnp.stack((vec_ind,act_ind,v_arr,r_arr),axis=1)
-    (_,args_final,_),arrs_stack = jax.lax.scan(scan_body_new,(0,args_0,theta),scan_vals,params["TEST_LENGTH"])# t=0,dynamic_scan((t,args_0,theta)) # arrs_0
-    vec_ind_arr,act_ind_arr,(lp_arr,val_arr,vec_kl_arr,act_kl_arr) = arrs_stack #,(r_arr,rt_arr,pos_arr,dot_arr)
-    return lp_arr,val_arr,vec_ind_arr,vec_kl_arr,act_ind_arr,act_kl_arr #,t_arr #
+    vec_act_ind = jnp.stack((vec_ind,act_ind),axis=1)
+    (_,args_final,_),arrs_stack = jax.lax.scan(scan_body_new,(t,args_0,theta),vec_act_ind,params["TEST_LENGTH"])# t=0,dynamic_scan((t,args_0,theta)) # arrs_0
+    (r_arr,rt_arr,pos_plan_arr,pos_arr,dot_arr,lp_arr,val_arr,sample_arr,vec_kl_arr,act_kl_arr,vec_ind_arr,act_ind_arr) = arrs_stack #,(r_arr,rt_arr,pos_arr,dot_arr)
+    return lp_arr,val_arr,sample_arr,vec_ind_arr,vec_kl_arr,act_ind_arr,act_kl_arr #,t_arr #
 
 def get_old_trajectories(SC,hs_0,hp_0,pos_0,dot_0,dot_vec,ind,weights_v,old_weights_s,params,e): # ,sel
-    body_fnc_old_vmap = jax.vmap(body_fnc_old,in_axes=(None,0,0,0,0,0,0,None,None,None,None),out_axes=(1,1,1,1,1,1,1,1,1,1,1))
-    lp_arr,r_arr,val_arr,vec_ind_arr,vec_kl_arr,act_ind_arr,act_kl_arr,pos_plan_arr,pos_arr,dot_arr,v_arr = body_fnc_old_vmap(SC,hs_0,hp_0,pos_0,dot_0,dot_vec,ind,weights_v,old_weights_s,params,e) # ,sel ,params["PLAN_ITS"] [TEST_LENGTH,VMAPS] arrs_(lp,r),aux
+    body_fnc_old_vmap = jax.vmap(body_fnc_old,in_axes=(None,0,0,0,0,0,0,None,None,None,None),out_axes=(1,1,1,1,1,1,1,1,1,1,1,1))
+    lp_arr,r_arr,rt_arr,val_arr,sample_arr,vec_ind_arr,vec_kl_arr,act_ind_arr,act_kl_arr,pos_plan_arr,pos_arr,dot_arr = body_fnc_old_vmap(SC,hs_0,hp_0,pos_0,dot_0,dot_vec,ind,weights_v,old_weights_s,params,e) # ,sel ,params["PLAN_ITS"] [TEST_LENGTH,VMAPS] arrs_(lp,r),aux
     # r_to_go,adv_arr,adv_norm = get_advantage(r_arr,val_arr)
     # losses,stds,trajectories = get_losses(r_to_go,adv_arr,adv_norm,lp_arr,r_arr,rt_arr,act_ind_arr[:,0],vec_kl_arr,act_kl_arr,pos_plan_arr,pos_arr,dot_arr,params)
-    trajectories = (vec_ind_arr.T,act_ind_arr.T,pos_plan_arr.transpose([1,0,2]),pos_arr.transpose([1,0,2]),dot_arr.transpose([1,0,2]),v_arr.transpose([1,0,2]))
-    losses = (lp_arr.T,r_arr.T,val_arr.T,vec_kl_arr.T,act_kl_arr.T)
+    trajectories = (vec_ind_arr.T,act_ind_arr.T,pos_plan_arr.transpose([1,0,2]),pos_arr.transpose([1,0,2]),dot_arr.transpose([1,0,2]),sample_arr.T)
+    losses = (lp_arr.T,r_arr.T,val_arr.T,rt_arr.T,vec_kl_arr.T,act_kl_arr.T)
     return trajectories,losses
 
-def get_new_trajectories(SC,hs_0,hp_0,pos_0,dot_0,dot_vec,ind,vec_ind_arr,act_ind_arr,v_arr,r_arr,weights_v,new_weights_s,params,e): # ,sel
-    body_fnc_new_vmap = jax.vmap(body_fnc_new,in_axes=(None,0,0,0,0,0,0,0,0,0,0,None,None,None,None),out_axes=(1,1,1,1,1,1))
-    lp_arr,val_arr,vec_ind_arr,vec_kl_arr,act_ind_arr,act_kl_arr = body_fnc_new_vmap(SC,hs_0,hp_0,pos_0,dot_0,dot_vec,ind,vec_ind_arr,act_ind_arr,v_arr,r_arr,weights_v,new_weights_s,params,e) # ,sel ,params["PLAN_ITS"] [TEST_LENGTH,VMAPS] arrs_(lp,r),aux
+def get_new_trajectories(SC,hs_0,hp_0,pos_0,dot_0,dot_vec,ind,vec_ind_arr,act_ind_arr,weights_v,new_weights_s,params,e): # ,sel
+    body_fnc_new_vmap = jax.vmap(body_fnc_new,in_axes=(None,0,0,0,0,0,0,0,0,None,None,None,None),out_axes=(1,1,1,1,1,1,1))
+    lp_arr,val_arr,sample_arr,vec_ind_arr,vec_kl_arr,act_ind_arr,act_kl_arr = body_fnc_new_vmap(SC,hs_0,hp_0,pos_0,dot_0,dot_vec,ind,vec_ind_arr,act_ind_arr,weights_v,new_weights_s,params,e) # ,sel ,params["PLAN_ITS"] [TEST_LENGTH,VMAPS] arrs_(lp,r),aux
     # r_to_go,adv_arr,adv_norm = get_advantage(r_arr,val_arr)
     # losses,stds,trajectories = get_losses(r_to_go,adv_arr,adv_norm,lp_arr,r_arr,rt_arr,vec_kl_arr,act_kl_arr,pos_plan_arr,pos_arr,dot_arr,params)
-    trajectories = (vec_ind_arr.T,act_ind_arr.T)
+    trajectories = (vec_ind_arr.T,act_ind_arr.T,sample_arr.T)
     losses = (lp_arr.T,val_arr.T,vec_kl_arr.T,act_kl_arr.T)
     return trajectories,losses
 
 def ppo_loss(old_traj_vals,SC,hs_0_,hp_0_,pos_0_,dot_0_,dot_vec_,ind_,weights_v,new_weights_s,params,e):
-    (vec_ind_arr_old,act_ind_arr_old,lp_arr_old,r_arr_old,val_arr_old,v_arr_old) = old_traj_vals
+    (vec_ind_arr_old,act_ind_arr_old,lp_arr_old,r_arr_old,val_arr_old,sample_arr_old) = old_traj_vals
     # (lp_arr_old,r_arr_old,val_arr_old,rt_arr_old,vec_kl_arr_old,act_kl_arr_old) = old_losses
     # pos_arr_ = jnp.concatenate((pos_0_,pos_arr))
     # dot_arr_ = jnp.concatenate((dot_0_,dot_arr))
     # pos_0,dot_0 = pos_arr[0,:],dot_arr[0,:]
-    new_trajectories_,new_losses = get_new_trajectories(SC,hs_0_,hp_0_,pos_0_,dot_0_,dot_vec_,ind_,vec_ind_arr_old,act_ind_arr_old,v_arr_old,r_arr_old,weights_v,new_weights_s,params,e)
-    (vec_ind_arr_new,act_ind_arr_new) = new_trajectories_ # return for debugging
+    new_trajectories_,new_losses = get_new_trajectories(SC,hs_0_,hp_0_,pos_0_,dot_0_,dot_vec_,ind_,vec_ind_arr_old,act_ind_arr_old,weights_v,new_weights_s,params,e)
+    (vec_ind_arr_new,act_ind_arr_new,sample_arr_new) = new_trajectories_ # return for debugging
     (lp_arr_new,val_arr_new,vec_kl_arr_new,act_kl_arr_new) = new_losses
 
     jax.debug.print("lp_ratio={}",jnp.mean(lp_arr_new/lp_arr_old))
@@ -637,12 +617,22 @@ def ppo_loss(old_traj_vals,SC,hs_0_,hp_0_,pos_0_,dot_0_,dot_vec_,ind_,weights_v,
     # jax.debug.print("\n return_arr.shape={}",return_arr.shape)
     # jax.debug.print("\n return_arr={}",return_arr[0,:])
     r_std = jnp.std(return_arr[:,0])
-    plan_rate = 1-jnp.mean(act_ind_arr_old)
-    plan_rate_std = jnp.std(act_ind_arr_old)
-    aux_losses = (tot_loss,actor_loss,critic_loss,vec_kl_loss,act_kl_loss,r_tot,plan_rate)
+    plan_rate = 1-jnp.mean(act_ind_arr_old,axis=None)
+    plan_rate_std = jnp.std(act_ind_arr_old,axis=None)
+
+    plan_rate_debug = jnp.mean(sample_arr_old,axis=None)
+
+    aux_losses = (tot_loss,actor_loss,critic_loss,vec_kl_loss,act_kl_loss,r_tot,plan_rate,plan_rate_debug)
     stds = (sem_loss,actor_std,critic_std,vec_kl_std,act_kl_std,r_std,plan_rate_std)
     # other = (r_arr,rt_arr,pos_plan_arr_,pos_arr_,dot_arr_)
     return (actor_losses,critic_loss),(aux_losses,stds) #,other
+
+# @jit
+# def get_advantage(r_arr,val_arr):
+#     r_to_go = jnp.cumsum(r_arr[:,::-1],axis=1)[:,::-1] # reward_to_go(r_arr.T)
+#     adv_arr = r_to_go - val_arr
+#     adv_norm = (adv_arr-jnp.mean(adv_arr,axis=None))/jnp.std(adv_arr,axis=None) ###
+#     return r_to_go,adv_arr,adv_norm
 
 @jit
 def get_advantage(r_arr,val_arr,gamma):
@@ -651,8 +641,13 @@ def get_advantage(r_arr,val_arr,gamma):
     return_arr = return_arr.at[:, -1].set(r_arr[:, -1])
     for t in reversed(range(T - 1)):
         return_arr = return_arr.at[:, t].set(r_arr[:, t] + gamma * return_arr[:, t + 1])
+        # return_arr = return_arr.at[:, t].set(r_arr[:, t] + gamma * r_arr[:, t + 1])
     adv_arr = return_arr - val_arr
     adv_norm = (adv_arr-jnp.mean(adv_arr,axis=None))/jnp.std(adv_arr,axis=None) ###
+    # critic_loss = jnp.mean(jnp.square(advantages),axis=None)
+    # critic_std = jnp.std(jnp.square(advantages),axis=None)
+    # jax.debug.print("adv_mean={}",jnp.mean(adv_arr,axis=None))
+    # jax.debug.print("adv_n_mean={}",jnp.mean(adv_norm,axis=None))
     return return_arr,adv_arr,adv_norm #,critic_loss,critic_std
 
 @jit
@@ -690,14 +685,14 @@ def full_loop(SC,weights,params):
         dot_vec = params["DOT_VEC"]
         ind = params["IND"]
         old_trajectories,old_losses = get_old_trajectories(SC,hs_0,hp_0,pos_0,dot_0,dot_vec,ind,weights_v,old_weights_s,params,e)
-        (vec_ind_arr_old,act_ind_arr_old,pos_plan_arr_old,pos_arr_old,dot_arr_old,v_arr_old) = old_trajectories
-        (lp_arr_old,r_arr_old,val_arr_old,vec_kl_arr_old,act_kl_arr_old) = old_losses
+        (vec_ind_arr_old,act_ind_arr_old,pos_plan_arr_old,pos_arr_old,dot_arr_old,sample_arr_old) = old_trajectories
+        (lp_arr_old,r_arr_old,val_arr_old,rt_arr_old,vec_kl_arr_old,act_kl_arr_old) = old_losses
 
         # optimisation loop; get new traj info for _same_ trajectories
         for i in range(params["VMAPS"]//B):
-            vec_ind_arr_old_,act_ind_arr_old_,lp_arr_old_,r_arr_old_,val_arr_old_,v_arr_old_ = (
-                arr[i*B:(i+1)*B,:] for arr in [vec_ind_arr_old,act_ind_arr_old,lp_arr_old,r_arr_old,val_arr_old,v_arr_old])
-            old_traj_vals = (vec_ind_arr_old_,act_ind_arr_old_,lp_arr_old_,r_arr_old_,val_arr_old_,v_arr_old_)
+            vec_ind_arr_old_,act_ind_arr_old_,lp_arr_old_,r_arr_old_,val_arr_old_,sample_arr_old_ = (
+                arr[i*B:(i+1)*B,:] for arr in [vec_ind_arr_old,act_ind_arr_old,lp_arr_old,r_arr_old,val_arr_old,sample_arr_old])
+            old_traj_vals = (vec_ind_arr_old_,act_ind_arr_old_,lp_arr_old_,r_arr_old_,val_arr_old_,sample_arr_old_)
 
             hs_0_,hp_0_,pos_0_,dot_0_,dot_vec_,ind_ = (
                 arr[i*B:(i+1)*B,:] for arr in [hs_0,hp_0,pos_0,dot_0,dot_vec,ind])
@@ -708,6 +703,7 @@ def full_loop(SC,weights,params):
             # Multiple critic updates
             for _ in range(params["CRITIC_UPDATES"]):
                 critic_grad, = ppo_obj_vjp((0.0, 1.0))
+                # jax.debug.print("critic_grad={}",critic_grad)
                 critic_update, critic_opt_state = critic_optimizer.update(critic_grad, critic_opt_state, new_weights_s) # for adamw...
                 new_weights_s = optax.apply_updates(new_weights_s, critic_update)
 
@@ -733,9 +729,9 @@ def full_loop(SC,weights,params):
             # jax.debug.print('new_weights_s[Ws_vt_z0]={}',new_weights_s["Ws_vt_z"][0][5])
             # jax.debug.print('old_weights_s[Ws_vt_z0]={}',old_weights_s["Ws_vt_z"][0][5])
 
-            (tot_loss,actor_loss,critic_loss,vec_kl_loss,act_kl_loss,r_tot,plan_rate) = aux_losses
+            (tot_loss,actor_loss,critic_loss,vec_kl_loss,act_kl_loss,r_tot,plan_rate,plan_rate_debug) = aux_losses
             (sem_loss,actor_std,critic_std,vec_kl_std,act_kl_std,r_std,plan_rate_std) = stds
-            # r_arr,pos_plan_arr_,pos_arr_,dot_arr_ = r_arr_old,pos_plan_arr,pos_arr,dot_arr
+            # r_arr,rt_arr,pos_plan_arr_,pos_arr_,dot_arr_ = r_arr_old,rt_arr_old,pos_plan_arr_old,pos_arr_old,dot_arr_old
             k = e*(params["VMAPS"]//B) + i
             loss_arr = loss_arr.at[k].set(tot_loss)
             sem_loss_arr = sem_loss_arr.at[k].set(sem_loss)
@@ -752,10 +748,12 @@ def full_loop(SC,weights,params):
             plan_rate_arr = plan_rate_arr.at[k].set(plan_rate)
             std_plan_rate_arr = std_plan_rate_arr.at[k].set(plan_rate_std)
 
-            print(f"epoch={e}.{i} r={r_tot:.4f} r_std={r_std:.3f} loss={tot_loss:.4f} sem_loss={sem_loss:.4f}")
-            print(f"actor_loss={actor_loss:.5f} std_actor={actor_std:.3f} critic_loss={critic_loss:.3f} std_critic={critic_std:.3f}")
-            print(f"vec_kl={vec_kl_loss:.4f} std_vec={vec_kl_std:.3f} act_kl={act_kl_loss:.4f} std_act={act_kl_std:.3f} plan={plan_rate:.2f} \n")
+            print(f"epoch={e}.{i} r={r_tot:.3f} r_std={r_std:.3f} loss={tot_loss:.3f} sem_loss={sem_loss:.3f}")
+            print(f"actor_loss={actor_loss:.3f} std_actor={actor_std:.3f} critic_loss={critic_loss:.3f} std_critic={critic_std:.3f}")
+            print(f"vec_kl={vec_kl_loss:.3f} std_vec={vec_kl_std:.3f} act_kl={act_kl_loss:.3f} std_act={act_kl_std:.3f} plan={plan_rate:.5f}")
+            print(f"plan_rate_debug={plan_rate_debug:.5f}")
 
+            
             ### loss.block_until_ready()
             ### jax.profiler.save_device_memory_profile(f"memory{e}.prof")
             if k>0 and (k % 50) == 0: # 50
@@ -766,19 +764,19 @@ def full_loop(SC,weights,params):
 
     losses = (loss_arr,actor_loss_arr,critic_loss_arr,vec_kl_arr,act_kl_arr,r_tot_arr,plan_rate_arr)
     stds = (sem_loss_arr,std_actor_arr,std_critic_arr,std_act_kl_arr,std_vec_kl_arr,std_r_arr,std_plan_rate_arr)
-    other = (r_arr_old,pos_plan_arr_old,pos_arr_old,dot_arr_old) # ,sel
+    other = (r_arr_old,rt_arr_old,pos_plan_arr_old,pos_arr_old,dot_arr_old) # ,sel
     return losses,stds,other,actor_opt_state,critic_opt_state,new_weights_s #r_arr,pos_arr,sample_arr,dots_arr
 
 # hyperparams ###
-TOT_EPOCHS = 500 ## 1000
+TOT_EPOCHS = 2000 ## 1000
 # EPOCHS = 1
 PLOTS = 5
 # LOOPS = TOT_EPOCHS//EPOCHS
 CRITIC_UPDATES = 5
-VMAPS = 2500 ## 2000,500,1100,1000,800,500
+VMAPS = 1000 ## 2000,500,1100,1000,800,500
 BATCH = 500
-ACTOR_LR = 0.0001 # 0.001,0.0008,0.0005,0.001,0.000001,0.0001
-CRITIC_LR = 0.001 # 0.001,0.0008,0.0005,0.001,0.000001,0.0001
+ACTOR_LR = 0.005 # 0.001,0.0008,0.0005,0.001,0.000001,0.0001
+CRITIC_LR = 0.007 # 0.001,0.0008,0.0005,0.001,0.000001,0.0001
 WD = 0.0001 # 0.0001
 GRAD_CLIP = 0.5 ### 0.5 1.0
 EPSILON = 0.2
@@ -809,7 +807,7 @@ PRIOR_PLAN = (PRIOR_PLAN_FRAC*PLAN_RATIO)/(1+PRIOR_PLAN_FRAC*PLAN_RATIO) # 0.2
 MODULES = 9 # 10,8
 M = MODULES**2
 APERTURE = (1/2)*jnp.pi # (3/5)*jnp.pi # (jnp.sqrt(2)/2)*jnp.pi ### unconstrained
-ACTION_FRAC = 1 # CHANGED FROM 1/2.. unconstrained
+ACTION_FRAC = 1 # CHANGED FROM 1/2... unconstrained
 ACTION_SPACE = ACTION_FRAC*APERTURE # 'AGENT_SPEED'
 PLAN_FRAC_REL = 1 # 3/2
 PLAN_SPACE = PLAN_FRAC_REL*ACTION_SPACE
@@ -1005,7 +1003,7 @@ losses,stds,other,actor_opt_state,critic_opt_state,weights_s = full_loop(SC,weig
 print("Sim time: ",datetime.now()-startTime,"s/epoch=",((datetime.now()-startTime)/TOT_EPOCHS).total_seconds())
 (loss_arr,actor_loss_arr,critic_loss_arr,vec_kl_arr,act_kl_arr,r_tot_arr,plan_rate_arr) = losses
 (sem_loss_arr,std_actor_arr,std_critic_arr,std_act_kl_arr,std_vec_kl_arr,std_r_arr,std_plan_rate_arr) = stds
-(r_arr,pos_plan_arr,pos_arr,dots) = other # ,sel
+(r_arr,rt_arr,pos_plan_arr,pos_arr,dots) = other # ,sel
 print('pos_arr=',pos_arr,'pos_arr.shape=',pos_arr.shape)
 
 # plot loss_arr:
@@ -1016,8 +1014,8 @@ legend_handles = [
 ]
 
 fig,axes = plt.subplots(2,3,figsize=(12,9))
-title__ = f'EPOCHS={TOT_EPOCHS}, VMAPS={VMAPS}, TEST_LENGTH={TEST_LENGTH}, CTC_UP={CRITIC_UPDATES}, actor_lr={ACTOR_LR:.6f}, critic_lr={CRITIC_LR:.6f}, GRAD_CLIP={GRAD_CLIP} \n L_CRITIC={LAMBDA_CRITIC}, L_VEC_KL={LAMBDA_VEC_KL}, L_ACT_KL={LAMBDA_ACT_KL}, SIGMA_R={SIGMA_RINF}, PRIOR_PLAN={PRIOR_PLAN:.2f}, PRIOR_STAT={PRIOR_STAT}, MAX_DOT_SPEED={MAX_DOT_SPEED:.2f}, ACTION_SPACE={ACTION_SPACE:.2f}, PLAN_SPACE={PLAN_SPACE:.2f}'
-plt.suptitle('outer_loop_pg_new_v5, '+title__,fontsize=9)
+title__ = f'EPOCHS={TOT_EPOCHS}, VMAPS={VMAPS}, TEST_LENGTH={TEST_LENGTH}, CTC_UP={CRITIC_UPDATES}, actor_lr={ACTOR_LR:.6f}, critic_lr={CRITIC_LR:.6f}, GRAD_CLIP={GRAD_CLIP} \n L_CRITIC={LAMBDA_CRITIC}, L_VEC_KL={LAMBDA_VEC_KL}, L_ACT_KL={LAMBDA_ACT_KL}, SIGMA_RINF={SIGMA_RINF}, PRIOR_PLAN={PRIOR_PLAN:.2f}, PRIOR_STAT={PRIOR_STAT}, MAX_DOT_SPEED={MAX_DOT_SPEED:.2f}, ACTION_SPACE={ACTION_SPACE:.2f}, PLAN_SPACE={PLAN_SPACE:.2f}'
+plt.suptitle('outer_loop_pg_new_v4_ppo_new, '+title__,fontsize=9)
 axes[0,0].errorbar(np.arange(TOT_EPOCHS),r_tot_arr,yerr=std_r_arr/2,color='black',ecolor='lightgray',elinewidth=2,capsize=0)
 axes[0,0].set_xlabel('iteration')
 axes[0,0].set_ylabel('R_tot')
@@ -1033,13 +1031,13 @@ axes[1,0].set_ylabel('actor loss')
 axes[1,1].errorbar(np.arange(TOT_EPOCHS),critic_loss_arr,yerr=std_critic_arr/2,color='black',ecolor='lightgray',elinewidth=2,capsize=0)
 axes[1,1].set_xlabel('iteration')
 axes[1,1].set_ylabel('critic loss')
-line1,*_ = axes[1,2].errorbar(np.arange(TOT_EPOCHS),vec_kl_arr,yerr=std_vec_kl_arr/2,color='blue',ecolor='lightgray',elinewidth=2,capsize=0,alpha=0.1)
+line1,*_ = axes[1,2].errorbar(np.arange(TOT_EPOCHS),vec_kl_arr,yerr=std_vec_kl_arr/2,color='blue',ecolor='lightgray',elinewidth=2,capsize=0)
 axes[1,2].set_xlabel('iteration')
 axes[1,2].set_ylabel('vector kl')
-# ax12_2 = axes[1,2].twinx()
-# line2,*_ = ax12_2.errorbar(np.arange(TOT_EPOCHS),act_kl_arr,yerr=std_act_kl_arr/2,color='red',ecolor='lightgray',elinewidth=2,capsize=0)
-# ax12_2.set_ylabel('action kl')
-# plt.legend([line1,line2],['vector kl','action kl'])
+ax12_2 = axes[1,2].twinx()
+line2,*_ = ax12_2.errorbar(np.arange(TOT_EPOCHS),act_kl_arr,yerr=std_act_kl_arr/2,color='red',ecolor='lightgray',elinewidth=2,capsize=0)
+ax12_2.set_ylabel('action kl')
+plt.legend([line1,line2],['vector kl','action kl'])
 
 for ax in axes.flatten():
     ax.ticklabel_format(style='plain', useOffset=False)
@@ -1049,7 +1047,7 @@ plt.subplots_adjust(top=0.9)
 
 path_ = str(Path(__file__).resolve().parents[1]) + '/sc_project/figs/'
 dt = datetime.now().strftime("%d_%m-%H%M%S")
-plt.savefig(path_+'outer_loop_pg_new_v5_'+dt+'.png')
+plt.savefig(path_+'outer_loop_pg_new_v4_ppo_new_'+dt+'.png')
 
 # PLOT TESTING DATA
 # r_init_arr = r_init_arr[-PLOTS:,:] # [PLOTS,TEST_LENGTH]
@@ -1076,7 +1074,7 @@ plt.savefig(path_+'outer_loop_pg_new_v5_'+dt+'.png')
 # # plot timeseries of true/planned reward
 # fig,axis = plt.subplots(2*PLOTS,4,figsize=(15,6*PLOTS)) #9,4x plt.figure(figsize=(12,6))
 # # title__ = f'EPOCHS={TOT_EPOCHS}, VMAPS={VMAPS}, PLAN_ITS={PLAN_ITS}, INIT_STEPS={INIT_STEPS}, TRIAL_LENGTH={TRIAL_LENGTH} \n SIGMA_R={SIGMA_R:.1f}, NEURONS={NEURONS**2}, MODULES={M}, H_P={H_P}, H_R={H_R}'
-# plt.suptitle('outer_loop_pg_new_v5_, '+title__,fontsize=10)
+# plt.suptitle('outer_loop_pg_new_v4_ppo_new_, '+title__,fontsize=10)
 # for i in range(params["PLOTS"]):
 #     ax0 = plt.subplot2grid((2*PLOTS,4),(2*i,0),colspan=2,rowspan=1)
 #     # ax0.set_title('r_t') # v_arr
@@ -1180,10 +1178,10 @@ plt.savefig(path_+'outer_loop_pg_new_v5_'+dt+'.png')
 
 # dt = datetime.now().strftime("%d_%m-%H%M%S")
 # path_ = str(Path(__file__).resolve().parents[1]) + '/sc_project/figs/'
-# plt.savefig(path_ + 'figs_outer_loop_pg_new_v5_' + dt + '.png') # ctrl_v7_(v,r,h normal, r_tp changed)
+# plt.savefig(path_ + 'figs_outer_loop_pg_new_v4_ppo_new_' + dt + '.png') # ctrl_v7_(v,r,h normal, r_tp changed)
 
-save_pkl_sc((actor_opt_state,critic_opt_state,weights_s),'outer_loop_pg_new_v5_')
-save_test_data(other,'outer_loop_pg_new_v5_')
+save_pkl_sc((actor_opt_state,critic_opt_state,weights_s),'outer_loop_pg_new_v4_ppo_new_')
+save_test_data(other,'outer_loop_pg_new_v4_ppo_new_')
 
 # @jit
 # def get_losses(r_to_go,adv_arr,adv_norm,lp_arr,r_arr,rt_arr,act_ind_arr,vec_kl_arr,act_kl_arr,pos_arr,dot_arr,params):
