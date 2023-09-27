@@ -555,8 +555,8 @@ import matplotlib.pyplot as plt
 
 #     return A, V
 
-k = rnd.PRNGKey(0)
-keys = rnd.split(k,2)
+# k = rnd.PRNGKey(0)
+# keys = rnd.split(k,2)
 
 # # # Example usage:
 # # N = 1
@@ -585,31 +585,31 @@ keys = rnd.split(k,2)
 #     print('A_inner=',A_inner,A_inner.shape)
 #     print('A_outer=',A_outer,A_outer.shape)
 
-def gen_sc(keys,MODULES,ACTION_FRAC):
-    M = (MODULES-1)//(1/ACTION_FRAC)
-    vec_range = jnp.arange(MODULES**2)
-    x = jnp.arange(-M,M+1)
-    y = jnp.arange(-M,M+1)[::-1]
-    xv,yv = jnp.meshgrid(x,y)
-    A_full = jnp.vstack([xv.flatten(),yv.flatten()])
+# def gen_sc(keys,MODULES,ACTION_FRAC):
+#     M = (MODULES-1)//(1/ACTION_FRAC)
+#     vec_range = jnp.arange(MODULES**2)
+#     x = jnp.arange(-M,M+1)
+#     y = jnp.arange(-M,M+1)[::-1]
+#     xv,yv = jnp.meshgrid(x,y)
+#     A_full = jnp.vstack([xv.flatten(),yv.flatten()])
 
-    inner_mask = (jnp.abs(xv) <= M//2) & (jnp.abs(yv) <= M//2) # (all above just to create boolean mask, to select 'inner' indices)
-    print('inner_mask=',inner_mask.flatten())
-    A_inner_ind = vec_range[inner_mask.flatten()]
-    A_outer_ind = vec_range[~inner_mask.flatten()]
-    A_inner_perm = rnd.permutation(keys[0],A_inner_ind)
-    A_outer_perm = rnd.permutation(keys[1],A_outer_ind)
-    ID_ARR = jnp.concatenate((A_inner_perm,A_outer_perm),axis=0)
+#     inner_mask = (jnp.abs(xv) <= M//2) & (jnp.abs(yv) <= M//2) # (all above just to create boolean mask, to select 'inner' indices)
+#     print('inner_mask=',inner_mask.flatten())
+#     A_inner_ind = vec_range[inner_mask.flatten()]
+#     A_outer_ind = vec_range[~inner_mask.flatten()]
+#     A_inner_perm = rnd.permutation(keys[0],A_inner_ind)
+#     A_outer_perm = rnd.permutation(keys[1],A_outer_ind)
+#     ID_ARR = jnp.concatenate((A_inner_perm,A_outer_perm),axis=0)
 
-    VEC_ARR = A_full[:,ID_ARR]
-    H1VEC_ARR = jnp.eye(MODULES**2) # [:,ID_ARR]
-    SC = (ID_ARR,VEC_ARR,H1VEC_ARR)
-    return SC
+#     VEC_ARR = A_full[:,ID_ARR]
+#     H1VEC_ARR = jnp.eye(MODULES**2) # [:,ID_ARR]
+#     SC = (ID_ARR,VEC_ARR,H1VEC_ARR)
+#     return SC
 
-(ID_ARR,VEC_ARR,H1VEC_ARR) = gen_sc(keys,5,0.5)
-print('ID_ARR=',ID_ARR,ID_ARR.shape)
-print('VEC_ARR=',VEC_ARR,VEC_ARR.shape)
-print('H1VEC_ARR=',H1VEC_ARR,H1VEC_ARR.shape)
+# (ID_ARR,VEC_ARR,H1VEC_ARR) = gen_sc(keys,5,0.5)
+# print('ID_ARR=',ID_ARR,ID_ARR.shape)
+# print('VEC_ARR=',VEC_ARR,VEC_ARR.shape)
+# print('H1VEC_ARR=',H1VEC_ARR,H1VEC_ARR.shape)
 
 # MODULES = 17 # (4*N+1)
 # M = MODULES**2
@@ -707,40 +707,40 @@ print('H1VEC_ARR=',H1VEC_ARR,H1VEC_ARR.shape)
 # # plt.colorbar(label='Weights')
 # plt.show()
 
-def gen_sc__(keys,MODULES,ACTION_SPACE,PLAN_SPACE):
-    index_range = jnp.arange(MODULES**2)
-    x = jnp.linspace(-PLAN_SPACE,PLAN_SPACE,MODULES)
-    y = jnp.linspace(-PLAN_SPACE,PLAN_SPACE,MODULES)[::-1]
-    xv,yv = jnp.meshgrid(x,y)
-    print('xv=',xv,'yv=',yv,'xv.shape=',xv.shape,'yv.shape=',yv.shape)
-    A_full = jnp.vstack([xv.flatten(),yv.flatten()])
+# def gen_sc__(keys,MODULES,ACTION_SPACE,PLAN_SPACE):
+#     index_range = jnp.arange(MODULES**2)
+#     x = jnp.linspace(-PLAN_SPACE,PLAN_SPACE,MODULES)
+#     y = jnp.linspace(-PLAN_SPACE,PLAN_SPACE,MODULES)[::-1]
+#     xv,yv = jnp.meshgrid(x,y)
+#     print('xv=',xv,'yv=',yv,'xv.shape=',xv.shape,'yv.shape=',yv.shape)
+#     A_full = jnp.vstack([xv.flatten(),yv.flatten()])
 
-    inner_mask = (jnp.abs(xv) <= ACTION_SPACE) & (jnp.abs(yv) <= ACTION_SPACE)
-    print('s,f=',inner_mask.shape,inner_mask.flatten().shape,inner_mask)
-    A_inner_ind = index_range[inner_mask.flatten()]
-    A_outer_ind = index_range[~inner_mask.flatten()]
-    A_inner_perm = rnd.permutation(keys[0],A_inner_ind)
-    A_outer_perm = rnd.permutation(keys[1],A_outer_ind)
-    ID_ARR = jnp.concatenate((A_inner_perm,A_outer_perm),axis=0)
+#     inner_mask = (jnp.abs(xv) <= ACTION_SPACE) & (jnp.abs(yv) <= ACTION_SPACE)
+#     print('s,f=',inner_mask.shape,inner_mask.flatten().shape,inner_mask)
+#     A_inner_ind = index_range[inner_mask.flatten()]
+#     A_outer_ind = index_range[~inner_mask.flatten()]
+#     A_inner_perm = rnd.permutation(keys[0],A_inner_ind)
+#     A_outer_perm = rnd.permutation(keys[1],A_outer_ind)
+#     ID_ARR = jnp.concatenate((A_inner_perm,A_outer_perm),axis=0)
 
-    VEC_ARR = A_full[:,ID_ARR]
-    H1VEC_ARR = jnp.eye(MODULES**2) # [:,ID_ARR]
-    SC = (ID_ARR,VEC_ARR,H1VEC_ARR)
-    return SC
+#     VEC_ARR = A_full[:,ID_ARR]
+#     H1VEC_ARR = jnp.eye(MODULES**2) # [:,ID_ARR]
+#     SC = (ID_ARR,VEC_ARR,H1VEC_ARR)
+#     return SC
 
-sc = gen_sc__(keys,7,(1/4)*(jnp.sqrt(2)/2)*jnp.pi,(3/8)*(jnp.sqrt(2)/2)*jnp.pi)
-print(sc[0].shape,sc[1].shape,sc[2].shape)
-print('vec_arr=',sc[1],'h1vec_arr=',sc[2])
+# sc = gen_sc__(keys,7,(1/4)*(jnp.sqrt(2)/2)*jnp.pi,(3/8)*(jnp.sqrt(2)/2)*jnp.pi)
+# print(sc[0].shape,sc[1].shape,sc[2].shape)
+# print('vec_arr=',sc[1],'h1vec_arr=',sc[2])
 
-APERTURE = (jnp.sqrt(2)/2)*jnp.pi ###
-NEURONS_FULL = 12 # jnp.int32(NEURONS_AP*(jnp.pi//APERTURE))
-N_F = (NEURONS_FULL**2)
-NEURONS_AP = jnp.int32(jnp.floor(NEURONS_FULL*(APERTURE/jnp.pi))) # 6 # 10
-N_A = (NEURONS_AP**2)
-THETA_FULL = jnp.linspace(-(jnp.pi-jnp.pi/NEURONS_FULL),(jnp.pi-jnp.pi/NEURONS_FULL),NEURONS_FULL)
-THETA_AP = THETA_FULL[NEURONS_FULL//2 - NEURONS_AP//2 : NEURONS_FULL//2 + NEURONS_AP//2]
+# APERTURE = (jnp.sqrt(2)/2)*jnp.pi ###
+# NEURONS_FULL = 12 # jnp.int32(NEURONS_AP*(jnp.pi//APERTURE))
+# N_F = (NEURONS_FULL**2)
+# NEURONS_AP = jnp.int32(jnp.floor(NEURONS_FULL*(APERTURE/jnp.pi))) # 6 # 10
+# N_A = (NEURONS_AP**2)
+# THETA_FULL = jnp.linspace(-(jnp.pi-jnp.pi/NEURONS_FULL),(jnp.pi-jnp.pi/NEURONS_FULL),NEURONS_FULL)
+# THETA_AP = THETA_FULL[NEURONS_FULL//2 - NEURONS_AP//2 : NEURONS_FULL//2 + NEURONS_AP//2]
 
-print('AP=',APERTURE,'THETA_FULL=',THETA_FULL,'THETA_AP=',THETA_AP)
+# print('AP=',APERTURE,'THETA_FULL=',THETA_FULL,'THETA_AP=',THETA_AP)
 
 def gen_sc(keys,MODULES,ACTION_SPACE,PLAN_SPACE):
     index_range = jnp.arange(MODULES**2)
@@ -761,28 +761,229 @@ def gen_sc(keys,MODULES,ACTION_SPACE,PLAN_SPACE):
     SC = (ID_ARR,VEC_ARR,H1VEC_ARR)
     return SC
 
-def gen_timeseries(SC,pos_0,dot_0,dot_vec,samples,step_array):
-    ID_ARR,VEC_ARR,H1VEC_ARR = SC
-    h1vec_arr = H1VEC_ARR[:,samples]
-    vec_arr = VEC_ARR[:,samples]
-    cum_vecs = jnp.cumsum(vec_arr,axis=1)
-    pos_1_end = (pos_0+cum_vecs.T).T
-    dot_1_end = (dot_0+jnp.outer(dot_vec,step_array).T).T
-    pos_arr = jnp.concatenate((pos_0.reshape(2,1),pos_1_end),axis=1)
-    dot_arr = jnp.concatenate((dot_0.reshape(2,1),dot_1_end),axis=1)
-    return pos_arr,dot_arr,h1vec_arr,vec_arr
+# def gen_timeseries(SC,pos_0,dot_0,dot_vec,samples,step_array):
+#     ID_ARR,VEC_ARR,H1VEC_ARR = SC
+#     h1vec_arr = H1VEC_ARR[:,samples]
+#     vec_arr = VEC_ARR[:,samples]
+#     cum_vecs = jnp.cumsum(vec_arr,axis=1)
+#     pos_1_end = (pos_0+cum_vecs.T).T
+#     dot_1_end = (dot_0+jnp.outer(dot_vec,step_array).T).T
+#     pos_arr = jnp.concatenate((pos_0.reshape(2,1),pos_1_end),axis=1)
+#     dot_arr = jnp.concatenate((dot_0.reshape(2,1),dot_1_end),axis=1)
+#     return pos_arr,dot_arr,h1vec_arr,vec_arr
 
-SC = gen_sc(keys,7,(1/4)*(jnp.sqrt(2)/2)*jnp.pi,(3/8)*(jnp.sqrt(2)/2)*jnp.pi)
-pa,da,h1v,va = gen_timeseries(SC,jnp.array([0.,0.]),jnp.array([1.,1.]),jnp.array([0.5,0.5]),rnd.randint(keys[0],shape=(19,),minval=0,maxval=9),jnp.arange(1,20))
-print('pa=',pa,'da=',da,'h1v=',h1v,'va=',va)
+# SC = gen_sc(keys,7,(1/4)*(jnp.sqrt(2)/2)*jnp.pi,(3/8)*(jnp.sqrt(2)/2)*jnp.pi)
+# pa,da,h1v,va = gen_timeseries(SC,jnp.array([0.,0.]),jnp.array([1.,1.]),jnp.array([0.5,0.5]),rnd.randint(keys[0],shape=(19,),minval=0,maxval=9),jnp.arange(1,20))
+# print('pa=',pa,'da=',da,'h1v=',h1v,'va=',va)
 
-def get_inner_activation_indices(N, x):
-    inner_N = jnp.int32(N * x) # Length of one side of the central region
-    start_idx = (N - inner_N) // 2 # Starting index
-    end_idx = start_idx + inner_N # Ending index
-    row_indices, col_indices = jnp.meshgrid(jnp.arange(start_idx, end_idx), jnp.arange(start_idx, end_idx))
-    flat_indices = jnp.ravel_multi_index((row_indices.flatten(), col_indices.flatten()), (N, N))
-    return flat_indices
-flat_indices = get_inner_activation_indices(4,0.5)
-ind_take = jnp.take(jnp.arange(32),flat_indices)
-print('INNER=',flat_indices,ind_take,ind_take.shape)
+# def get_inner_activation_indices(N, x):
+#     inner_N = jnp.int32(N * x) # Length of one side of the central region
+#     start_idx = (N - inner_N) // 2 # Starting index
+#     end_idx = start_idx + inner_N # Ending index
+#     row_indices, col_indices = jnp.meshgrid(jnp.arange(start_idx, end_idx), jnp.arange(start_idx, end_idx))
+#     flat_indices = jnp.ravel_multi_index((row_indices.flatten(), col_indices.flatten()), (N, N))
+#     return flat_indices
+# flat_indices = get_inner_activation_indices(4,0.5)
+# ind_take = jnp.take(jnp.arange(32),flat_indices)
+# print('INNER=',flat_indices,ind_take,ind_take.shape)
+
+import jax
+import jax.numpy as jnp
+from jax import random as rnd
+
+# def gen_binary_timeseries(keys, N, switch_prob, K): # new weird
+#     ts_init = jnp.zeros(N)  # start with 0s
+    
+#     def body_fn(i, carry):
+#         ts, count_ones, keys = carry
+        
+#         # Function to execute if the current element is 0.
+#         true_fn = lambda _: (jnp.int32(rnd.bernoulli(keys[i], p=switch_prob)), 0)
+        
+#         # Function to execute if the current element is 1.
+#         false_fn = lambda _: (jnp.int32(rnd.bernoulli(keys[i], p=1-switch_prob)), count_ones + 1)
+        
+#         # Determine the value and count to set for the next element.
+#         next_val, count_ones_next = jax.lax.cond(ts[i] == 0, true_fn, false_fn, None)
+            
+#         def set_k_zeros_true_fn(_):
+#             return ts.at[i + 1:i + K + 1].set(0), i + K
+        
+#         def set_k_zeros_false_fn(_):
+#             def set_one_true_fn(_):
+#                 return ts.at[i + 1].set(next_val), i + 1
+#             def set_one_false_fn(_):
+#                 return ts, i  # do nothing, return ts and i as is.
+#             return jax.lax.cond(i + 1 < N, set_one_true_fn, set_one_false_fn, None)
+        
+#         ts, i = jax.lax.cond((next_val == 0) & (i + K < N), set_k_zeros_true_fn, set_k_zeros_false_fn, None)
+        
+#         return (ts, count_ones_next, keys)
+
+    
+#     # Starting from the second element, loop until the end of the array.
+#     result, _, _ = jax.lax.fori_loop(1, N, body_fn, (ts_init, 0, keys))
+    
+#     return result
+
+def gen_sc(keys,MODULES,ACTION_SPACE,PLAN_SPACE):
+    index_range = jnp.arange(MODULES**2)
+    x = jnp.linspace(-PLAN_SPACE,PLAN_SPACE,MODULES)
+    y = jnp.linspace(-PLAN_SPACE,PLAN_SPACE,MODULES)[::-1]
+    xv,yv = jnp.meshgrid(x,y)
+    A_full = jnp.vstack([xv.flatten(),yv.flatten()])
+
+    inner_mask = (jnp.abs(xv) <= ACTION_SPACE) & (jnp.abs(yv) <= ACTION_SPACE)
+    A_inner_ind = index_range[inner_mask.flatten()]
+    A_outer_ind = index_range[~inner_mask.flatten()]
+    A_inner_perm = rnd.permutation(keys[0],A_inner_ind)
+    A_outer_perm = rnd.permutation(keys[1],A_outer_ind)
+    ID_ARR = jnp.concatenate((A_inner_perm,A_outer_perm),axis=0)
+
+    VEC_ARR = A_full[:,ID_ARR]
+    H1VEC_ARR = jnp.eye(MODULES**2) # [:,ID_ARR]
+    SC = (ID_ARR,VEC_ARR,H1VEC_ARR)
+    return SC
+
+def gen_binary_timeseries(keys, N, switch_prob, K):
+    ts_list = [0]  # Start with a zero
+    current_val = 0  # Initial value
+    i = 0  # Initialize index
+    
+    while i < N - 1:  # Continue until the end of the array
+        if rnd.uniform(keys[i]) < switch_prob:  # Decide whether to switch the value
+            current_val = 1 - current_val  # Switch the value
+        
+        if current_val == 0:  # If current value is 0 and there is enough space
+            ts_list.extend([0] * (K))  # Insert K zeros
+            i += K   # Move index K steps forward
+        else:  # If there is space for one more element
+            ts_list.append(current_val)  # Insert current value
+            i += 1  # Move index 1 step forward
+        # else:
+        #     break  # Exit the loop if the end of the array is reached
+            
+    # Convert list to a numpy array, ensuring the length is exactly N
+    ts_array = jnp.array(ts_list[:N], dtype=jnp.int32)
+    return ts_array
+
+# def gen_binary_timeseries(keys, N, switch_prob, max_plan_length): # old
+#     ts_init = jnp.zeros(N)  # start with 0s
+#     if max_plan_length == 0:
+#         return ts_init
+#     def body_fn(i, carry):
+#         ts, count_ones, keys = carry
+#         true_fn = lambda _: (jnp.int32(rnd.bernoulli(keys[i], p=switch_prob)), 0)
+#         def false_fn(_):
+#             return jax.lax.cond(count_ones >= max_plan_length - 1,
+#                                 lambda _: (0, 0), # ts, count_ones
+#                                 lambda _: (jnp.int32(rnd.bernoulli(keys[i], p=1-switch_prob)), count_ones + 1),
+#                                 None)
+#         next_val, count_ones_next = jax.lax.cond(ts[i] == 0, true_fn, false_fn, None)
+#         ts = ts.at[i+1].set(next_val)
+#         i += 1
+#         return (ts, count_ones_next, keys)
+#     result, _, _ = jax.lax.fori_loop(1, N, body_fn, (ts_init, 0, keys))
+#     return result
+
+# def gen_binary_timeseries(keys, N, switch_prob, max_plan_length, K): # new
+#     ts_init = jnp.zeros(N)  # start with 0s
+#     if max_plan_length == 0 or K >= N:
+#         return ts_init
+    
+#     def body_fn(i, carry):
+#         ts, count_ones, keys = carry
+#         end_idx = i + K  # End index for insertion of zeros
+        
+#         def insert_zeros(ts, start, end_idx):
+#             end = jnp.minimum(end_idx, N)  # Ensure we don't exceed the array length
+#             indices = jnp.arange(start, end)
+#             return ts.at[indices].set(0)
+        
+#         true_fn = lambda _: (insert_zeros(ts, i, end_idx), 0)  # Insert K zeros
+#         def false_fn(_):
+#             return jax.lax.cond(
+#                 count_ones >= max_plan_length - 1,
+#                 lambda _: (insert_zeros(ts, i, i+1), 0),  # Insert a single 0
+#                 lambda _: (ts.at[i].set(jnp.int32(rnd.bernoulli(keys[i], p=1-switch_prob))), count_ones + 1),
+#                 None)
+        
+#         ts, count_ones_next = jax.lax.cond(ts[i] == 0, true_fn, false_fn, None)
+#         i = jnp.minimum(i + K, N-1)  # Move the index by K steps, but don't exceed N-1
+#         return (ts, count_ones_next, keys)
+    
+#     result, _, _ = jax.lax.fori_loop(1, N, body_fn, (ts_init, 0, keys))
+#     return result
+
+def gen_timeseries(key, SC, pos_0, dot_0, dot_vec, samples, switch_prob, N, PLAN_RATIO):
+    ID_ARR, VEC_ARR, H1VEC_ARR = SC
+    keys = rnd.split(key, N)
+    binary_series = gen_binary_timeseries(keys, N, switch_prob, PLAN_RATIO)
+    print('binary_series=',binary_series,binary_series.shape)
+    binary_array = jnp.vstack([binary_series, 1 - binary_series]).T
+    h1vec_arr = H1VEC_ARR[:, samples]
+    vec_arr = VEC_ARR[:, samples]
+    def time_step(carry, i):
+        pos_plan, pos, dot = carry
+        # dot_next = dot + dot_vec  # Assuming dot_vec is a globally available vector
+        def true_fn(_):
+            return pos + vec_arr[:, i], pos + vec_arr[:, i], dot + dot_vec
+        def false_fn(_):
+            return pos_plan + vec_arr[:, i], pos, dot + dot_vec
+        pos_plan_next, pos_next, dot_next = jax.lax.cond(binary_series[i] == 0, true_fn, false_fn, None)
+        return (pos_plan_next, pos_next, dot_next), (pos_plan_next, pos_next, dot_next)
+    init_carry = (jnp.array(pos_0), jnp.array(pos_0), jnp.array(dot_0))
+    _, (pos_plan_stacked, pos_stacked, dot_stacked) = jax.lax.scan(time_step, init_carry, jnp.arange(N-1))
+    return binary_array,jnp.concatenate([jnp.reshape(pos_0,(-1,2)),pos_plan_stacked]),jnp.concatenate([jnp.reshape(pos_0,(-1,2)),pos_stacked]),jnp.concatenate([jnp.reshape(dot_0,(-1,2)),dot_stacked]),h1vec_arr,vec_arr # should be 2,N
+
+APERTURE = (1/2)*jnp.pi ###
+NEURONS_FULL = 12 # jnp.int32(NEURONS_AP*(jnp.pi//APERTURE))
+N_F = (NEURONS_FULL**2)
+NEURONS_AP = jnp.int32(jnp.floor(NEURONS_FULL*(APERTURE/jnp.pi))) # 6 # 10
+N_A = (NEURONS_AP**2)
+THETA_FULL = jnp.linspace(-(jnp.pi-jnp.pi/NEURONS_FULL),(jnp.pi-jnp.pi/NEURONS_FULL),NEURONS_FULL)
+THETA_AP = THETA_FULL[NEURONS_FULL//2 - NEURONS_AP//2 : NEURONS_FULL//2 + NEURONS_AP//2]
+N = 120
+switch_prob = 0.2
+max_plan_length = N
+PLAN_RATIO = 10
+MODULES = 9
+
+k = rnd.PRNGKey(1)
+keys = rnd.split(k,N)
+
+SC = gen_sc(keys,MODULES,(1/2)*jnp.pi,(1/2)*jnp.pi)
+
+result = gen_binary_timeseries(keys, N, switch_prob, PLAN_RATIO)
+print(result,len(result))
+
+binary_array,pos_plan_stacked,pos_stacked,dot_stacked,h1vec_arr,vec_arr = gen_timeseries(keys[0],SC,jnp.array([0.,0.]),jnp.array([1.,1.]),jnp.array([0.5,0.5]),rnd.randint(keys[0],shape=(N,),minval=0,maxval=9),switch_prob,N,PLAN_RATIO)
+
+print('binary_array=',binary_array,binary_array.shape)
+print('pos_plan_stacked=',pos_plan_stacked,pos_plan_stacked.shape)
+print('pos_stacked=',pos_stacked,pos_stacked.shape)
+print('dot_stacked=',dot_stacked,dot_stacked.shape)
+print('h1vec_arr=',h1vec_arr,h1vec_arr.shape)
+print('vec_arr=',vec_arr,vec_arr.shape)
+
+norm_pos = jnp.linalg.norm(pos_stacked, axis=1)
+norm_pos_plan = jnp.linalg.norm(pos_plan_stacked, axis=1)
+
+# Create the plot
+plt.figure(figsize=(10, 6))
+
+# Plotting norms
+plt.plot(norm_pos[1:], label="Norm of pos_arr", color='blue')
+plt.plot(norm_pos_plan[1:], label="Norm of pos_plan_arr", color='green')
+
+# Plotting binary time series
+plt.plot(binary_array[:,0] * norm_pos.max(), label="Binary time series", color='red', linestyle='--')
+
+# Additional plot settings
+plt.title(f"Norm of pos_arr and pos_plan_arr, switch_prob={'0.2'}, max_plan_length={''}", fontsize=14)
+plt.xlabel("Time step")
+plt.ylabel("Norm")
+plt.legend()
+plt.grid(True)
+
+plt.show()
