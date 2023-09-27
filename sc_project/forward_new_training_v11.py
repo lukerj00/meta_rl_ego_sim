@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# mGRU
+# GRU
 # change to match v6/v7: plan ratio=10, change timeseries, dot speed to account for this
 # KL term over movement size (instead of small initial movements), and use scheduler to change dot init loc over time
 # remove conditional statement in loop
@@ -28,6 +28,8 @@ import os
 import sys
 import scipy
 import gc
+
+import faulthandler; faulthandler.enable()
 
 def load_(str_):
     path_ = str(Path(__file__).resolve().parents[1]) # .../meta_rl_ego_sim/
@@ -92,7 +94,7 @@ def gen_dot_scheduled(key,VMAPS,N_dot,APERTURE,e):
     lim_0 = APERTURE
     lim_inf = jnp.pi
     ###
-    lim_e = lim_0 + (lim_inf-lim_0)*e # lim_inf
+    lim_e = lim_0 # + (lim_inf-lim_0)*e # lim_inf
     ###
     dot_0 = rnd.uniform(keys[0],shape=(VMAPS,2),minval=-lim_e,maxval=lim_e)#minval=jnp.array([APERTURE/4,APERTURE/4]),maxval=jnp.array([3*APERTURE/4,3*APERTURE/4]))
     # dot_1 = rnd.uniform(keys[1],shape=(VMAPS,1,2),minval=-jnp.pi,maxval=jnp.pi)#minval=jnp.array([APERTURE/4,-APERTURE/4]),maxval=jnp.array([3*APERTURE/4,-3*APERTURE/4]))
@@ -116,12 +118,11 @@ def gen_vectors(MODULES,APERTURE):
     return v
 
 def gen_samples(key,MODULES,ACTION_SPACE,PLANNING_SPACE,INIT_STEPS,TOT_STEPS):###
-    # M_P = (MODULES-1)//2 # (1/ACTION_FRAC)
-    # M_A = jnp.int32(M_P*(ACTION_SPACE/PLANNING_SPACE)) ### FIX (AS/PS=2/3)
-    # init_vals = jnp.arange((2*M_A+1)**2)
-    # main_vals = jnp.arange((2*M_A+1)**2,MODULES**2)
+    M_P = (MODULES-1)//2 # (1/ACTION_FRAC)
+    M_A = jnp.int32(M_P*(ACTION_SPACE/PLANNING_SPACE)) ### FIX (AS/PS=2/3)
+    init_vals = jnp.arange((2*M_A+1)**2)
+    main_vals = jnp.arange((2*M_A+1)**2,MODULES**2)
     keys = rnd.split(key,2)
-
     # init_samples = rnd.choice(keys[0],init_vals,shape=(INIT_STEPS,)) # INIT_STEPS,
     # main_samples = rnd.choice(keys[1],main_vals,shape=(TOT_STEPS-INIT_STEPS-1,))
     # return jnp.concatenate([init_samples,main_samples],axis=0) # init_samples
@@ -163,94 +164,49 @@ def gen_dot_vecs(key,VMAPS,MAX_DOT_SPEED):
     #     mask = jnp.all((-APERTURE/2 <= dot_vecs)&(dot_vecs <= APERTURE/2),axis=1)
     return dot_vecs
 
-# def gen_binary_timeseries(keys, N, switch_prob, max_plan_length):
-#     ts_init = jnp.zeros(N)  # start with 0s
-#     if max_plan_length == 0:
-#         return ts_init
-#     def body_fn(i, carry):
-#         ts, count_ones, keys = carry
-#         true_fn = lambda _: (jnp.int32(rnd.bernoulli(keys[i], p=switch_prob)), 0)
-#         def false_fn(_):
-#             return jax.lax.cond(count_ones >= max_plan_length - 1,
-#                                 lambda _: (0, 0), # ts, count_ones
-#                                 lambda _: (jnp.int32(rnd.bernoulli(keys[i], p=1-switch_prob)), count_ones + 1),
-#                                 None)
-#         next_val, count_ones_next = jax.lax.cond(ts[i] == 0, true_fn, false_fn, None)
-#         ts = ts.at[i+1].set(next_val)
-#         i += 1
-#         return (ts, count_ones_next, keys)
-#     result, _, _ = jax.lax.fori_loop(1, N, body_fn, (ts_init, 0, keys))
-#     return result
+# def gen_binary_timeseries(keys,N,switch_prob,max_plan_length):
+#     ts = [0]  # start with a 0
+#     count_ones = 0
+#     for i in range(1, N):
+#         if ts[i-1] == 0:
+#             ts.append(rnd.bernoulli(keys[i],p=switch_prob))
+#             if ts[i] == 1:
+#                 count_ones = 1
+#         else:
+#             if count_ones > max_plan_length - 1:  # subtract 1 to account for 0-based index
+#                 ts.append(0)
+#                 count_ones = 0
+#             else:
+#                 ts.append(rnd.bernoulli(keys[2*i+1],p=1-switch_prob))
+#                 if ts[i] == 1:
+#                     count_ones += 1
+#                 else:
+#                     count_ones = 0
+#     return jnp.array(ts)
 
-def gen_binary_timeseries(keys, N, switch_prob, K):
-    ts_list = [0]  # Start with a zero
-    current_val = 0  # Initial value
-    i = 0  # Initialize index
-    
-    while i < N - 1:  # Continue until the end of the array
-        if rnd.uniform(keys[i]) < switch_prob:  # Decide whether to switch the value
-            current_val = 1 - current_val  # Switch the value
-        
-        if current_val == 0:  # If current value is 0 and there is enough space
-            ts_list.extend([0] * (K))  # Insert K zeros
-            i += K   # Move index K steps forward
-        else:  # If there is space for one more element
-            ts_list.append(current_val)  # Insert current value
-            i += 1  # Move index 1 step forward
+def gen_binary_timeseries(keys, N, switch_prob, max_plan_length):
+    ts_init = jnp.zeros(N)  # start with 0s
+    if max_plan_length == 0:
+        return ts_init
+    def body_fn(i, carry):
+        ts, count_ones, keys = carry
+        true_fn = lambda _: (jnp.int32(rnd.bernoulli(keys[i], p=switch_prob)), 0)
+        def false_fn(_):
+            return jax.lax.cond(count_ones >= max_plan_length - 1,
+                                lambda _: (0, 0), # ts, count_ones
+                                lambda _: (jnp.int32(rnd.bernoulli(keys[i], p=1-switch_prob)), count_ones + 1),
+                                None)
+        next_val, count_ones_next = jax.lax.cond(ts[i] == 0, true_fn, false_fn, None)
+        ts = ts.at[i+1].set(next_val)
+        i += 1
+        return (ts, count_ones_next, keys)
+    result, _, _ = jax.lax.fori_loop(1, N, body_fn, (ts_init, 0, keys))
+    return result
 
-    # Convert list to a numpy array, ensuring the length is exactly N
-    ts_array = jnp.array(ts_list[:N], dtype=jnp.int32)
-    return ts_array
-
-import numpy as np
-
-def gen_binary_array(N, T, switch_prob, P):
-    large_array = np.zeros((N, T), dtype=np.int32)
-    for idx in range(N):
-        ts_list = [0]  # Start with a zero
-        current_val = 0  # Initial value
-        i = 0  # Initialize index
-        
-        while i < T - 1:  # Continue until the end of the array
-            if np.random.uniform() < switch_prob:  # Decide whether to switch the value
-                current_val = 1 - current_val  # Switch the value
-            
-            if current_val == 0 and i + P < T:  # If current value is 0 and there is enough space
-                ts_list.extend([0] * (P))  # Insert K zeros
-                i += P   # Move index K steps forward
-            elif i + 1 < T:  # If there is space for one more element
-                ts_list.append(current_val)  # Insert current value
-                i += 1  # Move index 1 step forward
-
-        # Fill the corresponding row in large_array
-        large_array[idx, :] = ts_list[:T]
-    return jnp.array(large_array)
-
-# def gen_timeseries(key, SC, pos_0, dot_0, dot_vec, samples, switch_prob, N, max_plan_length, PLAN_RATIO):
-#     ID_ARR, VEC_ARR, H1VEC_ARR = SC
-#     keys = rnd.split(key, N)
-#     binary_series = gen_binary_timeseries(keys, N, switch_prob, max_plan_length)
-#     binary_array = jnp.vstack([binary_series, 1 - binary_series])
-#     h1vec_arr = H1VEC_ARR[:, samples]
-#     vec_arr = VEC_ARR[:, samples]
-#     def time_step(carry, i):
-#         pos_plan, pos, dot = carry
-#         # dot_next = dot + dot_vec  # Assuming dot_vec is a globally available vector
-#         def true_fn(_):
-#             return pos + vec_arr[:, i-1], pos + vec_arr[:, i-1], dot + dot_vec
-#         def false_fn(_):
-#             return pos_plan + vec_arr[:, i-1], pos, dot + dot_vec
-#         pos_plan_next, pos_next, dot_next = jax.lax.cond(binary_series[i] == 0, true_fn, false_fn, None)
-#         return (pos_plan_next, pos_next, dot_next), (pos_plan_next, pos_next, dot_next)
-#     init_carry = (jnp.array(pos_0), jnp.array(pos_0), jnp.array(dot_0))
-#     _, (pos_plan_stacked, pos_stacked, dot_stacked) = jax.lax.scan(time_step, init_carry, jnp.arange(1,N))
-#     return binary_array.T,jnp.concatenate([jnp.reshape(pos_0,(1,2)),pos_plan_stacked]).T,jnp.concatenate([jnp.reshape(pos_0,(1,2)),pos_stacked]).T,jnp.concatenate([jnp.reshape(dot_0,(1,2)),dot_stacked]).T,h1vec_arr,vec_arr # should be 2,N
-
-def gen_timeseries(key, SC, pos_0, dot_0, dot_vec, samples, switch_prob, N, PLAN_RATIO, binary_series):
+def gen_timeseries(key, SC, pos_0, dot_0, dot_vec, samples, switch_prob, N, max_plan_length, PLAN_RATIO):
     ID_ARR, VEC_ARR, H1VEC_ARR = SC
     keys = rnd.split(key, N)
-    # binary_series = gen_binary_timeseries(keys[0], N, switch_prob, PLAN_RATIO)
-    # print('binary_series=',binary_series,binary_series.shape)
+    binary_series = gen_binary_timeseries(keys, N, switch_prob, max_plan_length)
     binary_array = jnp.vstack([binary_series, 1 - binary_series])
     h1vec_arr = H1VEC_ARR[:, samples]
     vec_arr = VEC_ARR[:, samples]
@@ -258,14 +214,50 @@ def gen_timeseries(key, SC, pos_0, dot_0, dot_vec, samples, switch_prob, N, PLAN
         pos_plan, pos, dot = carry
         # dot_next = dot + dot_vec  # Assuming dot_vec is a globally available vector
         def true_fn(_):
-            return pos + vec_arr[:, i], pos + vec_arr[:, i], dot + dot_vec
+            return pos + vec_arr[:, i-1], pos + vec_arr[:, i-1], dot + PLAN_RATIO*dot_vec
         def false_fn(_):
-            return pos_plan + vec_arr[:, i], pos, dot + dot_vec
+            return pos_plan + vec_arr[:, i-1], pos, dot + dot_vec
         pos_plan_next, pos_next, dot_next = jax.lax.cond(binary_series[i] == 0, true_fn, false_fn, None)
         return (pos_plan_next, pos_next, dot_next), (pos_plan_next, pos_next, dot_next)
     init_carry = (jnp.array(pos_0), jnp.array(pos_0), jnp.array(dot_0))
-    _, (pos_plan_stacked, pos_stacked, dot_stacked) = jax.lax.scan(time_step, init_carry, jnp.arange(N-1))
-    return binary_array,jnp.concatenate([jnp.reshape(pos_0,(-1,2)),pos_plan_stacked]).T,jnp.concatenate([jnp.reshape(pos_0,(-1,2)),pos_stacked]).T,jnp.concatenate([jnp.reshape(dot_0,(-1,2)),dot_stacked]).T,h1vec_arr,vec_arr # should be 2,N
+    _, (pos_plan_stacked, pos_stacked, dot_stacked) = jax.lax.scan(time_step, init_carry, jnp.arange(1,N))
+    return binary_array.T,jnp.concatenate([jnp.reshape(pos_0,(1,2)),pos_plan_stacked]).T,jnp.concatenate([jnp.reshape(pos_0,(1,2)),pos_stacked]).T,jnp.concatenate([jnp.reshape(dot_0,(1,2)),dot_stacked]).T,h1vec_arr,vec_arr # should be 2,N
+
+# def gen_timeseries(keys, SC, pos_0, dot_0, dot_vec, samples, switch_prob, N, max_plan_length):
+#     ID_ARR, VEC_ARR, H1VEC_ARR = SC
+#     binary_series = gen_binary_timeseries(keys, N+1, switch_prob, max_plan_length)
+#     binary_array = jnp.vstack([binary_series,1-binary_series])
+#     h1vec_arr = H1VEC_ARR[:, samples]
+#     vec_arr = VEC_ARR[:, samples]
+#     pos_plan_arr = np.zeros((2, N+1))
+#     pos_arr = np.zeros((2, N+1))
+#     dot_arr = np.zeros((2, N+1))
+#     pos_plan_arr[:, 0] = pos_0
+#     pos_arr[:, 0] = pos_0
+#     dot_arr[:, 0] = dot_0
+#     for i in range(1, N+1):
+#         dot_arr[:, i] = dot_arr[:, i-1] + dot_vec
+#         if binary_series[i] == 0:
+#             if binary_series[i-1] == 1:  # Transition from 1 to 0
+#                 pos_plan_arr[:, i] = pos_arr[:, i-1]
+#             pos_arr[:, i] = pos_arr[:, i-1] + vec_arr[:, i-1]
+#             pos_plan_arr[:, i] = pos_arr[:, i]
+#         else:
+#             pos_arr[:, i] = pos_arr[:, i-1]
+#             pos_plan_arr[:, i] = pos_plan_arr[:, i-1] + vec_arr[:, i-1]
+#     return binary_array,jnp.array(pos_plan_arr),jnp.array(pos_arr),jnp.array(dot_arr),jnp.array(h1vec_arr),jnp.array(vec_arr)
+
+# @jit
+# def gen_timeseries(SC,pos_0,dot_0,dot_vec,samples,step_array,switch_prob,N):
+#     ID_ARR,VEC_ARR,H1VEC_ARR = SC
+#     h1vec_arr = H1VEC_ARR[:,samples]
+#     vec_arr = VEC_ARR[:,samples]
+#     cum_vecs = jnp.cumsum(vec_arr,axis=1)
+#     pos_1_end = (pos_0+cum_vecs.T).T
+#     dot_1_end = (dot_0+jnp.outer(dot_vec,step_array).T).T
+#     pos_arr = jnp.concatenate((pos_0.reshape(2,1),pos_1_end),axis=1)
+#     dot_arr = jnp.concatenate((dot_0.reshape(2,1),dot_1_end),axis=1)
+#     return pos_arr,dot_arr,h1vec_arr,vec_arr
 
 # @jit
 def get_inner_activation_indices(N, K):
@@ -297,19 +289,28 @@ def plan(h1vec,v_0,h_0,pm_t,p_weights,PLAN_ITS): # self,hp_t_1,pos_t_1,v_t_1,r_t
         return RNN_forward(carry)
     def RNN_forward(carry):
         p_weights,h1vec,v_0,pm_t,h_t_1 = carry
-        W_h1_f = p_weights["W_h1_f"]
+        W_h1_z = p_weights["W_h1_z"]
+        W_h1_r = p_weights["W_h1_r"]
         W_h1_hh = p_weights["W_h1_hh"]
-        W_p_f = p_weights["W_p_f"]
+        W_p_z = p_weights["W_p_z"]
+        W_p_r = p_weights["W_p_r"]
         W_p_hh = p_weights["W_p_hh"]
-        W_m_f = p_weights["W_m_f"]
+        W_m_z = p_weights["W_m_z"]
+        W_m_r = p_weights["W_m_r"]
         W_m_hh = p_weights["W_m_hh"]
-        U_f = p_weights["U_f"]
+        U_z = p_weights["U_z"]
+        U_r = p_weights["U_r"]
         U_hh = p_weights["U_hh"]
-        b_f = p_weights["b_f"]
+        b_z = p_weights["b_z"]
+        b_r = p_weights["b_r"]
         b_hh = p_weights["b_hh"]
-        f_t = jax.nn.sigmoid(W_p_f*pm_t[0] + W_m_f*pm_t[1] + jnp.matmul(W_h1_f,h1vec) + jnp.matmul(U_f,h_t_1) + b_f)
-        hhat_t = jax.nn.tanh(W_p_hh*pm_t[0] + W_m_hh*pm_t[1] + jnp.matmul(W_h1_hh,h1vec) + jnp.matmul(U_hh,jnp.multiply(f_t,h_t_1)) + b_hh)
-        h_t = jnp.multiply((1-f_t),h_t_1) + jnp.multiply(f_t,hhat_t)
+        z_t = jax.nn.sigmoid(W_p_z*pm_t[0] + W_m_z*pm_t[1] + jnp.matmul(W_h1_z,h1vec) + jnp.matmul(U_z,h_t_1) + b_z)
+        r_t = jax.nn.sigmoid(W_p_r*pm_t[0] + W_m_r*pm_t[1] + jnp.matmul(W_h1_r,h1vec) + jnp.matmul(U_r,h_t_1) + b_r)
+        hhat_t = jax.nn.tanh(W_p_hh*pm_t[0] + W_m_hh*pm_t[1] + jnp.matmul(W_h1_hh,h1vec) + jnp.matmul(U_hh,jnp.multiply(r_t,h_t_1)) + b_hh)
+        h_t = jnp.multiply((1-z_t),h_t_1) + jnp.multiply(z_t,hhat_t)
+        # f_t = jax.nn.sigmoid(W_p_f*pm_t[0] + W_m_f*pm_t[1] + jnp.matmul(W_h1_f,h1vec) + jnp.matmul(U_f,h_t_1) + b_f)
+        # hhat_t = jax.nn.tanh(W_p_hh*pm_t[0] + W_m_hh*pm_t[1] + jnp.matmul(W_h1_hh,h1vec) + jnp.matmul(U_hh,jnp.multiply(f_t,h_t_1)) + b_hh)
+        # h_t = jnp.multiply((1-f_t),h_t_1) + jnp.multiply(f_t,hhat_t)
         return (p_weights,h1vec,v_0,pm_t,h_t),None
     W_full = p_weights["W_full"]
     W_ap = p_weights["W_ap"]
@@ -357,7 +358,7 @@ def plan(h1vec,v_0,h_0,pm_t,p_weights,PLAN_ITS): # self,hp_t_1,pos_t_1,v_t_1,r_t
 
 def loop_body(carry, current_input):
     h_t_1, v_t_1_ap, tot_loss_v, p_weights = carry
-    sample, h1vec_t, pm_t, dot_t, pos_plan_t = current_input
+    t, sample, h1vec_t, pm_t, dot_t, pos_plan_t = current_input
     v_pred_ap, v_pred_full, h_t = plan(h1vec_t, v_t_1_ap, h_t_1, pm_t, p_weights, params["PLAN_ITS"])
     v_t_ap = neuron_act_noise(sample, params["THETA_AP"], params["SIGMA_A"], params["SIGMA_N"], dot_t, pos_plan_t)
     v_t_full = neuron_act_noise(sample, params["THETA_FULL"], params["SIGMA_A"], params["SIGMA_N"], dot_t, pos_plan_t)
@@ -369,14 +370,14 @@ def loop_body(carry, current_input):
     # v_t_1_ap = jax.lax.cond(pm_t[0] == 1, lambda _: v_pred_ap, lambda _: v_t_ap, None)
     return (h_t, v_t_1_ap, tot_loss_v, p_weights), (v_pred_full, v_t_full, loss_v, loss_c)
 
-def body_fnc(SC, p_weights, params, key, pos_0, dot_0, dot_vec, h_0, samples, binary_series, e):
-    pm_arr, pos_plan_arr, pos_arr, dot_arr, h1vec_arr, vec_arr = gen_timeseries(key, SC, pos_0, dot_0, dot_vec, samples, params["SWITCH_PROB"], params["TOT_STEPS"], params["PLAN_RATIO"], binary_series)
+def body_fnc(SC, p_weights, params, key, pos_0, dot_0, dot_vec, h_0, samples, e):
+    pm_arr, pos_plan_arr, pos_arr, dot_arr, h1vec_arr, vec_arr = gen_timeseries(key, SC, pos_0, dot_0, dot_vec, samples, params["SWITCH_PROB"], params["TOT_STEPS"], params["MAX_PLAN_LENGTH"], params["PLAN_RATIO"])
     # loss_c_stacked = jnp.zeros(params["TOT_STEPS"])
     v_0_ap = neuron_act_noise(samples[0], params["THETA_AP"], params["SIGMA_A"], params["SIGMA_N"], dot_arr[:, 0], pos_plan_arr[:, 0])
     tot_loss_v = 0
     v_t_1_full = neuron_act_noise(samples[0], params["THETA_FULL"], params["SIGMA_A"], params["SIGMA_N"], dot_arr[:, 0], pos_plan_arr[:, 0])
     initial_carry = (h_0, v_0_ap, tot_loss_v, p_weights)
-    sequence_inputs = (samples[:-1], h1vec_arr[:, :-1].T, pm_arr[:,:-1].T, dot_arr[:, 1:].T, pos_plan_arr[:, 1:].T) # jnp.arange(params["TOT_STEPS"] - 1), 
+    sequence_inputs = (jnp.arange(1, params["TOT_STEPS"]), samples[1: params["TOT_STEPS"]], h1vec_arr[:, :-1].T, pm_arr[1:,:], dot_arr[:, 1:].T, pos_plan_arr[:, 1:].T)
     
     final_carry, outputs = jax.lax.scan(loop_body, initial_carry, sequence_inputs)
     h_t, v_t_1_ap, tot_loss_v, p_weights = final_carry
@@ -402,7 +403,6 @@ def forward_model_loop(SC,weights,params):
     ###
     opt_state = optimizer.init(p_weights)
     ###
-    binary_array = gen_binary_array(10000, params["TOT_STEPS"], params["SWITCH_PROB"], params["PLAN_RATIO"])
     print("Starting training")
     for e in range(T):
         new_params(params,e) # 'params = new_params(params,e)'
@@ -412,10 +412,9 @@ def forward_model_loop(SC,weights,params):
         pos_0 = params["POS_0"] #[e,:,:] ## (change) same pos_0 across vmaps
         h_0 = params["HP_0"] #[e,:,:]
         key = params["KEY"]
-        binary_series_vmap = binary_array[jax.random.choice(rnd.PRNGKey(e), binary_array.shape[0], shape=(params["VMAPS"],), replace=False)]
         val_grad = jax.value_and_grad(body_fnc,argnums=1,allow_int=True,has_aux=True)
-        val_grad_vmap = jax.vmap(val_grad,in_axes=(None,None,None,0,0,0,0,0,0,0,None),out_axes=(0,0))
-        (loss,aux),grads = val_grad_vmap(SC,p_weights,params,key,pos_0,dot_0,dot_vec,h_0,samples,binary_series_vmap,e) # val_grad_vmap ,,v_0
+        val_grad_vmap = jax.vmap(val_grad,in_axes=(None,None,None,0,0,0,0,0,0,None),out_axes=(0,0))
+        (loss,aux),grads = val_grad_vmap(SC,p_weights,params,key,pos_0,dot_0,dot_vec,h_0,samples,e) # val_grad_vmap ,,v_0
         v_pred_arr,v_t_arr,pos_plan_arr,pos_arr,dot_arr,pm_arr,loss_v_arr_,loss_c_arr_ = aux # [VMAPS,STEPS,N]x2,[VMAPS,STEPS,2]x3,[VMAPS,STEPS]x2 (final timestep)
         grads_ = jax.tree_util.tree_map(lambda x: jnp.mean(x,axis=0),grads)
         opt_update,opt_state = optimizer.update(grads_,opt_state,p_weights)
@@ -436,9 +435,9 @@ def forward_model_loop(SC,weights,params):
         # print("std_d={}",jnp.std(loss_d_arr)/jnp.sqrt(params["VMAPS"]))
 
         # if e>0 and (e % 50) == 0:
-        #     print("*clearing cache*")
-        #     jax.clear_caches()
-
+            # print("*clearing cache*")
+            # jax.clear_caches()
+            
         #     print("v_pred_arr.shape=",v_pred_arr.shape)
         #     print("v_t_arr.shape=",v_t_arr.shape)
         #     print("pos_arr.shape=",pos_arr.shape)
@@ -451,20 +450,20 @@ def forward_model_loop(SC,weights,params):
     return arrs,aux # [VMAPS,STEPS,N]x2,[VMAPS,STEPS,2]x3,[VMAPS,STEPS]x2,..
 
 # hyperparams
-TOT_EPOCHS = 2000 #10000 # 1000 #250000
+TOT_EPOCHS = 20000 #10000 # 1000 #250000
 EPOCHS = 1
 INIT_TRAIN_EPOCHS = 500000 ### epochs until 'phase 2'
 PLOTS = 3
 # LOOPS = TOT_EPOCHS//EPOCHS
-VMAPS = 300 # 800,500
+VMAPS = 500 # 800,500
 PLAN_ITS = 10 # 10,8,5
 INIT_STEPS = 0 # (taking loss over all steps so doesnt matter)
-TOT_STEPS = 80 # steps in rnn-time; trajectories pre-computed so dont need refac period
+TOT_STEPS = 30 # steps in rnn-time; trajectories pre-computed so dont need refac period
 PRED_STEPS = TOT_STEPS-INIT_STEPS
 PLAN_RATIO = 10
 LR = 0.005 # 0.003,,0.0001
 WD = 0.0001 # 0.0001
-H = 300 # 500,300
+H = 400 # 500,300
 INIT = 2 # 0.5,0.1
 LAMBDA_D = 1 # 1,0.1
 LAMBDA_C = 10
@@ -474,7 +473,7 @@ ke = rnd.split(rnd.PRNGKey(0),10)
 MODULES = 9 # 17 # (3*N+1)
 M = MODULES**2
 APERTURE = (1/2)*jnp.pi # (3/5)*jnp.pi # (jnp.sqrt(2)/2)*jnp.pi ### unconstrained
-ACTION_FRAC = 1/2 # CHANGED FROM 1/2... unconstrained
+ACTION_FRAC = 1/2 # 1 CHANGED FROM 1/2... unconstrained
 ACTION_SPACE = ACTION_FRAC*APERTURE # 'AGENT_SPEED'
 PLAN_FRAC_REL = 1 #... 3/2
 PLAN_SPACE = PLAN_FRAC_REL*ACTION_SPACE
@@ -529,15 +528,20 @@ ki = rnd.split(rnd.PRNGKey(1),num=50)
 # W_m0 = jnp.sqrt(INIT/(H))*rnd.normal(ki[8],(H,))
 # U_vh0,_ = jnp.linalg.qr(jnp.sqrt(INIT/(H+H))*rnd.normal(ki[9],(H,H)))
 # b_vh0 = jnp.sqrt(INIT/(H))*rnd.normal(ki[10],(H,))
-W_h1_f0 = jnp.sqrt(INIT/(H+M))*rnd.normal(ki[0],(H,M))
+W_h1_z0 = jnp.sqrt(INIT/(H+M))*rnd.normal(ki[0],(H,M))
+W_h1_r0 = jnp.sqrt(INIT/(H+M))*rnd.normal(ki[0],(H,M))
 W_h1_hh0 = jnp.sqrt(INIT/(H+M))*rnd.normal(ki[1],(H,M))
-W_p_f0 = jnp.sqrt(INIT/(H))*rnd.normal(ki[2],(H,))
+W_p_z0 = jnp.sqrt(INIT/(H))*rnd.normal(ki[2],(H,))
+W_p_r0 = jnp.sqrt(INIT/(H))*rnd.normal(ki[2],(H,))
 W_p_hh0 = jnp.sqrt(INIT/(H))*rnd.normal(ki[3],(H,))
-W_m_f0 = jnp.sqrt(INIT/(H))*rnd.normal(ki[4],(H,))
+W_m_z0 = jnp.sqrt(INIT/(H))*rnd.normal(ki[4],(H,))
+W_m_r0 = jnp.sqrt(INIT/(H))*rnd.normal(ki[4],(H,))
 W_m_hh0 = jnp.sqrt(INIT/(H))*rnd.normal(ki[5],(H,))
-U_f0,_ = jnp.linalg.qr(jnp.sqrt(INIT/(H+H))*rnd.normal(ki[6],(H,H)))
+U_z0,_ = jnp.linalg.qr(jnp.sqrt(INIT/(H+H))*rnd.normal(ki[6],(H,H)))
+U_r0,_ = jnp.linalg.qr(jnp.sqrt(INIT/(H+H))*rnd.normal(ki[6],(H,H)))
 U_hh0,_ = jnp.linalg.qr(jnp.sqrt(INIT/(H+H))*rnd.normal(ki[7],(H,H)))
-b_f0 = jnp.sqrt(INIT/(H))*rnd.normal(ki[8],(H,))
+b_z0 = jnp.sqrt(INIT/(H))*rnd.normal(ki[8],(H,))
+b_r0 = jnp.sqrt(INIT/(H))*rnd.normal(ki[8],(H,))
 b_hh0 = jnp.sqrt(INIT/(H))*rnd.normal(ki[9],(H,))
 W_ap0 = jnp.sqrt(INIT/(N_A+H))*rnd.normal(ki[10],(N_A,H))
 W_full0 = jnp.sqrt(INIT/(N_F+H))*rnd.normal(ki[11],(N_F,H))
@@ -610,15 +614,20 @@ weights = {
         # "W_m" : W_m0,
         # "U_vh" : U_vh0,
         # "b_vh" : b_vh0
-        "W_h1_f" : W_h1_f0,
+        "W_h1_z" : W_h1_z0,
+        "W_h1_r" : W_h1_r0,
         "W_h1_hh" : W_h1_hh0,
-        "W_p_f" : W_p_f0,
+        "W_p_z" : W_p_z0,
+        "W_p_r" : W_p_r0,
         "W_p_hh" : W_p_hh0,
-        "W_m_f" : W_m_f0,
+        "W_m_z" : W_m_z0,
+        "W_m_r" : W_m_r0,
         "W_m_hh" : W_m_hh0,
-        "U_f" : U_f0,
+        "U_z" : U_z0,
+        "U_r" : U_r0,
         "U_hh" : U_hh0,
-        "b_f" : b_f0,
+        "b_z" : b_z0,
+        "b_r" : b_r0,
         "b_hh" : b_hh0,        
         "W_ap" : W_ap0,
         "W_full" : W_full0,
@@ -648,7 +657,7 @@ print("Time finished:",datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
 plt.figure(figsize=(12,6))
 title__ = f'EPOCHS={TOT_EPOCHS}, INIT_EPOCHS={INIT_TRAIN_EPOCHS}, VMAPS={VMAPS}, PLAN_ITS={PLAN_ITS}, init={INIT:.2f}, update={LR:.6f}, WD={WD:.5f}, TOT_STEPS={TOT_STEPS}, MAX_PLAN_LENGTH={MAX_PLAN_LENGTH} \n ALPHA={ALPHA}, APERTURE={APERTURE:.2f}, PLAN_SPACE={PLAN_SPACE:.2f}, ACTION_SPACE={ACTION_SPACE:.2f}, SIGMA_A={SIGMA_A:.1f}, SIGMA_N={SIGMA_N:.1f} NEURONS_FULL={NEURONS_FULL**2}, MODULES={M}, H={H}'
 fig,ax = plt.subplots(1,3,figsize=(13,6))
-plt.suptitle('forward_new_training_v10, '+title__,fontsize=10)
+plt.suptitle('forward_new_training_v11, '+title__,fontsize=10)
 plt.subplot(1,3,1)
 plt.errorbar(jnp.arange(TOT_EPOCHS),loss_arr,yerr=loss_std,color='black',ecolor='lightgray',elinewidth=2,capsize=0)
 plt.xscale('log')
@@ -672,7 +681,7 @@ plt.show()
 
 path_ = str(Path(__file__).resolve().parents[1]) + '/sc_project/figs/'
 dt = datetime.now().strftime("%d_%m-%H%M%S")
-plt.savefig(path_ + 'forward_new_training_v10_' + dt + '.png')
+plt.savefig(path_ + 'forward_new_training_v11_' + dt + '.png')
 
 # plot before and after heatmaps using v_pred_arr and v_t_arr:
 # print("v_pred_arr=",v_pred_arr.shape) # (v,n)
@@ -727,4 +736,4 @@ plt.savefig(path_ + 'forward_new_training_v10_' + dt + '.png')
 # dt = datetime.now().strftime("%d_%m-%H%M%S")
 # plt.savefig(path_ + 'figs_forward_new_training_v8_' + dt + '.png')
 
-save_pkl((arrs,aux),'forward_new_v10_'+str(M)+'M_'+str(N_F)+'N') # (no rel_vec / loss_v / loss_d)
+save_pkl((arrs,aux),'forward_new_v11_'+str(M)+'M_'+str(N_F)+'N') # (no rel_vec / loss_v / loss_d)xw
