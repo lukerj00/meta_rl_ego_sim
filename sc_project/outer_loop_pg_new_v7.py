@@ -564,10 +564,21 @@ def ppo_loss(old_traj_vals,SC,hs_0_,hp_0_,pos_0_,dot_0_,dot_vec_,ind_,weights_v,
     return_arr,adv_arr,adv_norm = get_advantage(r_arr_old,val_arr_new,params["GAMMA"]) # r_arr_old SHOULD = r_arr_new
 
     actor_loss,actor_std = compute_actor_loss(adv_norm,lp_arr_old,lp_arr_new,params["EPSILON"]) # adv_arr...
-    critic_loss = jnp.mean(jnp.square(adv_arr),axis=None)
-    critic_std = jnp.std(jnp.square(adv_arr),axis=None)
-    vec_kl_loss = jnp.mean(vec_kl_arr_new,axis=None)
-    vec_kl_std = jnp.std(vec_kl_arr_new,axis=None)
+    critic_arr_masked = jnp.multiply(jnp.square(adv_arr),mask_arr_new)
+    critic_loss = jnp.sum(critic_arr_masked) / jnp.sum(mask_arr_new)
+    critic_std = jnp.sqrt(jnp.sum((critic_arr_masked - critic_loss) ** 2) / jnp.sum(mask_arr_new))
+
+    vec_kl_arr_masked = jnp.multiply(vec_kl_arr_new,mask_arr_new)
+    vec_kl_loss = jnp.sum(vec_kl_arr_masked) / jnp.sum(mask_arr_new)
+    vec_kl_std = jnp.sqrt(jnp.sum((vec_kl_arr_masked - vec_kl_loss) ** 2) / jnp.sum(mask_arr_new))
+
+    act_kl_arr_masked = jnp.multiply(act_kl_arr_new,mask_arr_new)
+    act_kl_loss = jnp.sum(act_kl_arr_masked) / jnp.sum(mask_arr_new)
+    act_kl_std = jnp.sqrt(jnp.sum((act_kl_arr_masked - act_kl_loss) ** 2) / jnp.sum(mask_arr_new))
+    # critic_loss = jnp.mean(jnp.square(adv_arr),axis=None)
+    # critic_std = jnp.std(jnp.square(adv_arr),axis=None)
+    # vec_kl_loss = jnp.mean(vec_kl_arr_new,axis=None)
+    # vec_kl_std = jnp.std(vec_kl_arr_new,axis=None)
     # act_kl_loss = jnp.mean(act_kl_arr_new,axis=None)
     # act_kl_std = jnp.std(act_kl_arr_new,axis=None)
 

@@ -575,8 +575,8 @@ def pg_obj(SC,hs_0,hp_0,pos_0,dot_0,dot_vec,ind,weights,weights_s,params): # ,se
     return (actor_losses,critic_loss),(losses,stds,other)
     # tot_loss,(actor_loss,std_actor,critic_loss,std_critic,avg_vec_kl,std_vec_kl,avg_act_kl,std_act_kl,r_std,l_sem,plan_rate,avg_tot_r,kl_loss,r_init_arr.T,r_arr.T,rt_arr.T,sample_arr.T,pos_init_arr.transpose([1,0,2]),pos_arr.transpose([1,0,2])) # ,t_arr.T
 
-def full_loop(SC,weights,params):
-# def full_loop(SC,weights,params,actor_opt_state,critic_opt_state,weights_s):
+# def full_loop(SC,weights,params):
+def full_loop(SC,weights,params,actor_opt_state,critic_opt_state,weights_s):
     # r_arr,sample_arr = (jnp.zeros((params["TOT_EPOCHS"],params["TRIAL_LENGTH"])) for _ in range(2)) # ,params["VMAPS"]
     # pos_arr = jnp.zeros((params["TOT_EPOCHS"],params["TRIAL_LENGTH"],2)) # ,params["VMAPS"]
     # dots_arr = jnp.zeros((params["TOT_EPOCHS"],3,2))
@@ -658,14 +658,14 @@ def full_loop(SC,weights,params):
     return losses,stds,other,actor_opt_state,critic_opt_state,weights_s #r_arr,pos_arr,sample_arr,dots_arr
 
 # hyperparams ###
-TOT_EPOCHS = 2000 ## 1000
+TOT_EPOCHS = 1000 ## 1000
 # EPOCHS = 1
 PLOTS = 5
 CRITIC_UPDATES = 10 # 8 5
 # LOOPS = TOT_EPOCHS//EPOCHS
 VMAPS = 1000 ## 2000,500,1100,1000,800,500
-ACTOR_LR = 0.0005 # 0.0002 # 0.001 # 0.0005
-CRITIC_LR = 0.001 # 0.0005 # 0.0001 # 0.0005   0.001,0.0008,0.0005,0.001,0.000001,0.0001
+ACTOR_LR = 0.0002 # 0.0002 # 0.001 # 0.0005
+CRITIC_LR = 0.0005 # 0.0005 # 0.0001 # 0.0005   0.001,0.0008,0.0005,0.001,0.000001,0.0001
 WD = 0.0001 # 0.0001
 GRAD_CLIP = 0.3 ##0.5 1.0
 INIT_S = 2
@@ -849,8 +849,9 @@ weights = {
 ###
 (_),(*_,p_weights) = load_('/sc_project/test_data/forward_new_v8_81M_144N_06_09-211442.pkl') #
 weights['p'] = p_weights
-# (actor_opt_state,critic_opt_state,weights_s) = load_('/sc_project/pkl_sc/outer_loop_pg_new_v3__14_09-183952.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v3_c__13_09-174514.pkl', '/sc_project/test_data/outer_loop_pg_new_v3_c__13_09-174514.pkl')
-# weights['s'] = weights_s
+(actor_opt_state,critic_opt_state,weights_s) = load_('/sc_project/pkl_sc/outer_loop_pg_new_v4__24_09-201550.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v3_c__13_09-174514.pkl', '/sc_project/test_data/outer_loop_pg_new_v3_c__13_09-174514.pkl')
+weights['s'] = weights_s ##
+
 # actor_opt_state = opt_state
 # critic_opt_state = opt_state
 # *_,r_weights = load_('') #
@@ -858,7 +859,7 @@ weights['p'] = p_weights
 ###
 # full_loop(); opt_state init; weights['s'] = weights_s; full_loop() call
 startTime = datetime.now()
-losses,stds,other,actor_opt_state,critic_opt_state,weights_s = full_loop(SC,weights,params) #,actor_opt_state,critic_opt_state,weights_s) # full_loop(SC,weights,params) (loss_arr,actor_loss_arr,critic_loss_arr,kl_loss_arr,vec_kl_arr,act_kl_arr,r_std_arr,l_sem_arr,plan_rate_arr,avg_tot_r_arr,avg_pol_kl_arr,r_init_arr,r_arr,rt_arr,sample_arr,pos_init_arr,pos_arr,dots,sel)
+losses,stds,other,actor_opt_state,critic_opt_state,weights_s = full_loop(SC,weights,params,actor_opt_state,critic_opt_state,weights_s) # full_loop(SC,weights,params) (loss_arr,actor_loss_arr,critic_loss_arr,kl_loss_arr,vec_kl_arr,act_kl_arr,r_std_arr,l_sem_arr,plan_rate_arr,avg_tot_r_arr,avg_pol_kl_arr,r_init_arr,r_arr,rt_arr,sample_arr,pos_init_arr,pos_arr,dots,sel)
 print("Sim time: ",datetime.now()-startTime,"s/epoch=",((datetime.now()-startTime)/TOT_EPOCHS).total_seconds())
 (loss_arr,actor_loss_arr,critic_loss_arr,vec_kl_arr,act_kl_arr,r_tot_arr,plan_rate_arr) = losses
 (sem_loss_arr,std_actor_arr,std_critic_arr,std_act_kl_arr,std_vec_kl_arr,std_r_arr,std_plan_rate_arr) = stds
@@ -898,18 +899,18 @@ axes[1,1].set_ylabel('critic loss')
 # ax12_2.set_ylabel('action kl')
 # plt.legend([line1,line2],['vector kl','action kl'])
 line1, caplines1, barlinecols1 = axes[1,2].errorbar(np.arange(TOT_EPOCHS), vec_kl_arr, yerr=std_vec_kl_arr/2, color='blue', ecolor='lightgray', elinewidth=2, capsize=0, alpha=0.1)
-line1.set_alpha(0.8)
+line1.set_alpha(0.1)
 for barlinecol in barlinecols1:
-    barlinecol.set_alpha(0.3)
+    barlinecol.set_alpha(0.1)
 
 axes[1,2].set_xlabel('iteration')
 axes[1,2].set_ylabel('vector kl')
 ax12_2 = axes[1,2].twinx()
-line2, caplines2, barlinecols2 = ax12_2.errorbar(np.arange(TOT_EPOCHS), act_kl_arr, yerr=std_act_kl_arr/2, color='red', ecolor='lightgray', elinewidth=2, capsize=0)
+line2, caplines2, barlinecols2 = ax12_2.errorbar(np.arange(TOT_EPOCHS), act_kl_arr, yerr=std_act_kl_arr/2, color='red', ecolor='lightgray', elinewidth=2, capsize=0, alpha=0.1)
 
-line2.set_alpha(0.8)
+line2.set_alpha(0.1)
 for barlinecol in barlinecols2:
-    barlinecol.set_alpha(0.3)
+    barlinecol.set_alpha(0.1)
 ax12_2.set_ylabel('action kl')
 plt.legend([line1, line2], ['vector kl', 'action kl'])
 
