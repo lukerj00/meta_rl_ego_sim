@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# GRU w 3-way one-hot
+# GRU
 # change to match v6/v7: plan ratio=10, change timeseries, dot speed to account for this
 # KL term over movement size (instead of small initial movements), and use scheduler to change dot init loc over time
 # remove conditional statement in loop
@@ -216,7 +216,7 @@ def gen_binary_action_array(N_A, T, switch_prob, P):
     refac_sequence = [0] + [2] * (P - 1)  # 0 followed by P - 1 2's
     
     for idx in range(N_A):
-        binary_list = [0]  # Start with a zero
+        ts_list = [0]  # Start with a zero
         action_list = [0]  #
         current_val = 0  # Initial value
         i = 0  # Initialize index
@@ -226,28 +226,18 @@ def gen_binary_action_array(N_A, T, switch_prob, P):
                 current_val = 1 - current_val  # Switch the value
             
             if current_val == 0:  # If current value is 0 and there is enough space
-                binary_list.extend([0] * P)  # Insert P zeros in large_array
+                ts_list.extend([0] * P)  # Insert P zeros in large_array
                 action_list.extend(refac_sequence)  # Insert refac_sequence in action_array
                 i += P  # Move index P steps forward
             else:  # If there is space for one more element
-                binary_list.append(current_val)  # Insert current value in large_array
+                ts_list.append(current_val)  # Insert current value in large_array
                 action_list.append(1)  # Insert plan in action_array
                 i += 1  # Move index 1 step forward
                 
-        binary_array[idx, :] = binary_list[:T]
+        binary_array[idx, :] = ts_list[:T]
         action_array[idx, :] = action_list[:T]  # action_list might be shorter than T
-        one_hot_arr = one_hot_encode(action_array)
 
-    return jnp.array(binary_array), jnp.array(action_array), jnp.array(one_hot_arr)
-
-def one_hot_encode(array):
-    """Convert a 2D array with values 0, 1, and 2 into a one-hot encoded 3D array."""
-    N_A, T = array.shape
-    one_hot = jnp.zeros((N_A, T, 3))
-    
-    one_hot = one_hot.at[jnp.arange(N_A)[:, None], jnp.arange(T), array].set(1)
-    
-    return one_hot
+    return jnp.array(binary_array), jnp.array(action_array)
 
 # def gen_timeseries(SC, pos_0, dot_0, dot_vec, samples, switch_prob, T, PLAN_RATIO, N_A, binary_series, action_series):
 #     ID_ARR, VEC_ARR, H1VEC_ARR = SC  # Number of instances to generate
@@ -567,16 +557,15 @@ def plan(h1vec,v_0,h_0,pm_t,p_weights,PLAN_ITS): # self,hp_t_1,pos_t_1,v_t_1,r_t
         return RNN_forward(carry)
     def RNN_forward(carry):
         p_weights,h1vec,v_0,pm_t,h_t_1 = carry
-        pm_t = jnp.float32(pm_t)
         W_h1_z = p_weights["W_h1_z"]
         W_h1_r = p_weights["W_h1_r"]
         W_h1_hh = p_weights["W_h1_hh"]
         W_p_z = p_weights["W_p_z"]
         W_p_r = p_weights["W_p_r"]
         W_p_hh = p_weights["W_p_hh"]
-        # W_m_z = p_weights["W_m_z"]
-        # W_m_r = p_weights["W_m_r"]
-        # W_m_hh = p_weights["W_m_hh"]
+        W_m_z = p_weights["W_m_z"]
+        W_m_r = p_weights["W_m_r"]
+        W_m_hh = p_weights["W_m_hh"]
         W_v_z = p_weights["W_v_z"]
         W_v_r = p_weights["W_v_r"]
         W_v_hh = p_weights["W_v_hh"]
@@ -586,9 +575,9 @@ def plan(h1vec,v_0,h_0,pm_t,p_weights,PLAN_ITS): # self,hp_t_1,pos_t_1,v_t_1,r_t
         b_z = p_weights["b_z"]
         b_r = p_weights["b_r"]
         b_hh = p_weights["b_hh"]
-        z_t = jax.nn.sigmoid(jnp.matmul(W_p_z,pm_t) + jnp.matmul(W_h1_z,h1vec) + jnp.matmul(W_v_z,v_0) + jnp.matmul(U_z,h_t_1) + b_z) # + W_m_z*pm_t[1]
-        r_t = jax.nn.sigmoid(jnp.matmul(W_p_r,pm_t) + jnp.matmul(W_h1_r,h1vec) + jnp.matmul(W_v_r,v_0) + jnp.matmul(U_r,h_t_1) + b_r) # + W_m_r*pm_t[1]
-        hhat_t = jax.nn.tanh(jnp.matmul(W_p_hh,pm_t) + jnp.matmul(W_h1_hh,h1vec) + jnp.matmul(W_v_hh,v_0) + jnp.matmul(U_hh,jnp.multiply(r_t,h_t_1)) + b_hh) # + W_m_hh*pm_t[1]
+        z_t = jax.nn.sigmoid(W_p_z*pm_t[0] + W_m_z*pm_t[1] + jnp.matmul(W_h1_z,h1vec) + jnp.matmul(W_v_z,v_0) + jnp.matmul(U_z,h_t_1) + b_z)
+        r_t = jax.nn.sigmoid(W_p_r*pm_t[0] + W_m_r*pm_t[1] + jnp.matmul(W_h1_r,h1vec) + jnp.matmul(W_v_r,v_0) + jnp.matmul(U_r,h_t_1) + b_r)
+        hhat_t = jax.nn.tanh(W_p_hh*pm_t[0] + W_m_hh*pm_t[1] + jnp.matmul(W_h1_hh,h1vec) + jnp.matmul(W_v_hh,v_0) + jnp.matmul(U_hh,jnp.multiply(r_t,h_t_1)) + b_hh)
         h_t = jnp.multiply((1-z_t),h_t_1) + jnp.multiply(z_t,hhat_t)
         return (p_weights,h1vec,v_0,pm_t,h_t),None
     W_full = p_weights["W_full"]
@@ -644,20 +633,19 @@ def loop_body(carry, current_input):
     loss_v = jnp.sum((v_pred_full - v_t_full) ** 2)
     loss_c = cosine_similarity(v_pred_full, v_t_full)
     tot_loss_v = tot_loss_v + loss_v
-    # v_stacked = jnp.vstack([v_pred_ap, v_t_ap])
-    v_stacked = jnp.vstack([v_t_ap, v_pred_ap, v_t_ap])
+    v_stacked = jnp.vstack([v_pred_ap, v_t_ap])
     v_t_1_ap = jnp.dot(pm_t, v_stacked)
     # v_t_1_ap = jax.lax.cond(pm_t[0] == 1, lambda _: v_pred_ap, lambda _: v_t_ap, None)
     return (h_t, v_t_1_ap, tot_loss_v, p_weights), (v_pred_full, v_t_full, loss_v, loss_c)
 
-def body_fnc(SC, p_weights, params, pos_plan_arr, pos_arr, dot_arr, h1vec_arr, dot_vec, h_0, samples, one_hot_arr, action_series, e):
+def body_fnc(SC, p_weights, params, pos_plan_arr, pos_arr, dot_arr, h1vec_arr, dot_vec, h_0, samples, binary_arr, action_series, e):
     # pm_arr, pos_plan_arr, pos_arr, dot_arr, h1vec_arr, vec_arr = gen_timeseries(key, SC, pos_0, dot_0, dot_vec, samples, params["SWITCH_PROB"], params["TOT_STEPS"], params["PLAN_RATIO"], binary_series, action_series)
     # loss_c_stacked = jnp.zeros(params["TOT_STEPS"])
     v_0_ap = neuron_act_noise(samples[0], params["THETA_AP"], params["SIGMA_A"], params["SIGMA_N"], dot_arr[:, 0], pos_plan_arr[:, 0])
     tot_loss_v = 0
     v_t_1_full = neuron_act_noise(samples[0], params["THETA_FULL"], params["SIGMA_A"], params["SIGMA_N"], dot_arr[:, 0], pos_plan_arr[:, 0])
     initial_carry = (h_0, v_0_ap, tot_loss_v, p_weights)
-    sequence_inputs = (samples[1:], h1vec_arr[:, 1:].T, one_hot_arr[1:,:], dot_arr[:, 1:].T, pos_plan_arr[:, 1:].T) # jnp.arange(params["TOT_STEPS"] - 1), 
+    sequence_inputs = (samples[1:], h1vec_arr[:, 1:].T, binary_arr[:,1:].T, dot_arr[:, 1:].T, pos_plan_arr[:, 1:].T) # jnp.arange(params["TOT_STEPS"] - 1), 
     
     final_carry, outputs = jax.lax.scan(loop_body, initial_carry, sequence_inputs)
     h_t, v_t_1_ap, tot_loss_v, p_weights = final_carry
@@ -670,7 +658,7 @@ def body_fnc(SC, p_weights, params, pos_plan_arr, pos_arr, dot_arr, h1vec_arr, d
     loss_c_stacked = jnp.concatenate([jnp.zeros(1), loss_c_stacked])
 
     avg_loss = jnp.sum(tot_loss_v) / params["TOT_STEPS"] ## loss_v_stacked
-    return avg_loss, (v_pred_full_stacked, v_t_full_stacked, pos_plan_arr, pos_arr, dot_arr, one_hot_arr, action_series, loss_v_stacked, loss_c_stacked)
+    return avg_loss, (v_pred_full_stacked, v_t_full_stacked, pos_plan_arr, pos_arr, dot_arr, binary_arr, action_series, loss_v_stacked, loss_c_stacked)
 
 # @partial(jax.jit,static_argnums=())
 # def forward_model_loop(SC,weights,params,INIT_0):
@@ -685,7 +673,7 @@ def forward_model_loop(SC,weights,params,INIT_0,opt_state):
     ### 
     POS_0,DOT_0,DOT_VEC,SAMPLES = INIT_0
     print("Starting binary/action pregen")
-    binary_series,action_series,one_hot_array = gen_binary_action_array(params["N_ARRAY"], params["TOT_STEPS"], params["SWITCH_PROB"], params["PLAN_RATIO"])
+    binary_series,action_series = gen_binary_action_array(params["N_ARRAY"], params["TOT_STEPS"], params["SWITCH_PROB"], params["PLAN_RATIO"])
     # print('binary_series=',binary_series,binary_series.shape)
     # print('action_series=',action_series,action_series.shape)
     print("Starting ts pregen")
@@ -701,8 +689,7 @@ def forward_model_loop(SC,weights,params,INIT_0,opt_state):
         key,subkey = jax.random.split(key)
         new_params(params,subkey) # 'params = new_params(params,e)'
         indexes = jax.random.choice(subkey, binary_array.shape[0], shape=(params["VMAPS"],), replace=False)
-        # binary_arr_vmap = binary_array[indexes,:,:] # N_A,2,T
-        one_hot_arr_vmap = one_hot_array[indexes,:,:] # N_A,2,T
+        binary_arr_vmap = binary_array[indexes,:,:] # N_A,2,T
         action_series_vmap = action_series[indexes,:]
         pos_plan_vmap = pos_plan_array[indexes,:,:]
         pos_vmap = pos_array[indexes,:,:]
@@ -722,7 +709,7 @@ def forward_model_loop(SC,weights,params,INIT_0,opt_state):
 
         val_grad = jax.value_and_grad(body_fnc,argnums=1,allow_int=True,has_aux=True)
         val_grad_vmap = jax.vmap(val_grad,in_axes=(None,None,None,0,0,0,0,0,0,0,0,0,None),out_axes=(0,0))
-        (loss,aux),grads = val_grad_vmap(SC,p_weights,params,pos_plan_vmap,pos_vmap,dot_vmap,h1vec_vmap,dot_vec_vmap,h_0,samples_vmap,one_hot_arr_vmap,action_series_vmap,e) # val_grad_vmap ,,v_0
+        (loss,aux),grads = val_grad_vmap(SC,p_weights,params,pos_plan_vmap,pos_vmap,dot_vmap,h1vec_vmap,dot_vec_vmap,h_0,samples_vmap,binary_arr_vmap,action_series_vmap,e) # val_grad_vmap ,,v_0
         v_pred_arr,v_t_arr,pos_plan_arr,pos_arr,dot_arr,binary_arr,action_ser,loss_v_epoch,loss_c_epoch = aux # [VMAPS,STEPS,N]x2,[VMAPS,STEPS,2]x3,[VMAPS,STEPS]x2 (final timestep)
         # print('pos_plan_arr=',pos_plan_arr[0,:,:])
         # print('pos_plan_arr_vmap=',pos_plan_vmap[0,:,:])
@@ -769,7 +756,7 @@ def forward_model_loop(SC,weights,params,INIT_0,opt_state):
     return arrs,aux # [VMAPS,STEPS,N]x2,[VMAPS,STEPS,2]x3,[VMAPS,STEPS]x2,..
 
 # hyperparams
-TOT_EPOCHS = 6000 #10000 # 1000 #250000
+TOT_EPOCHS = 2000 #10000 # 1000 #250000
 EPOCHS = 1
 INIT_TRAIN_EPOCHS = 500000 ### epochs until 'phase 2'
 PLOTS = 3
@@ -780,8 +767,8 @@ INIT_STEPS = 0 # (taking loss over all steps so doesnt matter)
 TOT_STEPS = 60 # steps in rnn-time inc refac period
 PRED_STEPS = TOT_STEPS-INIT_STEPS
 MAX_PLAN_LENGTH = TOT_STEPS # 1,3,5
-PLAN_RATIO = 5 # 10
-LR = 0.001 # 0.003,,0.0001
+PLAN_RATIO = 1
+LR = 0.0001 # 0.003,,0.0001
 WD = 0.0001 # 0.0001
 H = 400 # 500,300
 INIT = 2 # 0.5,0.1
@@ -790,7 +777,7 @@ LAMBDA_C = 10
 
 # ENV/sc params
 ks = rnd.split(rnd.PRNGKey(0),10) #DONT CHANGE#
-ke = rnd.split(rnd.PRNGKey(1),10) #change#
+ke = rnd.split(rnd.PRNGKey(2),10) #change#
 MODULES = 9 # 17 # (3*N+1)
 M = MODULES**2
 APERTURE = (1/2)*jnp.pi # (3/5)*jnp.pi # (jnp.sqrt(2)/2)*jnp.pi ### unconstrained
@@ -847,12 +834,12 @@ ki = rnd.split(rnd.PRNGKey(1),num=50)
 W_h1_z0 = jnp.sqrt(INIT/(H+M))*rnd.normal(ki[0],(H,M))
 W_h1_r0 = jnp.sqrt(INIT/(H+M))*rnd.normal(ki[1],(H,M))
 W_h1_hh0 = jnp.sqrt(INIT/(H+M))*rnd.normal(ki[3],(H,M))
-W_p_z0 = jnp.sqrt(INIT/(H+3))*rnd.normal(ki[4],(H,3))
-W_p_r0 = jnp.sqrt(INIT/(H+3))*rnd.normal(ki[5],(H,3))
-W_p_hh0 = jnp.sqrt(INIT/(H+3))*rnd.normal(ki[6],(H,3))
-# W_m_z0 = jnp.sqrt(INIT/(H))*rnd.normal(ki[7],(H,))
-# W_m_r0 = jnp.sqrt(INIT/(H))*rnd.normal(ki[8],(H,))
-# W_m_hh0 = jnp.sqrt(INIT/(H))*rnd.normal(ki[9],(H,))
+W_p_z0 = jnp.sqrt(INIT/(H))*rnd.normal(ki[4],(H,))
+W_p_r0 = jnp.sqrt(INIT/(H))*rnd.normal(ki[5],(H,))
+W_p_hh0 = jnp.sqrt(INIT/(H))*rnd.normal(ki[6],(H,))
+W_m_z0 = jnp.sqrt(INIT/(H))*rnd.normal(ki[7],(H,))
+W_m_r0 = jnp.sqrt(INIT/(H))*rnd.normal(ki[8],(H,))
+W_m_hh0 = jnp.sqrt(INIT/(H))*rnd.normal(ki[9],(H,))
 W_v_z0 = jnp.sqrt(INIT/(H+N_A))*rnd.normal(ki[10],(H,N_A))
 W_v_r0 = jnp.sqrt(INIT/(H+N_A))*rnd.normal(ki[11],(H,N_A))
 W_v_hh0 = jnp.sqrt(INIT/(H+N_A))*rnd.normal(ki[12],(H,N_A))
@@ -942,9 +929,9 @@ weights = {
         "W_p_z" : W_p_z0,
         "W_p_r" : W_p_r0,
         "W_p_hh" : W_p_hh0,
-        # "W_m_z" : W_m_z0,
-        # "W_m_r" : W_m_r0,
-        # "W_m_hh" : W_m_hh0,
+        "W_m_z" : W_m_z0,
+        "W_m_r" : W_m_r0,
+        "W_m_hh" : W_m_hh0,
         "W_v_z" : W_v_z0,
         "W_v_r" : W_v_r0,
         "W_v_hh" : W_v_hh0,
@@ -963,7 +950,7 @@ weights = {
 }
 # opt_state,p_weights
 ###
-_,(*_,opt_state,p_weights) = load_('/sc_project/test_data/forward_new_v11_81M_144N_11_10-210349.pkl') #'/sc_project/test_data/forward_new_v11_81M_144N_11_10-180308.pkl') #'/sc_project/test_data/forward_new_v11_81M_144N_10_10-232717.pkl') # '/sc_project/test_data/forward_new_v11_81M_144N_09_10-064129.pkl') #'/sc_project/test_data/forward_new_v12_81M_144N_08_10-152618.pkl')
+_,(*_,opt_state,p_weights) = load_('/sc_project/test_data/forward_new_v12_81M_144N_11_10-040553.pkl') # '/sc_project/test_data/forward_new_v12_81M_144N_09_10-191348.pkl') #'/sc_project/test_data/forward_new_v12_81M_144N_08_10-152618.pkl')
 weights["p_weights"] = p_weights
 ###
 # p_weights["W_p"] = W_p0
@@ -982,7 +969,7 @@ print("Time finished:",datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
 plt.figure(figsize=(12,6))
 title__ = f'EPOCHS={TOT_EPOCHS}, VMAPS={VMAPS}, PLAN_ITS={PLAN_ITS}, init={INIT:.2f}, update={LR:.6f}, WD={WD:.5f}, TOT_STEPS={TOT_STEPS}, MAX_PLAN_LENGTH={MAX_PLAN_LENGTH:.2f}, MAX_DOT_SPEED={MAX_DOT_SPEED:.2f} \n N_ARRAY={N_ARRAY}, PLAN_RATIO={PLAN_RATIO}, APERTURE={APERTURE:.2f}, PLAN_SPACE={PLAN_SPACE:.2f}, ACTION_SPACE={ACTION_SPACE:.2f}, SIGMA_A={SIGMA_A:.1f}, SIGMA_N={SIGMA_N:.1f} NEURONS_FULL={NEURONS_FULL**2}, MODULES={M}, H={H}'
 fig,ax = plt.subplots(1,3,figsize=(13,6))
-plt.suptitle('forward_new_training_v11, '+title__,fontsize=10)
+plt.suptitle('forward_new_training_v12, '+title__,fontsize=10)
 plt.subplot(1,3,1)
 plt.errorbar(jnp.arange(TOT_EPOCHS),loss_arr,yerr=loss_std,color='black',ecolor='lightgray',elinewidth=2,capsize=0)
 plt.xscale('log')
@@ -1006,7 +993,7 @@ plt.show()
 
 path_ = str(Path(__file__).resolve().parents[1]) + '/sc_project/figs/'
 dt = datetime.now().strftime("%d_%m-%H%M%S")
-plt.savefig(path_ + 'forward_new_training_v11_' + dt + '.png')
+plt.savefig(path_ + 'forward_new_training_v12_' + dt + '.png')
 
 # plot before and after heatmaps using v_pred_arr and v_t_arr:
 # print("v_pred_arr=",v_pred_arr.shape) # (v,n)
@@ -1061,4 +1048,4 @@ plt.savefig(path_ + 'forward_new_training_v11_' + dt + '.png')
 # dt = datetime.now().strftime("%d_%m-%H%M%S")
 # plt.savefig(path_ + 'figs_forward_new_training_v8_' + dt + '.png')
 
-save_pkl((arrs,aux),'forward_new_v11_'+str(M)+'M_'+str(N_F)+'N') # (no rel_vec / loss_v / loss_d)
+save_pkl((arrs,aux),'forward_new_v12_'+str(M)+'M_'+str(N_F)+'N') # (no rel_vec / loss_v / loss_d)
