@@ -227,6 +227,16 @@ def sample_vec_rand(SC,ind):
 #     return jnp.vstack([x_, y_])
 
 @jit
+def get_plan_rate(data,mask):
+    masked_data = data * mask
+    sum_masked_data = jnp.sum(masked_data)
+    valid_entries = jnp.sum(mask)
+    mean = sum_masked_data / valid_entries
+    variance = jnp.sum((masked_data - mean) ** 2 * mask) / valid_entries
+    std = jnp.sqrt(variance)
+    return mean, std
+
+@jit
 def curve_obj(params,x,weights):
     mu,log_sigma = params
     sigma = jnp.exp(log_sigma)
@@ -614,8 +624,7 @@ def pg_obj(SC,hs_0,hp_0,pos_0,dot_0,dot_vec,ind,weights,weights_s,params,e): # ,
     
     r_tot = jnp.mean(r_to_go[:,0])
     std_r = jnp.std(r_to_go[:,0])
-    plan_rate = jnp.mean(sample_arr)
-    std_plan_rate = jnp.std(sample_arr)
+    plan_rate,std_plan_rate = get_plan_rate(sample_arr,mask_arr)
 
     losses = (tot_loss,actor_loss,critic_loss,vec_kl_loss,act_kl_loss,r_tot,plan_rate)
     stds = (sem_loss,std_actor,std_critic,std_act_kl,std_vec_kl,std_r,std_plan_rate)
@@ -712,8 +721,8 @@ PLOTS = 5
 CRITIC_UPDATES = 10 # 8 5
 # LOOPS = TOT_EPOCHS//EPOCHS
 VMAPS = 1000 ## 2000,500,1100,1000,800,500
-ACTOR_LR = 0.0003 # 0.0002 # 0.001 # 0.0005
-CRITIC_LR = 0.0008 # 0.0005 # 0.0001 # 0.0005   0.001,0.0008,0.0005,0.001,0.000001,0.0001
+ACTOR_LR = 0.0001 # 0.0002 # 0.001 # 0.0005
+CRITIC_LR = 0.0010 # 0.0005 # 0.0001 # 0.0005   0.001,0.0008,0.0005,0.001,0.000001,0.0001
 WD = 0.0001 # 0.0001
 GRAD_CLIP = 0.3 ##0.5 1.0
 INIT_S = 2
@@ -737,7 +746,7 @@ C_MOVE = 0.0 #0.30 #0.28 0.30
 C_PLAN = 0.0 # 0.05 # 0.0
 PRIOR_STAT = 0.2 # 1 # 0.2
 PRIOR_PLAN_FRAC = 0.2
-PLAN_RATIO = 10 ## 5 2 10
+PLAN_RATIO = 5 ## 5 2 10
 PRIOR_PLAN = PRIOR_PLAN_FRAC #(PRIOR_PLAN_FRAC*PLAN_RATIO)/(1+PRIOR_PLAN_FRAC*PLAN_RATIO) # 0.2
 MODULES = 9 # 10,8
 M = MODULES**2
@@ -915,14 +924,15 @@ weights = {
 
 ###
 # 5 = 1210 1324, 2 = 1110 2032, 10 = 1210 0233
-(_),(*_,weights_v) = load_('/sc_project/test_data/forward_new_v10_81M_144N_12_10-023341.pkl') #/sc_project/test_data/forward_new_v10_81M_144N_12_10-132458.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-203208.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_12_10-023341.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-234644.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-234704.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-234644.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-203208.pkl') #'/sc_project/test_data/forward_new_v11_81M_144N_11_10-210349.pkl') #'/sc_project/test_data/forward_new_v8_81M_144N_06_09-211442.pkl') #
+(_),(*_,weights_v) = load_('/sc_project/test_data/forward_new_v10_81M_144N_12_10-132458.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_12_10-023341.pkl') #/sc_project/test_data/forward_new_v10_81M_144N_12_10-132458.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-203208.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_12_10-023341.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-234644.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-234704.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-234644.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-203208.pkl') #'/sc_project/test_data/forward_new_v11_81M_144N_11_10-210349.pkl') #'/sc_project/test_data/forward_new_v8_81M_144N_06_09-211442.pkl') #
 weights['v'] = weights_v
-(actor_opt_state,critic_opt_state,weights_s) = load_('/sc_project/pkl_sc/outer_loop_pg_new_v4f__12_10-175620.pkl') #'/sc_project/test_data/outer_loop_pg_new_v4f_12_10-173828.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v6__21_09-125738.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v1_ppo__13_09-235540.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v3_c__13_09-174514.pkl', '/sc_project/test_data/outer_loop_pg_new_v3_c__13_09-174514.pkl')
+(actor_opt_state,critic_opt_state,weights_s) = load_('/sc_project/pkl_sc/outer_loop_pg_new_v4f__13_10-084101.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v4f__13_10-084115.pkl') #/sc_project/pkl_sc/outer_loop_pg_new_v4f__12_10-175620.pkl') #'/sc_project/test_data/outer_loop_pg_new_v4f_12_10-173828.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v6__21_09-125738.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v1_ppo__13_09-235540.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v3_c__13_09-174514.pkl', '/sc_project/test_data/outer_loop_pg_new_v3_c__13_09-174514.pkl')
 # weights['s'] = weights_s
 # *_,r_weights = load_('') #
 # weights['r'] = r_weights
 ###
-# full_loop(); opt_state init; weights['s'] = weights_s; full_loop() call
+# full_loop(); full_loop() call (x)
+# opt_state init; weights['s'] = weights_s
 startTime = datetime.now()
 # losses,stds,other,actor_opt_state,critic_opt_state,weights_s = full_loop(SC,weights,params) # full_loop(SC,weights,params) (loss_arr,actor_loss_arr,critic_loss_arr,kl_loss_arr,vec_kl_arr,act_kl_arr,r_std_arr,l_sem_arr,plan_rate_arr,avg_tot_r_arr,avg_pol_kl_arr,r_init_arr,r_arr,rt_arr,sample_arr,pos_init_arr,pos_arr,dots,sel)
 losses,stds,other,actor_opt_state,critic_opt_state,weights_s = full_loop(SC,weights,params,actor_opt_state,critic_opt_state,weights_s) # full_loop(SC,weights,params) (loss_arr,actor_loss_arr,critic_loss_arr,kl_loss_arr,vec_kl_arr,act_kl_arr,r_std_arr,l_sem_arr,plan_rate_arr,avg_tot_r_arr,avg_pol_kl_arr,r_init_arr,r_arr,rt_arr,sample_arr,pos_init_arr,pos_arr,dots,sel)
@@ -964,21 +974,17 @@ axes[1,1].set_ylabel('critic loss')
 # line2,*_ = ax12_2.errorbar(np.arange(TOT_EPOCHS),act_kl_arr,yerr=std_act_kl_arr/2,color='red',ecolor='lightgray',elinewidth=2,capsize=0,alpha=0.1)
 # ax12_2.set_ylabel('action kl')
 # plt.legend([line1,line2],['vector kl','action kl'])
-line1, caplines1, barlinecols1 = axes[1,2].errorbar(np.arange(TOT_EPOCHS), vec_kl_arr, yerr=std_vec_kl_arr/2, color='blue', ecolor='lightgray', elinewidth=2, capsize=0, alpha=0.1)
-line1.set_alpha(0.1)
+line1, _, barlinecols1 = axes[1,2].errorbar(np.arange(TOT_EPOCHS), vec_kl_arr, yerr=std_vec_kl_arr/2, color='blue', ecolor='lightgray', elinewidth=2, capsize=0, label='vector kl')
 for barlinecol in barlinecols1:
-    barlinecol.set_alpha(0.1)
-
-axes[1,2].set_xlabel('iteration')
+    barlinecol.set_alpha(0.9)
 axes[1,2].set_ylabel('vector kl')
-ax12_2 = axes[1,2].twinx()
-line2, caplines2, barlinecols2 = ax12_2.errorbar(np.arange(TOT_EPOCHS), act_kl_arr, yerr=std_act_kl_arr/2, color='red', ecolor='lightgray', elinewidth=2, capsize=0, alpha=0.1)
-
-line2.set_alpha(0.1)
+ax2 = axes[1,2].twinx()
+line2, _, barlinecols2 = ax2.errorbar(np.arange(TOT_EPOCHS), act_kl_arr, yerr=std_act_kl_arr/2, color='red', ecolor='lightgray', elinewidth=2, capsize=0, label='action kl')
 for barlinecol in barlinecols2:
-    barlinecol.set_alpha(0.1)
-ax12_2.set_ylabel('action kl')
-plt.legend([line1, line2], ['vector kl', 'action kl'])
+    barlinecol.set_alpha(0.9)
+ax2.set_ylabel('action kl')
+ax2.tick_params(axis='y') #, colors='red')
+axes[1,2].set_xlabel('iteration')
 
 for ax in axes.flatten():
     ax.ticklabel_format(style='plain', useOffset=False)
@@ -1120,5 +1126,5 @@ plt.savefig(path_+'outer_loop_pg_new_v4f_'+dt+'.png')
 # path_ = str(Path(__file__).resolve().parents[1]) + '/sc_project/figs/'
 # plt.savefig(path_ + 'figs_outer_loop_pg_new_v4_' + dt + '.png') # ctrl_v7_(v,r,h normal, r_tp changed)
 
-save_pkl_sc((actor_opt_state,critic_opt_state,weights_s),'outer_loop_pg_new_v4f_')
+save_pkl_sc((actor_opt_state,critic_opt_state,weights_s),'outer_loop_pg_new_v4f') # no _
 save_test_data(other,'outer_loop_pg_new_v4f')
