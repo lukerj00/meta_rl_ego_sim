@@ -771,7 +771,7 @@ def forward_model_loop(SC,weights,params,INIT_0,opt_state):
     return arrs,aux # [VMAPS,STEPS,N]x2,[VMAPS,STEPS,2]x3,[VMAPS,STEPS]x2,..
 
 # hyperparams
-TOT_EPOCHS = 500 #10000 # 1000 #250000
+TOT_EPOCHS = 1000 #10000 # 1000 #250000
 EPOCHS = 1
 INIT_TRAIN_EPOCHS = 500000 ### epochs until 'phase 2'
 PLOTS = 3
@@ -782,7 +782,7 @@ INIT_STEPS = 0 # (taking loss over all steps so doesnt matter)
 TOT_STEPS = 60 # steps in rnn-time inc refac period
 PRED_STEPS = TOT_STEPS-INIT_STEPS
 MAX_PLAN_LENGTH = TOT_STEPS # 1,3,5
-PLAN_RATIO = 5
+PLAN_RATIO = 10 # 5,2
 LR = 0.0001 # 0.003,,0.0001
 WD = 0.0001 # 0.0001
 H = 300 # 500,300
@@ -792,7 +792,7 @@ LAMBDA_C = 10
 
 # ENV/sc params
 ks = rnd.split(rnd.PRNGKey(0),10) #DONT CHANGE#
-ke = rnd.split(rnd.PRNGKey(1),10) #change#
+ke = rnd.split(rnd.PRNGKey(2),10) #change#
 MODULES = 9 # 17 # (3*N+1)
 M = MODULES**2
 APERTURE = (1/2)*jnp.pi # (3/5)*jnp.pi # (jnp.sqrt(2)/2)*jnp.pi ### unconstrained
@@ -800,7 +800,7 @@ ACTION_FRAC = 1 # CHANGED FROM 1/2... unconstrained
 ACTION_SPACE = ACTION_FRAC*APERTURE # 'AGENT_SPEED'
 PLAN_FRAC_REL = 1 #... 3/2
 PLAN_SPACE = PLAN_FRAC_REL*ACTION_SPACE
-MAX_DOT_SPEED_REL_FRAC = 1.2 # 3/2 # 5/4
+MAX_DOT_SPEED_REL_FRAC = 1.5 # 1.2 # 3/2 # 5/4
 MAX_DOT_SPEED = (MAX_DOT_SPEED_REL_FRAC*ACTION_SPACE)/PLAN_RATIO
 ALPHA = 1
 NEURONS_FULL = 12 # 15 # 12 # jnp.int32(NEURONS_AP*(jnp.pi//APERTURE))
@@ -953,7 +953,7 @@ weights = {
 }
 # opt_state,p_weights
 ###
-_,(*_,opt_state,p_weights) = load_('/sc_project/test_data/forward_new_v10_81M_144N_12_10-130123.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-234704.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-203208.pkl') #'/sc_project/test_data/forward_new_v8_81M_144N_04_10-233819.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_08_10-044429.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_07_10-212430.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_07_10-165129.pkl') #'/sc_project/test_data/forward_new_training_v10_07_10-165129.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_05_10-070151.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_04_10-203804.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_04_10-050644.pkl') # '/sc_project/test_data/forward_new_v10_81M_144N_03_10-183817.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_03_10-213835.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_03_10-175825.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_03_10-042039.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_03_10-035421.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_02_10-195857.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_02_10-053656.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_01_10-221031.pkl') # '/sc_project/test_data/forward_new_v10_81M_144N_01_10-182122.pkl') # /sc_project/test_data/forward_new_v10_81M_144N_30_09-051139.pkl /sc_project/test_data/forward_new_v10_81M_144N_23_09-004216.pkl, /sc_project/test_data/forward_new_v10_81M_144N_22_09-071717.pkl') #'/sc_project/test_data/forward_new_v6_81M_144N_22_08-082725.pkl') # ...14-06...,opt_state'/sc_project/pkl/forward_v9_225_13_06-0014.pkl','/pkl/forward_v8M_08_06-1857.pkl'
+_,(*_,opt_state,p_weights) = load_('/sc_project/test_data/forward_new_v10_81M_144N_12_10-023341.pkl') # '/sc_project/test_data/forward_new_v10_81M_144N_12_10-130123.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-234704.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-203208.pkl') #'/sc_project/test_data/forward_new_v8_81M_144N_04_10-233819.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_08_10-044429.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_07_10-212430.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_07_10-165129.pkl') #'/sc_project/test_data/forward_new_training_v10_07_10-165129.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_05_10-070151.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_04_10-203804.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_04_10-050644.pkl') # '/sc_project/test_data/forward_new_v10_81M_144N_03_10-183817.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_03_10-213835.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_03_10-175825.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_03_10-042039.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_03_10-035421.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_02_10-195857.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_02_10-053656.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_01_10-221031.pkl') # '/sc_project/test_data/forward_new_v10_81M_144N_01_10-182122.pkl') # /sc_project/test_data/forward_new_v10_81M_144N_30_09-051139.pkl /sc_project/test_data/forward_new_v10_81M_144N_23_09-004216.pkl, /sc_project/test_data/forward_new_v10_81M_144N_22_09-071717.pkl') #'/sc_project/test_data/forward_new_v6_81M_144N_22_08-082725.pkl') # ...14-06...,opt_state'/sc_project/pkl/forward_v9_225_13_06-0014.pkl','/pkl/forward_v8M_08_06-1857.pkl'
 weights["p_weights"] = p_weights
 ###
 # p_weights["W_p"] = W_p0
