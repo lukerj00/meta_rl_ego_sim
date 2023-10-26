@@ -45,8 +45,8 @@ def save_pkl_sc(param,str_):  # can't jit (can't pickle jax tracers)
 	with open(path_+str_+'_'+dt+'.pkl','wb') as file:
 		pickle.dump(param,file,pickle.HIGHEST_PROTOCOL)
 
-def save_test_data(param,str_):  # can't jit (can't pickle jax tracers)
-	path_ = str(Path(__file__).resolve().parents[1]) + '/sc_project/test_data/' # '/scratch/lrj34/'
+def save_large_outputs(param,str_):  # can't jit (can't pickle jax tracers)
+	path_ = str(Path(__file__).resolve().parents[1]) + '/sc_project/large_outputs/' # '/sc_project/test_data/' # '/scratch/lrj34/'
 	dt = datetime.now().strftime("%d_%m-%H%M%S")
 	with open(path_+str_+'_'+dt+'.pkl','wb') as file:
 		pickle.dump(param,file,pickle.HIGHEST_PROTOCOL)
@@ -1119,4 +1119,4 @@ plt.savefig(path_+'outer_loop_pg_new_v4f_'+dt+'.png')
 # plt.savefig(path_ + 'figs_outer_loop_pg_new_v4_' + dt + '.png') # ctrl_v7_(v,r,h normal, r_tp changed)
 
 save_pkl_sc((actor_opt_state,critic_opt_state,weights_s),'outer_loop_pg_new_v4f') # no _
-save_test_data(other,'outer_loop_pg_new_v4f')
+save_large_outputs(other,'outer_loop_pg_new_v4f')
