@@ -119,7 +119,9 @@ def gen_sc(keys,MODULES,ACTION_SPACE,PLAN_SPACE):
 
 def gen_dot(key,VMAPS,N_DOTS,ACTION_SPACE):
     keys = rnd.split(key,N_DOTS)
-    dot_0 = rnd.uniform(keys[0],shape=(VMAPS,2),minval=-ACTION_SPACE,maxval=ACTION_SPACE)#minval=jnp.array([APERTURE/4,APERTURE/4]),maxval=jnp.array([3*APERTURE/4,3*APERTURE/4]))
+    dot_0 = rnd.uniform(keys[0],shape=(VMAPS,2),minval=-jnp.pi,maxval=jnp.pi)#minval=jnp.array([APERTURE/4,APERTURE/4]),maxval=jnp.array([3*APERTURE/4,3*APERTURE/4]))
+    # dot_0 = rnd.uniform(keys[0],shape=(VMAPS,2),minval=-ACTION_SPACE,maxval=ACTION_SPACE)#minval=jnp.array([APERTURE/4,APERTURE/4]),maxval=jnp.array([3*APERTURE/4,3*APERTURE/4]))
+    
     # dot_1 = rnd.uniform(keys[1],shape=(VMAPS,1,2),minval=-jnp.pi,maxval=jnp.pi)#minval=jnp.array([APERTURE/4,-APERTURE/4]),maxval=jnp.array([3*APERTURE/4,-3*APERTURE/4]))
     # dot_2 = rnd.uniform(keys[2],shape=(VMAPS,1,2),minval=-jnp.pi,maxval=jnp.pi)#minval=jnp.array([-3*APERTURE/4,-APERTURE]),maxval=jnp.array([-APERTURE/4,APERTURE]))
     # dot_tot = jnp.concatenate((dot_0,dot_1,dot_2),axis=1)
@@ -640,8 +642,8 @@ def full_loop(SC,weights,params,actor_opt_state,critic_opt_state,weights_s):
     optax.clip_by_global_norm(params["CRITIC_GC"]),optax.adam(learning_rate=params["CRITIC_LR"],eps=1e-7))# 
     # optax.clip_by_global_norm(params["CRITIC_GC"]),optax.adamw(learning_rate=params["CRITIC_LR"],weight_decay=params["CRITIC_WD"],eps=1e-7))
     
-    # actor_opt_state = actor_optimizer.init(weights_s) ##
-    # critic_opt_state = critic_optimizer.init(weights_s) ##
+    actor_opt_state = actor_optimizer.init(weights_s) ##
+    critic_opt_state = critic_optimizer.init(weights_s) ##
     
     other_buffer = []
     r_tot_buffer = []
@@ -724,12 +726,12 @@ def full_loop(SC,weights,params,actor_opt_state,critic_opt_state,weights_s):
     return loss_arrs,sem_arrs,other,actor_opt_state,critic_opt_state,weights_s #r_arr,pos_arr,sample_arr,dots_arr
 
 # hyperparams ###
-TOT_EPOCHS = 1000 ## 1000
-CRITIC_UPDATES = 3 # 8 5
+TOT_EPOCHS = 3000 ## 1000
+CRITIC_UPDATES = 5 # 8 5
 # LOOPS = TOT_EPOCHS//EPOCHS
-VMAPS = 1000 ## 2000,500,1100,1000,800,500
+VMAPS = 600 ## 2000,500,1100,1000,800,500
 ACTOR_LR = 0.0003 # 0.0002 # 0.001 # 0.0005
-CRITIC_LR = 0.0012 #  # 0.0005 # 0.0001 # 0.0005   0.001,0.0008,0.0005,0.001,0.000001,0.0001
+CRITIC_LR = 0.0008 #  # 0.0005 # 0.0001 # 0.0005   0.001,0.0008,0.0005,0.001,0.000001,0.0001
 CRITIC_WD = 0.00001 # 0.0001
 PLAN_RATIO = 5 ## 5 2 10
 ACTOR_GC = 0.4 ##0.6 0.3, 0.5 1.0
@@ -743,12 +745,12 @@ H_P = 300 # 400,500,300
 PLAN_ITS = 10
 NONE_PLAN = jnp.zeros((PLAN_ITS,)) #[None] * PLAN_ITS
 INIT_LENGTH = 0
-TRIAL_LENGTH = 60 ## 50 90 120 100
+TRIAL_LENGTH = 100 ## 50 90 120 100
 TEST_LENGTH = TRIAL_LENGTH - INIT_LENGTH
-LAMBDA_VEC_KL = 0.01 # 0.05, 0.1, 0.5
-LAMBDA_ACT_KL = 0.01 # 0.01,0.1,1
+LAMBDA_VEC_KL = 0.1 # 0.05, 0.1, 0.5
+LAMBDA_ACT_KL = 0.1 # 0.01,0.1,1
 TEMP_VS = 1 # 0.1,0.05
-TEMP_AS = 0.1 # 1 # 0.1,0.05
+TEMP_AS = 1 # 1 # 0.1,0.05
 
 # ENV/sc params
 ke = rnd.split(rnd.PRNGKey(0),10)
@@ -913,13 +915,15 @@ weights = {
 }
 
 ###
+# MDS=1.5 (rnd dot gen): 2 = x, 5 = 2210 021511, 10 = 2210 021849
+# sc_project/test_data/forward_new_v10_81M_144N_22_10-021511.pkl, sc_project/test_data/forward_new_v10_81M_144N_22_10-021849.pkl
 # MDS=1.5: 2 = 1410 1628, 5 = 1410 1630, 10 = 1410 1632
 # sc_project/test_data/forward_new_v10_81M_144N_14_10-162845.pkl, sc_project/test_data/forward_new_v10_81M_144N_14_10-163001.pkl, sc_project/test_data/forward_new_v10_81M_144N_14_10-163228.pkl
 # MDS=1.2: 2 = 1110 2032, 5 = 1210 1324, 10 = 1210 0233
-(_),(*_,weights_v) = load_('/sc_project/test_data/forward_new_v10_81M_144N_14_10-163001.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_12_10-023341.pkl') #/sc_project/test_data/forward_new_v10_81M_144N_12_10-132458.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-203208.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_12_10-023341.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-234644.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-234704.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-234644.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-203208.pkl') #'/sc_project/test_data/forward_new_v11_81M_144N_11_10-210349.pkl') #'/sc_project/test_data/forward_new_v8_81M_144N_06_09-211442.pkl') #
+(_),(*_,weights_v) = load_('/sc_project/test_data/forward_new_v10_81M_144N_22_10-021511.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_12_10-023341.pkl') #/sc_project/test_data/forward_new_v10_81M_144N_12_10-132458.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-203208.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_12_10-023341.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-234644.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-234704.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-234644.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-203208.pkl') #'/sc_project/test_data/forward_new_v11_81M_144N_11_10-210349.pkl') #'/sc_project/test_data/forward_new_v8_81M_144N_06_09-211442.pkl') #
 weights['v'] = weights_v
 (actor_opt_state,critic_opt_state,weights_s) = load_('/sc_project/pkl_sc/outer_loop_pg_new_v4f_17_10-182641.pkl') #/sc_project/pkl_sc/outer_loop_pg_new_v4f_27_10-173751.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v4f_15_10-112328.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v4f__13_10-084115.pkl') #/sc_project/pkl_sc/outer_loop_pg_new_v4f__12_10-175620.pkl') #'/sc_project/test_data/outer_loop_pg_new_v4f_12_10-173828.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v6__21_09-125738.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v1_ppo__13_09-235540.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v3_c__13_09-174514.pkl', '/sc_project/test_data/outer_loop_pg_new_v3_c__13_09-174514.pkl')
-weights['s'] = weights_s
+# weights['s'] = weights_s
 # *_,r_weights = load_('') #
 # weights['r'] = r_weights
 ###

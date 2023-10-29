@@ -121,9 +121,9 @@ def gen_dot_scheduled(key,N_A,N_dot,APERTURE,e,TOT_EPOCHS):
     lim_0 = APERTURE
     lim_inf = jnp.pi
     ###
-    lim_e = lim_0 + (lim_inf-lim_0)*(e/TOT_EPOCHS)
+    lim_e = lim_inf # lim_0 + (lim_inf-lim_0)*(e/TOT_EPOCHS)
     ###
-    dot_0 = rnd.uniform(keys[0],shape=(N_A,2),minval=-lim_0,maxval=lim_0)#lim_e,minval=jnp.array([APERTURE/4,APERTURE/4]),maxval=jnp.array([3*APERTURE/4,3*APERTURE/4]))
+    dot_0 = rnd.uniform(keys[0],shape=(N_A,2),minval=-lim_e,maxval=lim_e)#lim_e,minval=jnp.array([APERTURE/4,APERTURE/4]),maxval=jnp.array([3*APERTURE/4,3*APERTURE/4]))
     # dot_1 = rnd.uniform(keys[1],shape=(VMAPS,1,2),minval=-jnp.pi,maxval=jnp.pi)#minval=jnp.array([APERTURE/4,-APERTURE/4]),maxval=jnp.array([3*APERTURE/4,-3*APERTURE/4]))
     # dot_2 = rnd.uniform(keys[2],shape=(VMAPS,1,2),minval=-jnp.pi,maxval=jnp.pi)#minval=jnp.array([-3*APERTURE/4,-APERTURE]),maxval=jnp.array([-APERTURE/4,APERTURE]))
     # dot_tot = jnp.concatenate((dot_0,dot_1,dot_2),axis=1)
@@ -779,11 +779,11 @@ PLOTS = 3
 VMAPS = 200 # 800,500
 PLAN_ITS = 10 # 10,8,5
 INIT_STEPS = 0 # (taking loss over all steps so doesnt matter)
-TOT_STEPS = 60 # steps in rnn-time inc refac period
+TOT_STEPS = 100 # steps in rnn-time inc refac period
 PRED_STEPS = TOT_STEPS-INIT_STEPS
 MAX_PLAN_LENGTH = TOT_STEPS # 1,3,5
 PLAN_RATIO = 10 # 5,2
-LR = 0.0001 # 0.003,,0.0001
+LR = 0.0001 # 0.0001, 0.003,,0.0001
 WD = 0.0001 # 0.0001
 H = 300 # 500,300
 INIT = 2 # 0.5,0.1
