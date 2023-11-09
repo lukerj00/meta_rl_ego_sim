@@ -91,7 +91,7 @@ def gen_sc(keys,MODULES,ACTION_SPACE,PLAN_SPACE):
 
 def gen_dot(key,VMAPS,N_DOTS,ACTION_SPACE):
     keys = rnd.split(key,N_DOTS)
-    dot_0 = rnd.uniform(keys[0],shape=(VMAPS,2),minval=-(2*jnp.pi)/4,maxval=(2*jnp.pi)/4)#minval=jnp.array([APERTURE/4,APERTURE/4]),maxval=jnp.array([3*APERTURE/4,3*APERTURE/4]))
+    dot_0 = rnd.uniform(keys[0],shape=(VMAPS,2),minval=-(3*jnp.pi)/4,maxval=(3*jnp.pi)/4)#minval=jnp.array([APERTURE/4,APERTURE/4]),maxval=jnp.array([3*APERTURE/4,3*APERTURE/4]))
     # dot_0 = rnd.uniform(keys[0],shape=(VMAPS,2),minval=-ACTION_SPACE,maxval=ACTION_SPACE)#minval=jnp.array([APERTURE/4,APERTURE/4]),maxval=jnp.array([3*APERTURE/4,3*APERTURE/4]))
     
     # dot_1 = rnd.uniform(keys[1],shape=(VMAPS,1,2),minval=-jnp.pi,maxval=jnp.pi)#minval=jnp.array([APERTURE/4,-APERTURE/4]),maxval=jnp.array([3*APERTURE/4,-3*APERTURE/4]))
@@ -224,8 +224,7 @@ def circular_mean(v_t,NEURON_GRID_AP):
     mean_y = jnp.sqrt(mean_sin**2 + mean_cos**2)
     return jnp.array([mean_x,mean_y])
 
-###
-
+###############
 def new_params(params, e): # Modify in place
     VMAPS = params["VMAPS"]
     INIT_S = params["INIT_S"]
@@ -246,7 +245,7 @@ def new_params(params, e): # Modify in place
     params["POS_0"] = rnd.uniform(ki[0],shape=(VMAPS,2),minval=-jnp.pi,maxval=jnp.pi) # rnd.choice(ke[2],jnp.arange(-APERTURE,APERTURE,0.01),(VMAPS,2))
     DOT_0_VEC = gen_dot(ki[3],VMAPS,N_DOTS,ACTION_SPACE)
     params["DOT_0"] = params["POS_0"] + DOT_0_VEC
-    params["DOT_VEC"] = (-(2/2)*DOT_0_VEC + gen_dot_vecs(ki[4],VMAPS,MAX_DOT_SPEED,ACTION_SPACE))*(MAX_DOT_SPEED/(2*PLAN_RATIO))
+    params["DOT_VEC"] = (-(2/3)*DOT_0_VEC + gen_dot_vecs(ki[4],VMAPS,MAX_DOT_SPEED,ACTION_SPACE))*(MAX_DOT_SPEED/(2*PLAN_RATIO))
     # params["SELECT"] = jnp.eye(N_DOTS)[rnd.choice(ki[4],N_DOTS,(VMAPS,))]
     params["IND"] = rnd.randint(ki[5],(VMAPS,T),minval=0,maxval=M,dtype=jnp.int32)
 
@@ -302,6 +301,29 @@ def get_policy(args_t,weights_s,params): # hs_t_1,v_t,r_t,rp_t_1,rm_t_1,weights_
     vectors_t = jax.nn.softmax((vec_logits/params["TEMP_VS"]) - jnp.max(vec_logits/params["TEMP_VS"]) + 1e-8) # stable
     actions_t = jax.nn.softmax((act_logits/params["TEMP_AS"]) - jnp.max(act_logits/params["TEMP_AS"]) + 1e-8) # stable
     return (vectors_t,actions_t),val_t,hs_t
+
+def sample_policy_greedy_all(policy,SC,ind):
+    vectors, actions = policy
+    ID_ARR, VEC_ARR, H1VEC_ARR = SC
+    vec_ind = jnp.argmax(vectors)
+    act_ind = jnp.argmax(actions)
+    h1vec = H1VEC_ARR[:, vec_ind]
+    vec = VEC_ARR[:, vec_ind]
+    act = jnp.eye(len(actions))[act_ind]
+    logit_t = jnp.log(vectors[vec_ind] + 1e-8) + jnp.log(actions[act_ind] + 1e-8)
+    return h1vec,vec,vec_ind,act_ind,act,logit_t
+
+def sample_mixed_greedy_vectors(policy, SC, ind):
+    vectors, actions = policy
+    ID_ARR, VEC_ARR, H1VEC_ARR = SC
+    vec_ind = jnp.argmax(vectors)
+    h1vec = H1VEC_ARR[:, vec_ind]
+    vec = VEC_ARR[:, vec_ind]
+    key = rnd.PRNGKey(ind)
+    act_ind = rnd.choice(key=key, a=jnp.arange(len(actions)), p=actions)
+    act = jnp.eye(len(actions))[act_ind]
+    logit_t = jnp.log(vectors[vec_ind] + 1e-8) + jnp.log(actions[act_ind] + 1e-8)
+    return h1vec,vec,vec_ind,act_ind,act,logit_t
 
 def sample_policy(policy,SC,ind):
     vectors,actions = policy
@@ -430,7 +452,8 @@ def env_fnc(carry_args):
     move_counter += 1
 
     # r_t = jnp.float32(0) # no grads through no-op
-    r_t = _r_t_ ###
+    MDV = (jnp.pi*params["MAX_DOT_SPEED"])/(jnp.sqrt(2)*params["PLAN_RATIO"])
+    r_t = _r_t_*(1+0.5*(jnp.linalg.norm(dot_vec)/MDV))
     rp_t = jnp.float32(0)
     lp_t = jnp.float32(0) # no grads
 
@@ -443,6 +466,8 @@ def plan_fnc(carry_args):
     (SC,weights_v,weights_s,params) = theta
 
     rp_t,v_t,hv_t,pos_plan_t,pos_t,dot_t = plan(h1vec_t,vec_t,v_t_1,hv_t_1,r_t_1,pos_plan_t_1,pos_t_1,dot_t_1,dot_vec,act_t,ind[t],weights_v,params,e)
+    MDV = (jnp.pi*params["MAX_DOT_SPEED"])/(jnp.sqrt(2)*params["PLAN_RATIO"])
+    rp_t = rp_t*(1+0.5*(jnp.linalg.norm(dot_vec)/MDV))
     r_t = jnp.float32(0) # rp_t = rp_t ### # r_t
     t += 1 # params["T_PLAN"]
     move_counter = 0
@@ -457,6 +482,8 @@ def move_fnc(carry_args):
     (SC,weights_v,weights_s,params) = theta
 
     r_t,v_t,hv_t,pos_plan_t,pos_t,dot_t = move(h1vec_t,vec_t,v_t_1,hv_t_1,r_t_1,pos_plan_t_1,pos_t_1,dot_t_1,dot_vec,act_t,ind[t],weights_v,params,e) # ,sel,hr
+    MDV = (jnp.pi*params["MAX_DOT_SPEED"])/(jnp.sqrt(2)*params["PLAN_RATIO"])
+    r_t = r_t*(1+0.5*(jnp.linalg.norm(dot_vec)/MDV))
     rp_t = jnp.float32(0) ###
     t += 1 # params["T_MOVE"]
     move_counter = 1
@@ -604,7 +631,7 @@ def full_loop(SC,weights,params,actor_opt_state,critic_opt_state,weights_s):
         dot_0 = params["DOT_0"]
         dot_vec = params["DOT_VEC"]
         ind = params["IND"]
-        print('hs_0[:10]=',hs_0[:10],'ind[:10]=',ind[:10])
+        # print('hs_0[:10]=',hs_0[:10],'ind[:10]=',ind[:10])
 
         for _ in range(params["CRITIC_UPDATES"]):
             # Recompute losses using updated weights
@@ -689,14 +716,16 @@ def full_loop(SC,weights,params,actor_opt_state,critic_opt_state,weights_s):
     return loss_arrs,sem_arrs,selected_other,actor_opt_state,critic_opt_state,weights_s,plan_info #r_arr,pos_arr,sample_arr,dots_arr
 
 # hyperparams ###
-TOT_EPOCHS = 2 ## 1000
-CRITIC_UPDATES = 3 # 8 5
+TOT_EPOCHS = 3000 ## 1000
+CRITIC_UPDATES = 5 # 8 5
 # LOOPS = TOT_EPOCHS//EPOCHS
-VMAPS = 1000 ## 2000,500,1100,1000,800,500
+VMAPS = 500 ## 2000,500,1100,1000,800,500
 ACTOR_LR = 0.0003 # 0.0002 # 0.001 # 0.0005
-CRITIC_LR = 0.0012 #  # 0.0005 # 0.0001 # 0.0005   0.001,0.0008,0.0005,0.001,0.000001,0.0001
-CRITIC_WD = 0.00001 # 0.0001
-PLAN_RATIO = 5 ## 5 2 10
+CRITIC_LR = 0.0008 #  # 0.0005 # 0.0001 # 0.0005   0.001,0.0008,0.0005,0.001,0.000001,0.0001
+CRITIC_WD = 0 # 0.00001 # 0.0001
+#
+PLAN_RATIO = 10 ## 5 2 10
+#
 ACTOR_GC = 0.4 ##0.6 0.3, 0.5 1.0
 CRITIC_GC = 0.9 ## 0.7
 INIT_S = 2
@@ -710,10 +739,10 @@ NONE_PLAN = jnp.zeros((PLAN_ITS,)) #[None] * PLAN_ITS
 INIT_LENGTH = 0
 TRIAL_LENGTH = 60 ## 50 90 120 100
 TEST_LENGTH = TRIAL_LENGTH - INIT_LENGTH
-LAMBDA_VEC_KL = 0.01 # 0.5, 0.05, 0.1, 0.5
-LAMBDA_ACT_KL = 0.01 # 0.01,0.1,1
+LAMBDA_VEC_KL = 0.1 # 0.5, 0.05, 0.1, 0.5
+LAMBDA_ACT_KL = 0.1 # 0.01,0.1,1
 TEMP_VS = 1 # 0.1,0.05
-TEMP_AS = 0.1 # 1 # 0.1,0.05
+TEMP_AS = 1 # 1 # 0.1,0.05
 
 # ENV/sc params
 ke = rnd.split(rnd.PRNGKey(0),10)
@@ -843,6 +872,7 @@ params = {
     "PLAN_RATIO" : PLAN_RATIO,
     "PRIOR_VEC" : PRIOR_VEC,
     "ZERO_VEC_IND" : ZERO_VEC_IND,
+    "MAX_DOT_SPEED" : MAX_DOT_SPEED,
     }
 
 weights = {
@@ -883,9 +913,9 @@ weights = {
 # MDS=1.5: 2 = 1410 1628, 5 = 1410 1630, 10 = 1410 1632
 # sc_project/test_data/forward_new_v10_81M_144N_14_10-162845.pkl, sc_project/test_data/forward_new_v10_81M_144N_14_10-163001.pkl, sc_project/test_data/forward_new_v10_81M_144N_14_10-163228.pkl
 # MDS=1.2: 2 = 1110 2032, 5 = 1210 1324, 10 = 1210 0233
-(_),(*_,weights_v) = load_('/sc_project/test_data/forward_new_v10_81M_144N_14_10-163001.pkl') # '/sc_project/test_data/forward_new_v10_81M_144N_22_10-021511.pkl') # '/sc_project/test_data/forward_new_v10_81M_144N_22_10-021849.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_12_10-023341.pkl') #/sc_project/test_data/forward_new_v10_81M_144N_12_10-132458.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-203208.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_12_10-023341.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-234644.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-234704.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-234644.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-203208.pkl') #'/sc_project/test_data/forward_new_v11_81M_144N_11_10-210349.pkl') #'/sc_project/test_data/forward_new_v8_81M_144N_06_09-211442.pkl') #
+(_),(*_,weights_v) = load_('/sc_project/test_data/forward_new_v10_81M_144N_22_10-021849.pkl') # /sc_project/test_data/forward_new_v10_81M_144N_22_10-021511.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_14_10-162845.pkl') #/sc_project/test_data/forward_new_v10_81M_144N_22_10-021511.pkl') # '/sc_project/test_data/forward_new_v10_81M_144N_22_10-021849.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_12_10-023341.pkl') #/sc_project/test_data/forward_new_v10_81M_144N_12_10-132458.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-203208.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_12_10-023341.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-234644.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-234704.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-234644.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-203208.pkl') #'/sc_project/test_data/forward_new_v11_81M_144N_11_10-210349.pkl') #'/sc_project/test_data/forward_new_v8_81M_144N_06_09-211442.pkl') #
 weights['v'] = weights_v
-(actor_opt_state,critic_opt_state,weights_s) = load_('/sc_project/pkl_sc/outer_loop_pg_new_v4f_29_10-092657.pkl') #/sc_project/pkl_sc/outer_loop_pg_new_v4f_27_10-173751.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v4f_15_10-112328.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v4f__13_10-084115.pkl') #/sc_project/pkl_sc/outer_loop_pg_new_v4f__12_10-175620.pkl') #'/sc_project/test_data/outer_loop_pg_new_v4f_12_10-173828.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v6__21_09-125738.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v1_ppo__13_09-235540.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v3_c__13_09-174514.pkl', '/sc_project/test_data/outer_loop_pg_new_v3_c__13_09-174514.pkl')
+(actor_opt_state,critic_opt_state,weights_s) = load_('/sc_project/pkl_sc/outer_loop_pg_new_v4f_03_11-044700.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v4f_02_11-102024.pkl') #/sc_project/pkl_sc/outer_loop_pg_new_v4f_27_10-173751.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v4f_15_10-112328.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v4f__13_10-084115.pkl') #/sc_project/pkl_sc/outer_loop_pg_new_v4f__12_10-175620.pkl') #'/sc_project/test_data/outer_loop_pg_new_v4f_12_10-173828.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v6__21_09-125738.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v1_ppo__13_09-235540.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v3_c__13_09-174514.pkl', '/sc_project/test_data/outer_loop_pg_new_v3_c__13_09-174514.pkl')
 weights['s'] = weights_s
 # *_,r_weights = load_('') #
 # weights['r'] = r_weights

@@ -65,7 +65,6 @@ def gen_vectors(MODULES,APERTURE):
     v = jnp.vstack([x_,y_]) # [2,M]
     return v
 
-
 def gen_sc(keys,MODULES,ACTION_SPACE,PLAN_SPACE):
     index_range = jnp.arange(MODULES**2)
     x = jnp.linspace(-PLAN_SPACE,PLAN_SPACE,MODULES)
@@ -91,7 +90,9 @@ def gen_sc(keys,MODULES,ACTION_SPACE,PLAN_SPACE):
 
 def gen_dot(key,VMAPS,N_DOTS,ACTION_SPACE):
     keys = rnd.split(key,N_DOTS)
-    dot_0 = rnd.uniform(keys[0],shape=(VMAPS,2),minval=-ACTION_SPACE,maxval=ACTION_SPACE)#minval=jnp.array([APERTURE/4,APERTURE/4]),maxval=jnp.array([3*APERTURE/4,3*APERTURE/4]))
+    dot_0 = rnd.uniform(keys[0],shape=(VMAPS,2),minval=-(2*jnp.pi)/4,maxval=(2*jnp.pi)/4)#minval=jnp.array([APERTURE/4,APERTURE/4]),maxval=jnp.array([3*APERTURE/4,3*APERTURE/4]))
+    # dot_0 = rnd.uniform(keys[0],shape=(VMAPS,2),minval=-ACTION_SPACE,maxval=ACTION_SPACE)#minval=jnp.array([APERTURE/4,APERTURE/4]),maxval=jnp.array([3*APERTURE/4,3*APERTURE/4]))
+    
     # dot_1 = rnd.uniform(keys[1],shape=(VMAPS,1,2),minval=-jnp.pi,maxval=jnp.pi)#minval=jnp.array([APERTURE/4,-APERTURE/4]),maxval=jnp.array([3*APERTURE/4,-3*APERTURE/4]))
     # dot_2 = rnd.uniform(keys[2],shape=(VMAPS,1,2),minval=-jnp.pi,maxval=jnp.pi)#minval=jnp.array([-3*APERTURE/4,-APERTURE]),maxval=jnp.array([-APERTURE/4,APERTURE]))
     # dot_tot = jnp.concatenate((dot_0,dot_1,dot_2),axis=1)
@@ -244,7 +245,7 @@ def new_params(params, e): # Modify in place
     params["POS_0"] = rnd.uniform(ki[0],shape=(VMAPS,2),minval=-jnp.pi,maxval=jnp.pi) # rnd.choice(ke[2],jnp.arange(-APERTURE,APERTURE,0.01),(VMAPS,2))
     DOT_0_VEC = gen_dot(ki[3],VMAPS,N_DOTS,ACTION_SPACE)
     params["DOT_0"] = params["POS_0"] + DOT_0_VEC
-    params["DOT_VEC"] = (-DOT_0_VEC + gen_dot_vecs(ki[4],VMAPS,MAX_DOT_SPEED,ACTION_SPACE))*(MAX_DOT_SPEED/(2*PLAN_RATIO))
+    params["DOT_VEC"] = (-(2/2)*DOT_0_VEC + gen_dot_vecs(ki[4],VMAPS,MAX_DOT_SPEED,ACTION_SPACE))*(MAX_DOT_SPEED/(2*PLAN_RATIO)) # (pi/2 + pi/2) * DS/(2*P)
     # params["SELECT"] = jnp.eye(N_DOTS)[rnd.choice(ki[4],N_DOTS,(VMAPS,))]
     params["IND"] = rnd.randint(ki[5],(VMAPS,T),minval=0,maxval=M,dtype=jnp.int32)
 
@@ -300,29 +301,6 @@ def get_policy(args_t,weights_s,params): # hs_t_1,v_t,r_t,rp_t_1,rm_t_1,weights_
     vectors_t = jax.nn.softmax((vec_logits/params["TEMP_VS"]) - jnp.max(vec_logits/params["TEMP_VS"]) + 1e-8) # stable
     actions_t = jax.nn.softmax((act_logits/params["TEMP_AS"]) - jnp.max(act_logits/params["TEMP_AS"]) + 1e-8) # stable
     return (vectors_t,actions_t),val_t,hs_t
-
-def sample_policy_greedy_all(policy,SC,ind):
-    vectors, actions = policy
-    ID_ARR, VEC_ARR, H1VEC_ARR = SC
-    vec_ind = jnp.argmax(vectors)
-    act_ind = jnp.argmax(actions)
-    h1vec = H1VEC_ARR[:, vec_ind]
-    vec = VEC_ARR[:, vec_ind]
-    act = jnp.eye(len(actions))[act_ind]
-    logit_t = jnp.log(vectors[vec_ind] + 1e-8) + jnp.log(actions[act_ind] + 1e-8)
-    return h1vec,vec,vec_ind,act_ind,act,logit_t
-
-def sample_mixed_greedy_vectors(policy, SC, ind):
-    vectors, actions = policy
-    ID_ARR, VEC_ARR, H1VEC_ARR = SC
-    vec_ind = jnp.argmax(vectors)
-    h1vec = H1VEC_ARR[:, vec_ind]
-    vec = VEC_ARR[:, vec_ind]
-    key = rnd.PRNGKey(ind)
-    act_ind = rnd.choice(key=key, a=jnp.arange(len(actions)), p=actions)
-    act = jnp.eye(len(actions))[act_ind]
-    logit_t = jnp.log(vectors[vec_ind] + 1e-8) + jnp.log(actions[act_ind] + 1e-8)
-    return h1vec,vec,vec_ind,act_ind,act,logit_t
 
 def sample_policy(policy,SC,ind):
     vectors,actions = policy
@@ -451,7 +429,8 @@ def env_fnc(carry_args):
     move_counter += 1
 
     # r_t = jnp.float32(0) # no grads through no-op
-    r_t = _r_t_ ###
+    MDV = (jnp.pi*params["MAX_DOT_SPEED"])/(jnp.sqrt(2)*params["PLAN_RATIO"])
+    r_t = _r_t_*(1+0.5*(jnp.linalg.norm(dot_vec)/MDV))
     rp_t = jnp.float32(0)
     lp_t = jnp.float32(0) # no grads
 
@@ -464,6 +443,8 @@ def plan_fnc(carry_args):
     (SC,weights_v,weights_s,params) = theta
 
     rp_t,v_t,hv_t,pos_plan_t,pos_t,dot_t = plan(h1vec_t,vec_t,v_t_1,hv_t_1,r_t_1,pos_plan_t_1,pos_t_1,dot_t_1,dot_vec,act_t,ind[t],weights_v,params,e)
+    MDV = (jnp.pi*params["MAX_DOT_SPEED"])/(jnp.sqrt(2)*params["PLAN_RATIO"])
+    rp_t = rp_t*(1+0.5*(jnp.linalg.norm(dot_vec)/MDV))
     r_t = jnp.float32(0) # rp_t = rp_t ### # r_t
     t += 1 # params["T_PLAN"]
     move_counter = 0
@@ -478,6 +459,8 @@ def move_fnc(carry_args):
     (SC,weights_v,weights_s,params) = theta
 
     r_t,v_t,hv_t,pos_plan_t,pos_t,dot_t = move(h1vec_t,vec_t,v_t_1,hv_t_1,r_t_1,pos_plan_t_1,pos_t_1,dot_t_1,dot_vec,act_t,ind[t],weights_v,params,e) # ,sel,hr
+    MDV = (jnp.pi*params["MAX_DOT_SPEED"])/(jnp.sqrt(2)*params["PLAN_RATIO"])
+    r_t = r_t*(1+0.5*(jnp.linalg.norm(dot_vec)/MDV))
     rp_t = jnp.float32(0) ###
     t += 1 # params["T_MOVE"]
     move_counter = 1
@@ -487,29 +470,37 @@ def move_fnc(carry_args):
     return (t,args_t,(rp_t,r_t,pos_plan_t,pos_t,dot_t,logit_t,val_t,jnp.float32(0),jnp.float32(1),vec_kl,act_kl,policy_t,hs_t,hv_t))
 
 @jit
-def scan_body_test(carry_t_1,vec_act_ind):
+def scan_body(carry_t_1,x):
     t,args_t_1,theta = carry_t_1
-    vec_ind,act_ind = vec_act_ind # not used..
-    # act_ind = 0 # (if restricting planning)X
     (hs_t_1,hv_t_1,val_t_1,pos_plan_t_1,pos_t_1,dot_t_1,dot_vec,ind,act_t_1,v_t_1,r_t_1,rp_t_1,move_counter,e) = args_t_1 # sel,hr
     (SC,weights_v,weights_s,params) = theta    
 
     policy_t,val_t,hs_t = get_policy(args_t_1,weights_s,params) # hs_t_1,v_t_1,r_t_1,rp_t_1,rm_t_1,weights_s,params
     vec_kl,act_kl = kl_loss(policy_t,params) #-jnp.dot(policy_t[1],jnp.log(policy_t[1]))
-    # h1vec_t,vec_t,act_t,logit_t = get_vectors(policy_t,SC,vec_ind,act_ind) # enforces same decisions....
     h1vec_t,vec_t,vec_ind,act_ind,act_t,logit_t = sample_policy(policy_t,SC,ind[t])
-    
-    ##### UNCOMMENT TO PREVENT PLANNING #####
-    act_ind = 1
-    act_t = jnp.array([0,1],dtype=jnp.float32)
-    #####
 
     args_t = (hs_t,hv_t_1,val_t,pos_plan_t_1,pos_t_1,dot_t_1,dot_vec,ind,act_t,v_t_1,r_t_1,rp_t_1,move_counter,e) # sel,hr update rp/rm
     carry_args = (t,args_t,logit_t,vec_kl,act_kl,theta,h1vec_t,vec_t,act_t,policy_t) # (lp_arr,r_arr,sample_arr) assemble carry with sampled vecs and updated args
     t,args_t,arrs_t = jax.lax.cond((move_counter > 0)&(move_counter < params["PLAN_RATIO"]),env_fnc,continue_fnc,(carry_args))
     return (t,args_t,theta),(vec_ind,act_ind,arrs_t)
 
-def body_fnc_test(SC,hs_0,hv_0,pos_0,dot_0,dot_vec,ind,weights_v,weights_s,params,e,vec_ind,act_ind): # # ,sel,hr PLAN_ITS
+# @jit
+# def scan_body_old(carry_t_1,x):
+#     t,args_t_1,theta = carry_t_1
+#     (hs_t_1,hv_t_1,val_t_1,pos_plan_t_1,pos_t_1,dot_t_1,dot_vec,ind,act_t_1,v_t_1,r_t_1,rp_t_1,move_counter,e) = args_t_1 # sel,hr
+#     (SC,weights_v,weights_s,params) = theta
+
+#     policy_t,val_t,hs_t = get_policy(args_t_1,weights_s,params) # hs_t_1,v_t_1,r_t_1,rp_t_1,rm_t_1,weights_s,params
+#     vec_kl,act_kl = kl_loss(policy_t,params) #-jnp.dot(policy_t[1],jnp.log(policy_t[1]))
+#     h1vec_t,vec_t,vec_ind,act_ind,act_t,logit_t = sample_policy(policy_t,SC,ind[t])
+
+#     args_t = (hs_t,hv_t_1,val_t,pos_plan_t_1,pos_t_1,dot_t_1,dot_vec,ind,act_t,v_t_1,r_t_1,rp_t_1,move_counter,e) # sel,hr update rp/rm
+#     carry_args = (t,args_t,logit_t,vec_kl,act_kl,theta,h1vec_t,vec_t,act_t) # (lp_arr,r_arr,sample_arr) assemble carry with sampled vecs and updated args
+#     t,args_t,arrs_t = jax.lax.cond((move_counter > 0)&(move_counter < params["PLAN_RATIO"]),env_fnc,continue_fnc,(carry_args))
+#     # t,args_t,arrs_t = jax.lax.cond(rp_t == 1,plan_fnc,move_fnc,(carry_args))###DEBUG;CHANGE
+#     return (t,args_t,theta),(vec_ind,act_ind,arrs_t)
+
+def body_fnc(SC,hs_0,hv_0,pos_0,dot_0,dot_vec,ind,weights_v,weights_s,params,e): # # ,sel,hr PLAN_ITS
     v_0 = neuron_act_noise(ind[-1],params["THETA_AP"],params["SIGMA_A"],params["SIGMA_N"],dot_0,pos_0)
     r_0 = loss_obj(dot_0,pos_0,params,e)### ,sel
 
@@ -525,10 +516,9 @@ def body_fnc_test(SC,hs_0,hv_0,pos_0,dot_0,dot_vec,ind,weights_v,weights_s,param
     # args_0 = (hs_0,hv_0,pos_plan_0,pos_0,dot_0,dot_vec,ind,rp_0,rm_0,v_0,r_0,r_tot_0,move_flag) # sel,hr r_tot_1 = 0
     args_0 = (hs_0,hv_0,val_0,pos_plan_0,pos_0,dot_0,dot_vec,ind,act_0,v_0,r_0,rp_0,move_counter,e)
     theta = (SC,weights_v,weights_s,params)
-    vec_act_ind = jnp.stack((vec_ind,act_ind),axis=1)
     # _,args_init,rpos_init_arr = init_scan((t,args_0,theta))
     # r_init_arr,pos_init_arr = rpos_init_arr[:,0],rpos_init_arr[:,1:]
-    (_,args_final,_),arrs_stack = jax.lax.scan(scan_body_test,(t,args_0,theta),vec_act_ind,params["TEST_LENGTH"])# dynamic_scan((t,args_0,theta)) # arrs_0
+    (_,args_final,_),arrs_stack = jax.lax.scan(scan_body,(t,args_0,theta),None,params["TEST_LENGTH"])# dynamic_scan((t,args_0,theta)) # arrs_0
     vec_ind_arr,act_ind_arr,(rp_arr,r_arr,pos_plan_arr,pos_arr,dot_arr,lp_arr,val_arr,sample_arr,mask_arr,vec_kl_arr,act_kl_arr,policy_arr,hs_arr,hv_arr) = arrs_stack
     # lp_arr,r_arr,rt_arr,val_arr,sample_arr,vec_kl_arr,act_kl_arr = (arrs_stack[:,i] for i in range(7)) #,t_arr
     # pos_plan_arr = arrs_stack[:,7:9]
@@ -539,9 +529,10 @@ def body_fnc_test(SC,hs_0,hv_0,pos_0,dot_0,dot_vec,ind,weights_v,weights_s,param
     # sample_arr = jnp.concatenate([jnp.array([0]),sample_arr])
     return lp_arr,r_arr,rp_arr,val_arr,sample_arr,vec_ind_arr,vec_kl_arr,act_ind_arr,act_kl_arr,pos_plan_arr,pos_arr,dot_arr,mask_arr,policy_arr,hs_arr,hv_arr #,t_arr #
 
-def pg_obj_test(SC,hs_0,hp_0,pos_0,dot_0,dot_vec,ind,weights,weights_s,params,e,vec_ind_arr,act_ind_arr): # ,sel
-    body_fnc_vmap_test = jax.vmap(body_fnc_test,in_axes=(None,0,0,0,0,0,0,None,None,None,None,0,0),out_axes=(1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0))
-    lp_arr,r_arr,rp_arr,val_arr,sample_arr,vec_ind_arr,vec_kl_arr,act_ind_arr,act_kl_arr,pos_plan_arr,pos_arr,dot_arr,mask_arr,policy_arr,hs_arr,hv_arr = body_fnc_vmap_test(SC,hs_0,hp_0,pos_0,dot_0,dot_vec,ind,weights["v"],weights_s,params,e,vec_ind_arr,act_ind_arr) # ,sel ,params["PLAN_ITS"] [TEST_LENGTH,VMAPS] arrs_(lp,r),aux
+
+def pg_obj(SC,hs_0,hp_0,pos_0,dot_0,dot_vec,ind,weights,weights_s,params,e): # ,sel
+    body_fnc_vmap = jax.vmap(body_fnc,in_axes=(None,0,0,0,0,0,0,None,None,None,None),out_axes=(1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0))
+    lp_arr,r_arr,rp_arr,val_arr,sample_arr,vec_ind_arr,vec_kl_arr,act_ind_arr,act_kl_arr,pos_plan_arr,pos_arr,dot_arr,mask_arr,policy_arr,hs_arr,hv_arr = body_fnc_vmap(SC,hs_0,hp_0,pos_0,dot_0,dot_vec,ind,weights["v"],weights_s,params,e) # ,sel ,params["PLAN_ITS"] [TEST_LENGTH,VMAPS] arrs_(lp,r),aux
     r_to_go = jnp.cumsum(r_arr.T[:,::-1],axis=1)[:,::-1] # reward_to_go(r_arr.T)
     adv_arr = r_to_go - val_arr.T
     adv_norm = (adv_arr-jnp.mean(adv_arr,axis=None))/jnp.std(adv_arr,axis=None) ###
@@ -576,6 +567,7 @@ def pg_obj_test(SC,hs_0,hp_0,pos_0,dot_0,dot_vec,ind,weights,weights_s,params,e,
     stds = (sem_loss,sem_actor,sem_critic,sem_act_kl,sem_vec_kl,sem_r,sem_plan_rate)
     other = (r_arr.T,rp_arr.T,sample_arr.T,mask_arr.T,pos_plan_arr.transpose([1,0,2]),pos_arr.transpose([1,0,2]),dot_arr.transpose([1,0,2]),policy_arr,hs_arr,hv_arr,vec_ind_arr.T,act_ind_arr.T) # ,t_arr.T
     return (actor_losses,critic_loss),(losses,stds,other)
+    # tot_loss,(actor_loss,std_actor,critic_loss,std_critic,avg_vec_kl,std_vec_kl,avg_act_kl,std_act_kl,r_std,l_sem,plan_rate,avg_tot_r,kl_loss,r_init_arr.T,r_arr.T,rt_arr.T,sample_arr.T,pos_init_arr.transpose([1,0,2]),pos_arr.transpose([1,0,2])) # ,t_arr.T
 
 def global_norm(grad):
     squared_norms = jax.tree_util.tree_map(lambda x: jnp.sum(x**2), grad)
@@ -588,67 +580,82 @@ def get_entropy(policy): # shape [1000,61,81]
     return mean_entropy,sem_entropy
 
 # def full_loop(SC,weights,params):
-def full_loop(SC,weights,params,actor_opt_state,critic_opt_state,weights_s,vec_ind_arr,act_ind_arr):
+def full_loop(SC,weights,params,actor_opt_state,critic_opt_state,weights_s):
     loss_arr,sem_loss_arr,actor_loss_arr,sem_actor_arr,critic_loss_arr,sem_critic_arr,vec_kl_arr,sem_vec_kl_arr,act_kl_arr,sem_act_kl_arr,r_tot_arr,sem_r_arr,plan_rate_arr,sem_plan_rate_arr,policy_entropy_arr,sem_policy_entropy_arr = (jnp.zeros((params["TOT_EPOCHS"],)) for _ in range(16)) #jnp.zeros((params["TOT_EPOCHS"]))
     E = params["TOT_EPOCHS"]
     weights_s = weights["s"]
 
-    ##actor_optimizer = optax.chain(optax.clip_by_global_norm(params["ACTOR_GC"]), optax.adam(learning_rate=params["ACTOR_LR"],eps=1e-7))# optax.adamw(learning_rate=params["LR"],weight_decay=params["WD"]),
-    ##critic_optimizer = optax.chain(
-    ##optax.clip_by_global_norm(params["CRITIC_GC"]),optax.adam(learning_rate=params["CRITIC_LR"],eps=1e-7))# 
+    actor_optimizer = optax.chain(optax.clip_by_global_norm(params["ACTOR_GC"]), optax.adam(learning_rate=params["ACTOR_LR"],eps=1e-7))# optax.adamw(learning_rate=params["LR"],weight_decay=params["WD"]),
+    critic_optimizer = optax.chain(
+    optax.clip_by_global_norm(params["CRITIC_GC"]),optax.adam(learning_rate=params["CRITIC_LR"],eps=1e-7))# 
     # optax.clip_by_global_norm(params["CRITIC_GC"]),optax.adamw(learning_rate=params["CRITIC_LR"],weight_decay=params["CRITIC_WD"],eps=1e-7))
     
     # actor_opt_state = actor_optimizer.init(weights_s) ##
     # critic_opt_state = critic_optimizer.init(weights_s) ##
     
+    # other_buffer = []
+    # r_tot_buffer = []
+    max_r_tot = jnp.float32(0)
+
+    max_rx_plan_rate = jnp.float32(0)
+    rx_plan_rate = jnp.float32(0)
+    plan_info = {}
     for e in range(E):
-        ##new_params(params,e) # load in same params as test data
+        new_params(params,e)
         hs_0 = params["HS_0"]
         hp_0 = params["HP_0"]
         pos_0 = params["POS_0"]
         dot_0 = params["DOT_0"]
         dot_vec = params["DOT_VEC"]
         ind = params["IND"]
-        # print('hs_0[:10]=',hs_0[:1],'ind[:10]=',ind[:1])
+        # print('hs_0[:1]=',hs_0[:1],'ind[:1]=',ind[:1])
 
+        for _ in range(params["CRITIC_UPDATES"]):
+            # Recompute losses using updated weights
+            isolated_pg_obj = lambda weights_s: pg_obj(SC, hs_0, hp_0, pos_0, dot_0, dot_vec, ind, weights, weights_s, params, e)
+            (actor_losses, critic_loss), pg_obj_vjp, (losses,stds,other) = jax.vjp(isolated_pg_obj, weights_s, has_aux=True)
+            critic_grad, = pg_obj_vjp((0.0, 1.0))  # Pull back gradient for critic loss
 
-        ## for _ in range(params["CRITIC_UPDATES"]):
-        # Recompute losses using updated weights
-        (actor_losses, critic_loss), (losses,stds,other) = pg_obj_test(SC, hs_0, hp_0, pos_0, dot_0, dot_vec, ind, weights, weights_s, params, e, vec_ind_arr, act_ind_arr)
-        ##isolated_pg_obj = lambda weights_s: pg_obj_test(SC, hs_0, hp_0, pos_0, dot_0, dot_vec, ind, weights, weights_s, params, e, vec_ind_arr, act_ind_arr)
-        ##(actor_losses, critic_loss), pg_obj_vjp, (losses,stds,other) = jax.vjp(isolated_pg_obj, weights_s, has_aux=True)
-        ##critic_grad, = pg_obj_vjp((0.0, 1.0))  # Pull back gradient for critic loss
+            critic_global_norm = global_norm(critic_grad)
+            # print(f"Critic Gradient Norm: {critic_global_norm}")
 
-        ##critic_global_norm = global_norm(critic_grad)
-        ##print(f"Critic Gradient Norm: {critic_global_norm}")
-
-        ##critic_update, critic_opt_state = critic_optimizer.update(critic_grad, critic_opt_state, weights_s)
-        ##weights_s = optax.apply_updates(weights_s, critic_update)
+            critic_update, critic_opt_state = critic_optimizer.update(critic_grad, critic_opt_state, weights_s)
+            weights_s = optax.apply_updates(weights_s, critic_update)
 
         # compute actor gradient
-        ##actor_grad, = pg_obj_vjp((1.0, 0.0))
+        actor_grad, = pg_obj_vjp((1.0, 0.0))
         (tot_loss,actor_loss,critic_loss,vec_kl_loss,act_kl_loss,r_tot,plan_rate) = losses
         print('actor_loss=',actor_loss,'vec_kl_loss=',vec_kl_loss,'act_kl_loss=',act_kl_loss)
 
-        ##actor_global_norm = global_norm(actor_grad)
-        ##print(f"Actor Gradient Norm: {actor_global_norm}")
+        actor_global_norm = global_norm(actor_grad)
+        # print(f"Actor Gradient Norm: {actor_global_norm}")
 
-        ##actor_update, actor_opt_state = actor_optimizer.update(actor_grad, actor_opt_state)
-        ##weights_s = optax.apply_updates(weights_s, actor_update)
+        actor_update, actor_opt_state = actor_optimizer.update(actor_grad, actor_opt_state)
+        weights_s = optax.apply_updates(weights_s, actor_update)
 
         # leaves,_ = jax.tree_util.tree_flatten(grads)
         # jax.debug.print("all_grads={}",grads)
         # jax.debug.print("max_grad={}",jnp.max(jnp.concatenate(jnp.array(leaves)),axis=None))
         (tot_loss,actor_loss,critic_loss,vec_kl_loss,act_kl_loss,r_tot,plan_rate) = losses
         (sem_loss,sem_actor,sem_critic,sem_act_kl,sem_vec_kl,sem_r,sem_plan_rate) = stds
-        (r_arr,rp_arr,sample_arr,mask_arr,pos_plan_arr,pos_arr,dot_arr,policy_arr,hs_arr,hv_arr,_,_) = other
+        (r_arr,rp_arr,sample_arr,mask_arr,pos_plan_arr,pos_arr,dot_arr,policy_arr,hs_arr,hv_arr,vec_ind_arr,act_ind_arr) = other
+        # print('vec_ind_arr=',vec_ind_arr[0],'act_ind_arr=',act_ind_arr[0])
 
-        # if len(other_buffer) >= 5:
-        #     other_buffer.pop(0)
-        #     r_tot_buffer.pop(0)
+        if r_tot > max_r_tot:
+            max_r_tot = r_tot
+            selected_other = (other,copy.deepcopy(params))
 
-        # other_buffer.append(other)
-        # r_tot_buffer.append(r_tot)
+        if (r_tot*plan_rate) > max_rx_plan_rate:
+            max_rx_plan_rate = r_tot*plan_rate
+            rx_plan_rate = plan_rate
+            plan_info = {
+                'other_': (other,copy.deepcopy(params)),
+                'actor_opt_state': actor_opt_state,
+                'critic_opt_state': critic_opt_state,
+                'weights_s': weights_s,
+                'rx_plan_rate': plan_rate,
+                'max_r_tot' : max_r_tot,
+            }
 
         mean_policy_entropy,sem_policy_entropy = get_entropy(policy_arr[0])
         policy_entropy_arr = policy_entropy_arr.at[e].set(mean_policy_entropy)
@@ -670,6 +677,7 @@ def full_loop(SC,weights,params,actor_opt_state,critic_opt_state,weights_s,vec_i
         print("e=",e,"r=",r_tot,"r_sem=",sem_r) #,"loss=",tot_loss,"sem_loss=",sem_loss)
         print("actor_loss=",actor_loss,"sem_actor=",sem_actor,"critic_loss=",critic_loss,"sem_critic=",sem_critic)
         print("vec_kl=",vec_kl_loss,"sem_vec=",sem_vec_kl,"act_kl=",act_kl_loss,"sem_act=",sem_act_kl,"plan=",plan_rate,'entropy=',mean_policy_entropy,'sem_entropy=',sem_policy_entropy,'\n')
+        print('rx_plan_rate=',rx_plan_rate,'max_r_tot=',max_r_tot)
         if e == E-1:
             pass
         ### loss.block_until_ready()
@@ -678,20 +686,21 @@ def full_loop(SC,weights,params,actor_opt_state,critic_opt_state,weights_s,vec_i
             print("*clearing cache*")
             jax.clear_caches()
 
+    # max_index = jnp.argmax(jnp.array(r_tot_buffer))
+    # selected_other = other_buffer[max_index]
+
     loss_arrs = (loss_arr,actor_loss_arr,critic_loss_arr,vec_kl_arr,act_kl_arr,r_tot_arr,plan_rate_arr,policy_entropy_arr)
     sem_arrs = (sem_loss_arr,sem_actor_arr,sem_critic_arr,sem_act_kl_arr,sem_vec_kl_arr,sem_r_arr,sem_plan_rate_arr,sem_policy_entropy_arr)
-    # other = (r_arr,rp_arr,sample_arr,mask_arr,pos_plan_arr,pos_arr,dot_arr,policy_arr) # ,sel
-    # other = selected_other
-    return loss_arrs,sem_arrs,other,actor_opt_state,critic_opt_state,weights_s #r_arr,pos_arr,sample_arr,dots_arr
+    return loss_arrs,sem_arrs,selected_other,actor_opt_state,critic_opt_state,weights_s,plan_info #r_arr,pos_arr,sample_arr,dots_arr
 
 # hyperparams ###
-TOT_EPOCHS = 10 ## 1000
-CRITIC_UPDATES = 3 # 8 5
+TOT_EPOCHS = 3000 ## 1000
+CRITIC_UPDATES = 5 # 8 5
 # LOOPS = TOT_EPOCHS//EPOCHS
-VMAPS = 500 ## 2000,500,1100,1000,800,500
+VMAPS = 1000 ## 2000,500,1100,1000,800,500
 ACTOR_LR = 0.0003 # 0.0002 # 0.001 # 0.0005
-CRITIC_LR = 0.0012 #  # 0.0005 # 0.0001 # 0.0005   0.001,0.0008,0.0005,0.001,0.000001,0.0001
-CRITIC_WD = 0 #0.00001 # 0.0001
+CRITIC_LR = 0.0008 #  # 0.0005 # 0.0001 # 0.0005   0.001,0.0008,0.0005,0.001,0.000001,0.0001
+CRITIC_WD = 0 # 0.00001 # 0.0001
 PLAN_RATIO = 5 ## 5 2 10
 ACTOR_GC = 0.4 ##0.6 0.3, 0.5 1.0
 CRITIC_GC = 0.9 ## 0.7
@@ -706,10 +715,10 @@ NONE_PLAN = jnp.zeros((PLAN_ITS,)) #[None] * PLAN_ITS
 INIT_LENGTH = 0
 TRIAL_LENGTH = 60 ## 50 90 120 100
 TEST_LENGTH = TRIAL_LENGTH - INIT_LENGTH
-LAMBDA_VEC_KL = 0.01 # 0.05, 0.1, 0.5
+LAMBDA_VEC_KL = 0.01 # 0.5, 0.05, 0.1, 0.5
 LAMBDA_ACT_KL = 0.01 # 0.01,0.1,1
 TEMP_VS = 1 # 0.1,0.05
-TEMP_AS = 0.1 # 0.1,0.05
+TEMP_AS = 0.1 # 1 # 0.1,0.05
 
 # ENV/sc params
 ke = rnd.split(rnd.PRNGKey(0),10)
@@ -839,6 +848,7 @@ params = {
     "PLAN_RATIO" : PLAN_RATIO,
     "PRIOR_VEC" : PRIOR_VEC,
     "ZERO_VEC_IND" : ZERO_VEC_IND,
+    "MAX_DOT_SPEED" : MAX_DOT_SPEED,
     }
 
 weights = {
@@ -879,32 +889,28 @@ weights = {
 # MDS=1.5: 2 = 1410 1628, 5 = 1410 1630, 10 = 1410 1632
 # sc_project/test_data/forward_new_v10_81M_144N_14_10-162845.pkl, sc_project/test_data/forward_new_v10_81M_144N_14_10-163001.pkl, sc_project/test_data/forward_new_v10_81M_144N_14_10-163228.pkl
 # MDS=1.2: 2 = 1110 2032, 5 = 1210 1324, 10 = 1210 0233
-(_),(*_,weights_v) = load_('/sc_project/test_data/forward_new_v10_81M_144N_14_10-163001.pkl') # '/sc_project/test_data/forward_new_v10_81M_144N_22_10-021511.pkl') # '/sc_project/test_data/forward_new_v10_81M_144N_22_10-021849.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_12_10-023341.pkl') #/sc_project/test_data/forward_new_v10_81M_144N_12_10-132458.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-203208.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_12_10-023341.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-234644.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-234704.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-234644.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-203208.pkl') #'/sc_project/test_data/forward_new_v11_81M_144N_11_10-210349.pkl') #'/sc_project/test_data/forward_new_v8_81M_144N_06_09-211442.pkl') #
+(_),(*_,weights_v) = load_('/sc_project/test_data/forward_new_v10_81M_144N_14_10-163001.pkl') #/sc_project/test_data/forward_new_v10_81M_144N_22_10-021511.pkl') # '/sc_project/test_data/forward_new_v10_81M_144N_22_10-021849.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_12_10-023341.pkl') #/sc_project/test_data/forward_new_v10_81M_144N_12_10-132458.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-203208.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_12_10-023341.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-234644.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-234704.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-234644.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-203208.pkl') #'/sc_project/test_data/forward_new_v11_81M_144N_11_10-210349.pkl') #'/sc_project/test_data/forward_new_v8_81M_144N_06_09-211442.pkl') #
 weights['v'] = weights_v
-(actor_opt_state,critic_opt_state,weights_s) = load_('/sc_project/pkl_sc/outer_loop_pg_new_v4f_04_11-181832.pkl') # '/sc_project/pkl_sc/outer_loop_pg_new_v4f_03_11-083658.pkl') # /sc_project/pkl_sc/outer_loop_pg_new_v4f_31_10-205506.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v4f_28_10-210746.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v4f_15_10-112328.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v4f__13_10-084115.pkl') #/sc_project/pkl_sc/outer_loop_pg_new_v4f__12_10-175620.pkl') #'/sc_project/test_data/outer_loop_pg_new_v4f_12_10-173828.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v6__21_09-125738.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v1_ppo__13_09-235540.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v3_c__13_09-174514.pkl', '/sc_project/test_data/outer_loop_pg_new_v3_c__13_09-174514.pkl')
+(actor_opt_state,critic_opt_state,weights_s) = load_('/sc_project/pkl_sc/outer_loop_pg_new_v4f_04_11-181832.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v4f_01_11-124405.pkl') #/sc_project/pkl_sc/outer_loop_pg_new_v4f_27_10-173751.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v4f_15_10-112328.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v4f__13_10-084115.pkl') #/sc_project/pkl_sc/outer_loop_pg_new_v4f__12_10-175620.pkl') #'/sc_project/test_data/outer_loop_pg_new_v4f_12_10-173828.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v6__21_09-125738.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v1_ppo__13_09-235540.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v3_c__13_09-174514.pkl', '/sc_project/test_data/outer_loop_pg_new_v3_c__13_09-174514.pkl')
 weights['s'] = weights_s
-#
-selected_other,plan_info = load_('/sc_project/large_outputs/outer_loop_pg_new_v4f_04_11-181832.pkl') # /sc_project/large_outputs/outer_loop_pg_new_v4f_03_11-083658.pkl') #'/sc_project/large_outputs/outer_loop_pg_new_v4f_28_10-210746.pkl')
-#
-(r_arr_,*_,vec_ind_arr,act_ind_arr),params = selected_other
-print('r_tot_old=',jnp.mean(jnp.sum(r_arr_,axis=1)))
-### UNCOMMENT IF TESTING PLANNING:
-(r_arr,*_,vec_ind_arr,act_ind_arr),params = plan_info["other_"]
+### run from best planning rate:
+selected_other,plan_info = load_('/sc_project/large_outputs/outer_loop_pg_new_v4f_04_11-181832.pkl') #'/sc_project/large_outputs/outer_loop_pg_new_v4f_28_10-210746.pkl')
+(r_arr,*_,vec_ind_arr,act_ind_arr),_ = plan_info["other_"] # dont load params
 weights['s'] = plan_info["weights_s"]
 actor_opt_state = plan_info["actor_opt_state"]
 critic_opt_state = plan_info["critic_opt_state"]
-print('rx_plan_rate=',plan_info["rx_plan_rate"])
-print('rx_r_tot=',jnp.mean(jnp.sum(r_arr,axis=1)))
-### 
-params["TOT_EPOCHS"] = TOT_EPOCHS # change to prev
+# params["MAX_DOT_SPEED"] = MAX_DOT_SPEED
+# *_,r_weights = load_('') #
+# weights['r'] = r_weights
+###
 # load weights, opt_state init; weights['s'] = weights_s
 startTime = datetime.now()
 # losses,stds,other,actor_opt_state,critic_opt_state,weights_s = full_loop(SC,weights,params) # full_loop(SC,weights,params) (loss_arr,actor_loss_arr,critic_loss_arr,kl_loss_arr,vec_kl_arr,act_kl_arr,r_std_arr,l_sem_arr,plan_rate_arr,avg_tot_r_arr,avg_pol_kl_arr,r_init_arr,r_arr,rt_arr,sample_arr,pos_init_arr,pos_arr,dots,sel)
-loss_arrs,sem_arrs,other,actor_opt_state,critic_opt_state,weights_s = full_loop(SC,weights,params,actor_opt_state,critic_opt_state,weights_s,vec_ind_arr,act_ind_arr) # full_loop(SC,weights,params) (loss_arr,actor_loss_arr,critic_loss_arr,kl_loss_arr,vec_kl_arr,act_kl_arr,r_std_arr,l_sem_arr,plan_rate_arr,avg_tot_r_arr,avg_pol_kl_arr,r_init_arr,r_arr,rt_arr,sample_arr,pos_init_arr,pos_arr,dots,sel)
+loss_arrs,sem_arrs,selected_other,actor_opt_state,critic_opt_state,weights_s,plan_info = full_loop(SC,weights,params,actor_opt_state,critic_opt_state,weights_s) # full_loop(SC,weights,params) (loss_arr,actor_loss_arr,critic_loss_arr,kl_loss_arr,vec_kl_arr,act_kl_arr,r_std_arr,l_sem_arr,plan_rate_arr,avg_tot_r_arr,avg_pol_kl_arr,r_init_arr,r_arr,rt_arr,sample_arr,pos_init_arr,pos_arr,dots,sel)
 print("Sim time: ",datetime.now()-startTime,"s/epoch=",((datetime.now()-startTime)/TOT_EPOCHS).total_seconds())
 (loss_arr,actor_loss_arr,critic_loss_arr,vec_kl_arr,act_kl_arr,r_tot_arr,plan_rate_arr,policy_entropy_arr) = loss_arrs
 (sem_loss_arr,sem_actor_arr,sem_critic_arr,sem_act_kl_arr,sem_vec_kl_arr,sem_r_arr,sem_plan_rate_arr,sem_policy_entropy_arr) = sem_arrs
-(r_arr,rp_arr,sample_arr,mask_arr,pos_plan_arr,pos_arr,dot_arr,policy_arr,hs_arr,hv_arr,vec_ind_arr,act_ind_arr) = other # ,sel
+((r_arr,rp_arr,sample_arr,mask_arr,pos_plan_arr,pos_arr,dot_arr,policy_arr,hs_arr,hv_arr,vec_ind_arr,act_ind_arr),params) = selected_other # ,sel
 print('policy_arr.shape=',policy_arr[0].shape,policy_arr[1].shape)
 print('vec_ind_arr.shape=',vec_ind_arr.shape)
 print('act_ind_arr.shape=',act_ind_arr.shape)
@@ -918,10 +924,7 @@ legend_handles = [
 
 fig,axes = plt.subplots(2,4,figsize=(16,9)) # fig,axes = plt.subplots(2,3,figsize=(12,9))
 title__ = f'EPOCHS={TOT_EPOCHS}, VMAPS={VMAPS}, TEST_LENGTH={TEST_LENGTH}, CTC_UP={CRITIC_UPDATES}, actor_lr={ACTOR_LR:.6f}, critic_lr={CRITIC_LR:.6f}, A/C GRAD_CLIP={ACTOR_GC:.2f},{CRITIC_GC:.2f}, PLAN_RATIO={PLAN_RATIO} \n CRITIC_WD={CRITIC_WD}, TEMP_VS,AS={TEMP_VS},{TEMP_AS}, L_VEC_KL={LAMBDA_VEC_KL}, L_ACT_KL={LAMBDA_ACT_KL}, SIGMA_R={SIGMA_R0}, PRIOR_PLAN={PRIOR_PLAN}, MAX_DOT_SPEED={MAX_DOT_SPEED:.2f}, ACTION_SPACE={ACTION_SPACE:.2f}, PLAN_SPACE={PLAN_SPACE:.2f}'
-plt.suptitle('outer_loop_pg_new_v4f_test, '+title__,fontsize=10)
-
-print('TOT_EPOCHS=',TOT_EPOCHS,'r_tot_arr.shape=',r_tot_arr.shape)
-
+plt.suptitle('outer_loop_pg_new_v4f, '+title__,fontsize=10)
 axes[0,0].errorbar(np.arange(TOT_EPOCHS),r_tot_arr,yerr=1.96*sem_r_arr,color='black',ecolor='lightgray',elinewidth=2,capsize=0)
 axes[0,0].set_xlabel('iteration')
 axes[0,0].set_ylabel('total reward')
@@ -968,7 +971,7 @@ plt.subplots_adjust(top=0.9)
 
 path_ = str(Path(__file__).resolve().parents[1]) + '/sc_project/figs/'
 dt = datetime.now().strftime("%d_%m-%H%M%S")
-plt.savefig(path_+'outer_loop_pg_new_v4f_test_'+dt+'.png')
+plt.savefig(path_+'outer_loop_pg_new_v4f_tr_'+dt+'.png')
 
 # PLOT TESTING DATA
 # r_init_arr = r_init_arr[-PLOTS:,:] # [PLOTS,TEST_LENGTH]
@@ -1101,5 +1104,5 @@ plt.savefig(path_+'outer_loop_pg_new_v4f_test_'+dt+'.png')
 # path_ = str(Path(__file__).resolve().parents[1]) + '/sc_project/figs/'
 # plt.savefig(path_ + 'figs_outer_loop_pg_new_v4_' + dt + '.png') # ctrl_v7_(v,r,h normal, r_tp changed)
 
-save_pkl_sc((actor_opt_state,critic_opt_state,weights_s),'outer_loop_pg_new_v4f_test') # no _
-save_large_outputs(other,'outer_loop_pg_new_v4f_test')
+save_pkl_sc((actor_opt_state,critic_opt_state,weights_s),'outer_loop_pg_new_v4f') # no _
+save_large_outputs((selected_other,plan_info),'outer_loop_pg_new_v4f')
