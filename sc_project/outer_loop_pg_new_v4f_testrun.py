@@ -694,7 +694,7 @@ def full_loop(SC,weights,params,actor_opt_state,critic_opt_state,weights_s):
     return loss_arrs,sem_arrs,selected_other,actor_opt_state,critic_opt_state,weights_s,plan_info #r_arr,pos_arr,sample_arr,dots_arr
 
 # hyperparams ###
-TOT_EPOCHS = 3000 ## 1000
+TOT_EPOCHS = 2000 ## 1000
 CRITIC_UPDATES = 5 # 8 5
 # LOOPS = TOT_EPOCHS//EPOCHS
 VMAPS = 1000 ## 2000,500,1100,1000,800,500
@@ -718,7 +718,7 @@ TEST_LENGTH = TRIAL_LENGTH - INIT_LENGTH
 LAMBDA_VEC_KL = 0.01 # 0.5, 0.05, 0.1, 0.5
 LAMBDA_ACT_KL = 0.01 # 0.01,0.1,1
 TEMP_VS = 1 # 0.1,0.05
-TEMP_AS = 0.1 # 1 # 0.1,0.05
+TEMP_AS = 0.5 # 1 # 0.1,0.05
 
 # ENV/sc params
 ke = rnd.split(rnd.PRNGKey(0),10)
@@ -891,14 +891,14 @@ weights = {
 # MDS=1.2: 2 = 1110 2032, 5 = 1210 1324, 10 = 1210 0233
 (_),(*_,weights_v) = load_('/sc_project/test_data/forward_new_v10_81M_144N_14_10-163001.pkl') #/sc_project/test_data/forward_new_v10_81M_144N_22_10-021511.pkl') # '/sc_project/test_data/forward_new_v10_81M_144N_22_10-021849.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_12_10-023341.pkl') #/sc_project/test_data/forward_new_v10_81M_144N_12_10-132458.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-203208.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_12_10-023341.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-234644.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-234704.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-234644.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-203208.pkl') #'/sc_project/test_data/forward_new_v11_81M_144N_11_10-210349.pkl') #'/sc_project/test_data/forward_new_v8_81M_144N_06_09-211442.pkl') #
 weights['v'] = weights_v
-(actor_opt_state,critic_opt_state,weights_s) = load_('/sc_project/pkl_sc/outer_loop_pg_new_v4f_04_11-181832.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v4f_01_11-124405.pkl') #/sc_project/pkl_sc/outer_loop_pg_new_v4f_27_10-173751.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v4f_15_10-112328.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v4f__13_10-084115.pkl') #/sc_project/pkl_sc/outer_loop_pg_new_v4f__12_10-175620.pkl') #'/sc_project/test_data/outer_loop_pg_new_v4f_12_10-173828.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v6__21_09-125738.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v1_ppo__13_09-235540.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v3_c__13_09-174514.pkl', '/sc_project/test_data/outer_loop_pg_new_v3_c__13_09-174514.pkl')
+(actor_opt_state,critic_opt_state,weights_s) = load_('/sc_project/pkl_sc/outer_loop_pg_new_v4f_06_11-234155.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v4f_01_11-124405.pkl') #/sc_project/pkl_sc/outer_loop_pg_new_v4f_27_10-173751.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v4f_15_10-112328.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v4f__13_10-084115.pkl') #/sc_project/pkl_sc/outer_loop_pg_new_v4f__12_10-175620.pkl') #'/sc_project/test_data/outer_loop_pg_new_v4f_12_10-173828.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v6__21_09-125738.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v1_ppo__13_09-235540.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v3_c__13_09-174514.pkl', '/sc_project/test_data/outer_loop_pg_new_v3_c__13_09-174514.pkl')
 weights['s'] = weights_s
-### run from best planning rate:
-selected_other,plan_info = load_('/sc_project/large_outputs/outer_loop_pg_new_v4f_04_11-181832.pkl') #'/sc_project/large_outputs/outer_loop_pg_new_v4f_28_10-210746.pkl')
-(r_arr,*_,vec_ind_arr,act_ind_arr),_ = plan_info["other_"] # dont load params
-weights['s'] = plan_info["weights_s"]
-actor_opt_state = plan_info["actor_opt_state"]
-critic_opt_state = plan_info["critic_opt_state"]
+### run from best planning rate (optional):
+# selected_other,plan_info = load_('/sc_project/large_outputs/outer_loop_pg_new_v4f_06_11-234154.pkl') #'/sc_project/large_outputs/outer_loop_pg_new_v4f_28_10-210746.pkl')
+# (r_arr,*_,vec_ind_arr,act_ind_arr),_ = plan_info["other_"] # dont load params
+# weights['s'] = plan_info["weights_s"]
+# actor_opt_state = plan_info["actor_opt_state"]
+# critic_opt_state = plan_info["critic_opt_state"]
 # params["MAX_DOT_SPEED"] = MAX_DOT_SPEED
 # *_,r_weights = load_('') #
 # weights['r'] = r_weights

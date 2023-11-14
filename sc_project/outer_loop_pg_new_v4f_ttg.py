@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # adjust dot_vec=, ratio=10, dot sigma=.5, timesteps=120, M_D_S=1.2, add act_kl in properly
 # add in hv (FF) and r_hat, as in v6
+# 'time to go'/stop ctc grad/wd on ctc
 """
 Created on Wed May 10 2023
 
@@ -263,7 +264,7 @@ def kl_loss(policy,params):
     return vec_kl,act_kl
 
 @jit
-def get_policy(args_t,weights_s,params): # hs_t_1,v_t,r_t,rp_t_1,rm_t_1,weights_s,params
+def get_policy(args_t,weights_s,params,t): # hs_t_1,v_t,r_t,rp_t_1,rm_t_1,weights_s,params
     # (hs_t_1,*_,rp_t_1,rm_t_1,v_t,r_t,r_tot,move_flag) = args_t
     (hs_t_1,hv_t_1,*_,act_t,v_t,r_t,rp_t,move_counter,e) = args_t
     r_arr = jnp.array([r_t,rp_t])
@@ -295,7 +296,10 @@ def get_policy(args_t,weights_s,params): # hs_t_1,v_t,r_t,rp_t_1,rm_t_1,weights_
     hs_t = jnp.multiply(1-z_t,hs_t_1) + jnp.multiply(z_t,hhat_t) #
     vec_logits = jnp.matmul(Ws_vec,hs_t)
     act_logits = jnp.matmul(Ws_act,hs_t)
-    val_t = jnp.squeeze(jnp.matmul(Ws_val,hs_t))
+    time_to_go = 1 - (t/params["TRIAL_LENGTH"])
+    # prevent grad flow back to shared weights
+    hs_t_stop = jax.lax.stop_gradient(hs_t)
+    val_t = jnp.squeeze(jnp.matmul(Ws_val,jnp.concatenate((hs_t_stop,jnp.array([time_to_go])),axis=0)))
     # jax.debug.print('vec_t={}',vec_t)
     # jax.debug.print('act_t={}',act_t)
     vectors_t = jax.nn.softmax((vec_logits/params["TEMP_VS"]) - jnp.max(vec_logits/params["TEMP_VS"]) + 1e-8) # stable
@@ -498,7 +502,7 @@ def scan_body(carry_t_1,x):
     (hs_t_1,hv_t_1,val_t_1,pos_plan_t_1,pos_t_1,dot_t_1,dot_vec,ind,act_t_1,v_t_1,r_t_1,rp_t_1,move_counter,e) = args_t_1 # sel,hr
     (SC,weights_v,weights_s,params) = theta    
 
-    policy_t,val_t,hs_t = get_policy(args_t_1,weights_s,params) # hs_t_1,v_t_1,r_t_1,rp_t_1,rm_t_1,weights_s,params
+    policy_t,val_t,hs_t = get_policy(args_t_1,weights_s,params,t) # hs_t_1,v_t_1,r_t_1,rp_t_1,rm_t_1,weights_s,params
     vec_kl,act_kl = kl_loss(policy_t,params) #-jnp.dot(policy_t[1],jnp.log(policy_t[1]))
     h1vec_t,vec_t,vec_ind,act_ind,act_t,logit_t = sample_policy(policy_t,SC,ind[t])
 
@@ -610,11 +614,11 @@ def full_loop(SC,weights,params,actor_opt_state,critic_opt_state,weights_s):
 
     actor_optimizer = optax.chain(optax.clip_by_global_norm(params["ACTOR_GC"]), optax.adam(learning_rate=params["ACTOR_LR"],eps=1e-7))# optax.adamw(learning_rate=params["LR"],weight_decay=params["WD"]),
     critic_optimizer = optax.chain(
-    optax.clip_by_global_norm(params["CRITIC_GC"]),optax.adam(learning_rate=params["CRITIC_LR"],eps=1e-7))# 
-    # optax.clip_by_global_norm(params["CRITIC_GC"]),optax.adamw(learning_rate=params["CRITIC_LR"],weight_decay=params["CRITIC_WD"],eps=1e-7))
+    # optax.clip_by_global_norm(params["CRITIC_GC"]),optax.adam(learning_rate=params["CRITIC_LR"],eps=1e-7))# 
+    optax.clip_by_global_norm(params["CRITIC_GC"]),optax.adamw(learning_rate=params["CRITIC_LR"],weight_decay=params["CRITIC_WD"],eps=1e-7))
     
-    # actor_opt_state = actor_optimizer.init(weights_s) ##
-    # critic_opt_state = critic_optimizer.init(weights_s) ##
+    actor_opt_state = actor_optimizer.init(weights_s) ##
+    critic_opt_state = critic_optimizer.init(weights_s) ##
     
     # other_buffer = []
     # r_tot_buffer = []
@@ -716,17 +720,17 @@ def full_loop(SC,weights,params,actor_opt_state,critic_opt_state,weights_s):
     return loss_arrs,sem_arrs,selected_other,actor_opt_state,critic_opt_state,weights_s,plan_info #r_arr,pos_arr,sample_arr,dots_arr
 
 # hyperparams ###
-TOT_EPOCHS = 2000 ## 1000
+TOT_EPOCHS = 3000 ## 1000
 CRITIC_UPDATES = 3 # 8 5
 # LOOPS = TOT_EPOCHS//EPOCHS
-VMAPS = 500 ## 2000,500,1100,1000,800,500
-ACTOR_LR = 0.0003 # 0.0002 # 0.001 # 0.0005
-CRITIC_LR = 0.0012 #  # 0.0005 # 0.0001 # 0.0005   0.001,0.0008,0.0005,0.001,0.000001,0.0001
-CRITIC_WD = 0 # 0.00001 # 0.0001
+VMAPS = 1000 ## 2000,500,1100,1000,800,500
+ACTOR_LR = 0.0003 # 0.0003
+CRITIC_LR = 0.0005 # 0.0012
+CRITIC_WD = 0.0001 # 0.00001 # 0.0001
 #
-PLAN_RATIO = 10 ## 5 2 10
+PLAN_RATIO = 5 ## 5 2 10
 #
-ACTOR_GC = 0.4 ##0.6 0.3, 0.5 1.0
+ACTOR_GC = 0.5 ##0.6 0.3, 0.5 1.0
 CRITIC_GC = 0.9 ## 0.7
 INIT_S = 2
 INIT_P = 2 # 0.5
@@ -739,8 +743,8 @@ NONE_PLAN = jnp.zeros((PLAN_ITS,)) #[None] * PLAN_ITS
 INIT_LENGTH = 0
 TRIAL_LENGTH = 60 ## 50 90 120 100
 TEST_LENGTH = TRIAL_LENGTH - INIT_LENGTH
-LAMBDA_VEC_KL = 0.01 # 0.5, 0.05, 0.1, 0.5
-LAMBDA_ACT_KL = 0.01 # 0.01,0.1,1
+LAMBDA_VEC_KL = 0.1 # 0.5, 0.05, 0.1, 0.5
+LAMBDA_ACT_KL = 0.1 # 0.01,0.1,1
 TEMP_VS = 1 # 0.1,0.05
 TEMP_AS = 1 # 1 # 0.1,0.05
 
@@ -812,7 +816,7 @@ bs_f0 = jnp.sqrt(INIT_S/(H_S))*rnd.normal(ki[16],(H_S,))
 bs_h0 = jnp.sqrt(INIT_S/(H_S))*rnd.normal(ki[17],(H_S,))
 Ws_vec0 = jnp.sqrt(INIT_S/(M+H_S))*rnd.normal(ki[18],(M,H_S))
 Ws_act0 = jnp.sqrt(INIT_S/(2+H_S))*rnd.normal(ki[19],(2,H_S))
-Ws_val0 = jnp.sqrt(INIT_S/(H_S))*rnd.normal(ki[19],(1,H_S))
+Ws_val0 = jnp.sqrt(INIT_S/(H_S+1))*rnd.normal(ki[19],(1,H_S+1))
 
 params = {
     "TOT_EPOCHS" : TOT_EPOCHS,
@@ -913,10 +917,10 @@ weights = {
 # MDS=1.5: 2 = 1410 1628, 5 = 1410 1630, 10 = 1410 1632
 # sc_project/test_data/forward_new_v10_81M_144N_14_10-162845.pkl, sc_project/test_data/forward_new_v10_81M_144N_14_10-163001.pkl, sc_project/test_data/forward_new_v10_81M_144N_14_10-163228.pkl
 # MDS=1.2: 2 = 1110 2032, 5 = 1210 1324, 10 = 1210 0233
-(_),(*_,weights_v) = load_('/sc_project/test_data/forward_new_v10_81M_144N_22_10-021849.pkl') # /sc_project/test_data/forward_new_v10_81M_144N_22_10-021511.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_14_10-162845.pkl') #/sc_project/test_data/forward_new_v10_81M_144N_22_10-021511.pkl') # '/sc_project/test_data/forward_new_v10_81M_144N_22_10-021849.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_12_10-023341.pkl') #/sc_project/test_data/forward_new_v10_81M_144N_12_10-132458.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-203208.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_12_10-023341.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-234644.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-234704.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-234644.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-203208.pkl') #'/sc_project/test_data/forward_new_v11_81M_144N_11_10-210349.pkl') #'/sc_project/test_data/forward_new_v8_81M_144N_06_09-211442.pkl') #
+(_),(*_,weights_v) = load_('/sc_project/test_data/forward_new_v10_81M_144N_22_10-021511.pkl') # /sc_project/test_data/forward_new_v10_81M_144N_22_10-021511.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_14_10-162845.pkl') #/sc_project/test_data/forward_new_v10_81M_144N_22_10-021511.pkl') # '/sc_project/test_data/forward_new_v10_81M_144N_22_10-021849.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_12_10-023341.pkl') #/sc_project/test_data/forward_new_v10_81M_144N_12_10-132458.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-203208.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_12_10-023341.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-234644.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-234704.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-234644.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-203208.pkl') #'/sc_project/test_data/forward_new_v11_81M_144N_11_10-210349.pkl') #'/sc_project/test_data/forward_new_v8_81M_144N_06_09-211442.pkl') #
 weights['v'] = weights_v
-(actor_opt_state,critic_opt_state,weights_s) = load_('/sc_project/pkl_sc/outer_loop_pg_new_v4f_12_11-033326.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v4f_02_11-102024.pkl') #/sc_project/pkl_sc/outer_loop_pg_new_v4f_27_10-173751.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v4f_15_10-112328.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v4f__13_10-084115.pkl') #/sc_project/pkl_sc/outer_loop_pg_new_v4f__12_10-175620.pkl') #'/sc_project/test_data/outer_loop_pg_new_v4f_12_10-173828.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v6__21_09-125738.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v1_ppo__13_09-235540.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v3_c__13_09-174514.pkl', '/sc_project/test_data/outer_loop_pg_new_v3_c__13_09-174514.pkl')
-weights['s'] = weights_s
+(actor_opt_state,critic_opt_state,weights_s) = load_('/sc_project/pkl_sc/outer_loop_pg_new_v4f_04_11-114828.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v4f_02_11-102024.pkl') #/sc_project/pkl_sc/outer_loop_pg_new_v4f_27_10-173751.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v4f_15_10-112328.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v4f__13_10-084115.pkl') #/sc_project/pkl_sc/outer_loop_pg_new_v4f__12_10-175620.pkl') #'/sc_project/test_data/outer_loop_pg_new_v4f_12_10-173828.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v6__21_09-125738.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v1_ppo__13_09-235540.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v3_c__13_09-174514.pkl', '/sc_project/test_data/outer_loop_pg_new_v3_c__13_09-174514.pkl')
+# weights['s'] = weights_s
 # *_,r_weights = load_('') #
 # weights['r'] = r_weights
 ###
@@ -941,7 +945,7 @@ legend_handles = [
 
 fig,axes = plt.subplots(2,4,figsize=(16,9)) # fig,axes = plt.subplots(2,3,figsize=(12,9))
 title__ = f'EPOCHS={TOT_EPOCHS}, VMAPS={VMAPS}, TEST_LENGTH={TEST_LENGTH}, CTC_UP={CRITIC_UPDATES}, actor_lr={ACTOR_LR:.6f}, critic_lr={CRITIC_LR:.6f}, A/C GRAD_CLIP={ACTOR_GC:.2f},{CRITIC_GC:.2f}, PLAN_RATIO={PLAN_RATIO} \n CRITIC_WD={CRITIC_WD}, TEMP_VS,AS={TEMP_VS},{TEMP_AS}, L_VEC_KL={LAMBDA_VEC_KL}, L_ACT_KL={LAMBDA_ACT_KL}, SIGMA_R={SIGMA_R0}, PRIOR_PLAN={PRIOR_PLAN}, MAX_DOT_SPEED={MAX_DOT_SPEED:.2f}, ACTION_SPACE={ACTION_SPACE:.2f}, PLAN_SPACE={PLAN_SPACE:.2f}'
-plt.suptitle('outer_loop_pg_new_v4f, '+title__,fontsize=10)
+plt.suptitle('outer_loop_pg_new_v4f_ttg, '+title__,fontsize=10)
 axes[0,0].errorbar(np.arange(TOT_EPOCHS),r_tot_arr,yerr=1.96*sem_r_arr,color='black',ecolor='lightgray',elinewidth=2,capsize=0)
 axes[0,0].set_xlabel('iteration')
 axes[0,0].set_ylabel('total reward')
@@ -988,7 +992,7 @@ plt.subplots_adjust(top=0.9)
 
 path_ = str(Path(__file__).resolve().parents[1]) + '/sc_project/figs/'
 dt = datetime.now().strftime("%d_%m-%H%M%S")
-plt.savefig(path_+'outer_loop_pg_new_v4f_'+dt+'.png')
+plt.savefig(path_+'outer_loop_pg_new_v4f_ttg_'+dt+'.png')
 
 # PLOT TESTING DATA
 # r_init_arr = r_init_arr[-PLOTS:,:] # [PLOTS,TEST_LENGTH]
@@ -1121,5 +1125,5 @@ plt.savefig(path_+'outer_loop_pg_new_v4f_'+dt+'.png')
 # path_ = str(Path(__file__).resolve().parents[1]) + '/sc_project/figs/'
 # plt.savefig(path_ + 'figs_outer_loop_pg_new_v4_' + dt + '.png') # ctrl_v7_(v,r,h normal, r_tp changed)
 
-save_pkl_sc((actor_opt_state,critic_opt_state,weights_s),'outer_loop_pg_new_v4f') # no _
-save_large_outputs((selected_other,plan_info),'outer_loop_pg_new_v4f')
+save_pkl_sc((actor_opt_state,critic_opt_state,weights_s),'outer_loop_pg_new_v4f_ttg') # no _
+save_large_outputs((selected_other,plan_info),'outer_loop_pg_new_v4f_ttg')
