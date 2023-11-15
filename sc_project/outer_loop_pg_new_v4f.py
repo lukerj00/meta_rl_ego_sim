@@ -88,7 +88,7 @@ def gen_sc(keys,MODULES,ACTION_SPACE,PLAN_SPACE):
     SC = (ID_ARR,VEC_ARR,H1VEC_ARR)
     return SC,prior_vec,zero_vec_index
 
-
+####
 def gen_dot(key,VMAPS,N_DOTS,ACTION_SPACE):
     keys = rnd.split(key,N_DOTS)
     dot_0 = rnd.uniform(keys[0],shape=(VMAPS,2),minval=-(3*jnp.pi)/4,maxval=(3*jnp.pi)/4)#minval=jnp.array([APERTURE/4,APERTURE/4]),maxval=jnp.array([3*APERTURE/4,3*APERTURE/4]))
@@ -716,12 +716,12 @@ def full_loop(SC,weights,params,actor_opt_state,critic_opt_state,weights_s):
     return loss_arrs,sem_arrs,selected_other,actor_opt_state,critic_opt_state,weights_s,plan_info #r_arr,pos_arr,sample_arr,dots_arr
 
 # hyperparams ###
-TOT_EPOCHS = 3000 ## 1000
-CRITIC_UPDATES = 5 # 8 5
+TOT_EPOCHS = 2000 ## 1000
+CRITIC_UPDATES = 3 # 8 5
 # LOOPS = TOT_EPOCHS//EPOCHS
 VMAPS = 500 ## 2000,500,1100,1000,800,500
 ACTOR_LR = 0.0003 # 0.0002 # 0.001 # 0.0005
-CRITIC_LR = 0.0008 #  # 0.0005 # 0.0001 # 0.0005   0.001,0.0008,0.0005,0.001,0.000001,0.0001
+CRITIC_LR = 0.0012 #  # 0.0005 # 0.0001 # 0.0005   0.001,0.0008,0.0005,0.001,0.000001,0.0001
 CRITIC_WD = 0 # 0.00001 # 0.0001
 #
 PLAN_RATIO = 10 ## 5 2 10
@@ -739,8 +739,8 @@ NONE_PLAN = jnp.zeros((PLAN_ITS,)) #[None] * PLAN_ITS
 INIT_LENGTH = 0
 TRIAL_LENGTH = 60 ## 50 90 120 100
 TEST_LENGTH = TRIAL_LENGTH - INIT_LENGTH
-LAMBDA_VEC_KL = 0.1 # 0.5, 0.05, 0.1, 0.5
-LAMBDA_ACT_KL = 0.1 # 0.01,0.1,1
+LAMBDA_VEC_KL = 0.01 # 0.5, 0.05, 0.1, 0.5
+LAMBDA_ACT_KL = 0.01 # 0.01,0.1,1
 TEMP_VS = 1 # 0.1,0.05
 TEMP_AS = 1 # 1 # 0.1,0.05
 
@@ -915,7 +915,7 @@ weights = {
 # MDS=1.2: 2 = 1110 2032, 5 = 1210 1324, 10 = 1210 0233
 (_),(*_,weights_v) = load_('/sc_project/test_data/forward_new_v10_81M_144N_22_10-021849.pkl') # /sc_project/test_data/forward_new_v10_81M_144N_22_10-021511.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_14_10-162845.pkl') #/sc_project/test_data/forward_new_v10_81M_144N_22_10-021511.pkl') # '/sc_project/test_data/forward_new_v10_81M_144N_22_10-021849.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_12_10-023341.pkl') #/sc_project/test_data/forward_new_v10_81M_144N_12_10-132458.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-203208.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_12_10-023341.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-234644.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-234704.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-234644.pkl') #'/sc_project/test_data/forward_new_v10_81M_144N_11_10-203208.pkl') #'/sc_project/test_data/forward_new_v11_81M_144N_11_10-210349.pkl') #'/sc_project/test_data/forward_new_v8_81M_144N_06_09-211442.pkl') #
 weights['v'] = weights_v
-(actor_opt_state,critic_opt_state,weights_s) = load_('/sc_project/pkl_sc/outer_loop_pg_new_v4f_03_11-044700.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v4f_02_11-102024.pkl') #/sc_project/pkl_sc/outer_loop_pg_new_v4f_27_10-173751.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v4f_15_10-112328.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v4f__13_10-084115.pkl') #/sc_project/pkl_sc/outer_loop_pg_new_v4f__12_10-175620.pkl') #'/sc_project/test_data/outer_loop_pg_new_v4f_12_10-173828.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v6__21_09-125738.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v1_ppo__13_09-235540.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v3_c__13_09-174514.pkl', '/sc_project/test_data/outer_loop_pg_new_v3_c__13_09-174514.pkl')
+(actor_opt_state,critic_opt_state,weights_s) = load_('/sc_project/pkl_sc/outer_loop_pg_new_v4f_12_11-033326.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v4f_02_11-102024.pkl') #/sc_project/pkl_sc/outer_loop_pg_new_v4f_27_10-173751.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v4f_15_10-112328.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v4f__13_10-084115.pkl') #/sc_project/pkl_sc/outer_loop_pg_new_v4f__12_10-175620.pkl') #'/sc_project/test_data/outer_loop_pg_new_v4f_12_10-173828.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v6__21_09-125738.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v1_ppo__13_09-235540.pkl') #'/sc_project/pkl_sc/outer_loop_pg_new_v3_c__13_09-174514.pkl', '/sc_project/test_data/outer_loop_pg_new_v3_c__13_09-174514.pkl')
 weights['s'] = weights_s
 # *_,r_weights = load_('') #
 # weights['r'] = r_weights
