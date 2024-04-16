@@ -4,6 +4,7 @@ import jax.numpy as jnp
 import jax.random as rnd
 from jax import jit
 import optax
+import copy
 
 def gen_sc(keys, modules, action_space, plan_space):
     index_range = jnp.arange(modules**2)
@@ -55,7 +56,11 @@ def new_params(params, epoch):
 #     return carry, epsilon_n
 
 @jit
-def neuron_act(val,THETA,SIGMA_A,SIGMA_N,dot,pos):
+def neuron_act(dot,pos,params):
+    THETA = params["THETA"]
+    SIGMA_A = params["SIGMA_A"]
+    SIGMA_N = params["SIGMA_N"]
+    val = params["VAL"]
     key = rnd.PRNGKey(val)
     N_ = THETA.size
     dot = dot.reshape((1, 2))
@@ -95,7 +100,7 @@ def new_trajectory_step(carry_args, old_trajectory_t):
         "kl_vectors": optax.kl_divergence(jax.lax.stop_gradient(policy_t), policy_t),
         "kl_decisions": 0.0,
     }
-    carry_args = (pos_t, h_t, dots, select, weights, params)
+    carry_args = (old_pos_t, h_t, dots, select, weights, params)
     return carry_args, (new_trajectory, None)
 
 def get_reward(pos, dots, select, params, epoch):
@@ -110,6 +115,43 @@ def get_reward(pos, dots, select, params, epoch):
 
     reward = jnp.exp((jnp.cos(theta_d_0 - theta_d_1) - 1)/sigma_e**2)
     return reward
+
+def GRU_step(activations, h, weights):
+    z_t = jax.nn.sigmoid(jnp.matmul(weights["Wr_z"], activations[0]) + 
+                         jnp.matmul(weights["Wg_z"], activations[1]) + 
+                         jnp.matmul(weights["Wb_z"], activations[2]) + 
+                         jnp.matmul(weights["U_z"], h) + 
+                         weights["b_z"])
+    f_t = jax.nn.sigmoid(jnp.matmul(weights["Wr_r"], activations[0]) + 
+                         jnp.matmul(weights["Wg_r"], activations[1]) + 
+                         jnp.matmul(weights["Wb_r"], activations[2]) + 
+                         jnp.matmul(weights["U_r"], h) + 
+                         weights["b_r"])
+    hhat_t = jnp.tanh(jnp.matmul(weights["Wr_h"], activations[0]) + 
+                      jnp.matmul(weights["Wg_h"], activations[1]) + 
+                      jnp.matmul(weights["Wb_h"], activations[2]) + 
+                      jnp.matmul(weights["U_h"], jnp.multiply(f_t, h)) + 
+                      weights["b_h"])
+    h_t = jnp.multiply(z_t, h) + jnp.multiply((1 - z_t), hhat_t)
+    return h_t
+
+def critic_forward(h, weights, params):
+    W_full = weights["W_full"]
+    W_ap = weights["W_ap"]
+    v_pred_full = jnp.matmul(W_full, h)
+    v_pred_ap = jnp.take(v_pred_full, params["INDICES"])
+    return v_pred_ap
+
+def loss_obj(dot, pos, params, epoch):
+    sigma_k = sigma_fnc(params["VMAPS"], params["SIGMA_RINF"], params["SIGMA_R0"], params["TAU"], epoch)
+    dis = dot - pos
+    obj = (params["SIGMA_R0"] / sigma_k) * jnp.exp((jnp.cos(dis[0]) + jnp.cos(dis[1]) - 2) / sigma_k**2)
+    return obj
+
+def sigma_fnc(VMAPS, SIGMA_RINF, SIGMA_R0, TAU, epoch):
+    k = epoch
+    sigma_k = SIGMA_RINF * (1 - jnp.exp(-k / TAU)) + SIGMA_R0 * jnp.exp(-k / TAU)
+    return sigma_k
 
 def get_policy(args, weights_s, params):
     (hs_t_1,hv_t_1,*_,act_t,v_t,r_t,rp_t,move_counter,epoch) = args
@@ -141,6 +183,54 @@ def get_policy(args, weights_s, params):
     vectors_t = jax.nn.softmax((vec_logits/params["TEMP_VS"]) - jnp.max(vec_logits/params["TEMP_VS"]) + 1e-8)
     actions_t = jax.nn.softmax((act_logits/params["TEMP_AS"]) - jnp.max(act_logits/params["TEMP_AS"]) + 1e-8)
     return (vectors_t,actions_t),val_t,hs_t
+
+@jit
+def v_predict(h1vec, v_0, hv_t_1, act_t, weights_v, params, NONE_PLAN):
+    def loop_body(carry,i):
+        return RNN_forward(carry)
+    def RNN_forward(carry):
+        weights_v,h1vec,v_0,act_t,hv_t_1 = carry
+        plan_t = act_t[0]
+        move_t = act_t[1]
+        W_h1_f = weights_v["W_h1_f"]
+        W_h1_hh = weights_v["W_h1_hh"]
+        W_p_f = weights_v["W_p_f"]
+        W_p_hh = weights_v["W_p_hh"]
+        W_m_f = weights_v["W_m_f"]
+        W_m_hh = weights_v["W_m_hh"]
+        W_v_f = weights_v["W_v_f"]
+        W_v_hh = weights_v["W_v_hh"]
+        U_f = weights_v["U_f"]
+        U_hh = weights_v["U_hh"]
+        b_f = weights_v["b_f"]
+        b_hh = weights_v["b_hh"]
+        f_t = jax.nn.sigmoid(W_p_f*plan_t + W_m_f*move_t + jnp.matmul(W_h1_f,h1vec) + jnp.matmul(W_v_f,v_0) + jnp.matmul(U_f,hv_t_1) + b_f)
+        hhat_t = jax.nn.tanh(W_p_hh*plan_t + W_m_hh*move_t + jnp.matmul(W_h1_hh,h1vec) + jnp.matmul(W_v_hh,v_0) + jnp.matmul(U_hh,jnp.multiply(f_t,hv_t_1)) + b_hh)
+        hv_t = jnp.multiply((1-f_t),hv_t_1) + jnp.multiply(f_t,hhat_t)
+        return (weights_v,h1vec,v_0,act_t,hv_t),None
+    W_full = weights_v["W_full"]
+    W_ap = weights_v["W_ap"]
+    carry_0 = (weights_v,h1vec,v_0,act_t,hv_t_1)
+    (*_,hv_t),_ = jax.lax.scan(loop_body,carry_0,NONE_PLAN)
+    v_pred_full = jnp.matmul(W_full,hv_t)
+    v_pred_ap = jnp.take(v_pred_full, params["INDICES"])
+    return v_pred_ap,v_pred_full,hv_t
+
+def circular_mean(v_t, NEURON_GRID_AP):
+    x_data = NEURON_GRID_AP[0,:]
+    y_data = NEURON_GRID_AP[1,:]
+    theta = jnp.arctan2(y_data, x_data)
+    mean_sin = jnp.sum(jnp.sin(theta) * v_t) / jnp.sum(v_t)
+    mean_cos = jnp.sum(jnp.cos(theta) * v_t) / jnp.sum(v_t)
+    mean_x = jnp.arctan2(mean_sin, mean_cos) # cartesian
+    mean_y = jnp.sqrt(mean_sin**2 + mean_cos**2)
+    return jnp.array([mean_x,mean_y])
+
+@jit
+def r_predict(v_t, dot_t, MODULES, APERTURE, NEURON_GRID_AP, params, e):
+    mean = circular_mean(v_t,NEURON_GRID_AP)
+    r_pred_t = loss_obj(mean,dot_t,params,e)
+    return r_pred_t
 
 def sample_policy(policy, SC, ind):
     vectors, actions = policy
@@ -179,7 +269,7 @@ def move(h1vec, vec, v_t_1, hv_t_1, r_t_1, pos_plan_t_1, pos_t_1, dot_t_1, dot_v
 
     pos_t = pos_t_1 + vec
     v_t_, _, hv_t = v_predict(h1vec, v_t_1, hv_t_1, act_t, weights_v, params["NONE_PLAN"])
-    v_t = neuron_act_noise(val, params["THETA_AP"], params["SIGMA_A"], params["SIGMA_N"], dot_t, pos_t)
+    v_t = neuron_act(val, params["THETA_AP"], params["SIGMA_A"], params["SIGMA_N"], dot_t, pos_t)
     r_t = loss_obj(dot_t, pos_t, params, epoch)
     return r_t, v_t, hv_t, pos_plan_t, pos_t, dot_t
 
@@ -212,7 +302,7 @@ def scan_body(carry_tm1, x):
     return carry_t, (vec_ind, act_ind, arrs_t)
 
 def pg_obj(SC, hs_0, hp_0, pos_0, dot_0, dot_vec, ind, weights, weights_s, params, epoch):
-    v_0 = neuron_act_noise(ind[-1], params["THETA_AP"], params["SIGMA_A"], params["SIGMA_N"], dot_0, pos_0)
+    v_0 = neuron_act(ind[-1], params["THETA_AP"], params["SIGMA_A"], params["SIGMA_N"], dot_0, pos_0)
     r_0 = loss_obj(dot_0, pos_0, params, epoch)
     val_0 = 0.0
     act_0 = jnp.array([0,1], dtype=jnp.float32)
@@ -264,7 +354,7 @@ def pg_obj(SC, hs_0, hp_0, pos_0, dot_0, dot_vec, ind, weights, weights_s, param
     other = (r_arr.T, rp_arr.T, sample_arr.T, mask_arr.T, pos_plan_arr.transpose([1,0,2]), pos_arr.transpose([1,0,2]), dot_arr.transpose([1,0,2]), policy_arr, hs_arr, hv_arr, vec_ind_arr.T, act_ind_arr.T)
     return (actor_losses, critic_loss), (losses, stds, other)
 
-def get_entropy(policy):
+def get_entropy(policy, params):
     mean_entropy = jnp.mean(jnp.sum(-jnp.multiply(policy, jnp.log(policy)), axis=2), axis=None)
     sem_entropy = jnp.std(jnp.sum(-jnp.multiply(policy, jnp.log(policy)), axis=2), axis=None) / params["VMAPS"]**0.5
     return mean_entropy, sem_entropy
