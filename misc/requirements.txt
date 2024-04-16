@@ -1,0 +1,16 @@
+drawnow
+jax
+jaxlib
+matplotlib
+opt-einsum
+optax
+pandas
+Pillow
+ply
+pygame
+numpy
+jupyter
+ipywidgets
+notebook
+jupyterlab
+ipykernel
