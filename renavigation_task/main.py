@@ -17,7 +17,5 @@ def main():
     print(f"Simulation time: {datetime.now() - start_time}")
     print(f"Time per epoch: {((datetime.now() - start_time) / params['TOT_EPOCHS']).total_seconds()} seconds")
 
-    # Additional code for saving or plotting results can be added here
-
 if __name__ == "__main__":
     main()
