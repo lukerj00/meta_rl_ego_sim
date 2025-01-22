@@ -1,4 +1,4 @@
-# A Meta-RL Framework for Investigating Sensorimotor Transform in the Superior Colliculus
+# A Meta-RL Framework for Investigating Sensorimotor Transform in the Superior Colliculus 
 
 ## Project Overview
 
