@@ -1,4 +1,4 @@
-# Superior Colliculus-Inspired Reinforcement Learning in Continuous and Discrete Action Spaces
+# A Meta-RL Framework for Investigating Sensorimotor Transform in the Superior Colliculus
 
 ## Project Overview
 
